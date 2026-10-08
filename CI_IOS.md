@@ -55,7 +55,15 @@ fork 如果尚未启用 Actions，先在网页 Actions 中启用工作流。
 
 工作流从空构建目录开始，顺序编译 device arm64 和 simulator x86_64/arm64。
 这三种架构是官方 `renios.lipo` 的固定聚合输入。模拟器切片不会增大真机 App。
-不恢复 `tmp/complete` 或二进制缓存，避免旧对象被当成本次源码构建。
+不恢复 `tmp/complete`、安装目录或构建目录，每轮仍从头执行官方任务。
+只缓存 `.ci-ccache` 中的编译结果（上限 2 GiB），保留 ccache 默认的源码、头文件和编译参数校验，
+编译器身份使用内容哈希；不启用 sloppiness。SDK 归档、SDK 目录、Cubism 原包和凭据不进入缓存。
+使用独立 restore/save 步骤，失败轮次也保存已完成的编译结果，日志记录命中统计。
+缓存按 Ubuntu 24 / LLVM 18 / 8.5.3 分组，每次运行使用新 key；缓存服务故障不会阻止完整构建。
+本次新增缓存的首轮没有历史缓存可恢复，后续轮次才可受益；配置、链接、Cython 生成仍会执行，
+具体提速以实际命中统计和耗时为准。
+依据：[GitHub 缓存说明](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)、
+[ccache 校验机制](https://ccache.dev/manual/latest.html)。
 
 CI 从 Ubuntu 仓库安装编译依赖，并使用本提交的 `requirements.txt` 建立宿主 venv，直接调用
 `python -m renpybuild`（与 `build.sh` 相同入口）。不执行上游 `prepare.sh` 的分支拉取及桌面启动步骤，
@@ -74,6 +82,18 @@ LLVM 15 仅用于上游硬编码的 lipo/otool 检查，编译器为 LLVM 18。
 本地使用 Xcode Clang、iOS 14 SDK 和实际 MetalANGLE framework 验证了三架构 × C/C++：
 旧参数六组均复现错误；新参数六组编译与链接均通过。该验证不等同于 Linux Clang 18 完整构建通过，
 后者以修复提交的新 Actions 结果为准。
+
+运行 `37746797824` 已通过上述 MetalANGLE 修复和三架构依赖构建，源码阶段耗时约 42 分钟，
+随后在 `build-librenpy.ios-arm64-py3` 失败：`core.c` 与 `renpysound_core.c` 找不到
+`renpy.pygame.surface_api.h`。官方 `gen_static3` 使用 `RENPY_STATIC=1`，输出到
+`tmp/gen3-static`，但原生编译任务只添加了 `tmp/gen3` 搜索路径；干净 CI 没有普通构建的历史头文件。
+修复 C/C++ 搜索路径为静态生成目录，并在生成结束后立即检查必需 API 头文件，缺失时明确报错。
+本地用锁定的 Cython 3.1.4 实际生成 surface API，再编译两个真实失败源文件：
+旧路径两项均复现同一缺失头文件错误，新路径两项均通过。
+此回归使用 macOS Clang、宿主 Python 3.13 头文件与 SDL2 头文件，只验证路径问题；
+Linux Clang 18 / CPython 3.12.8 / 三架构完整结果仍以 Actions 为准。
+CPython 安装日志中的 `_multiprocessing` 缺失是上游 `compileall -j0` 的已忽略错误，
+相关任务随后完成；它不是此轮使 Actions 退出的原因。
 
 成功后提供 `renpy-8.5.3-ios-source-<run>-<attempt>` artifact，包含 tar.gz 与 SHA-256：
 

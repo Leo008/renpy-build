@@ -23,6 +23,9 @@ jobs:
       PYTHONUNBUFFERED: '1'
       PYTHONHASHSEED: '0'
       RENPY_DEPS_INSTALL: /usr::/usr/lib/x86_64-linux-gnu/
+      CCACHE_DIR: ${{ github.workspace }}/.ci-ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPILERCHECK: content
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
@@ -71,12 +74,32 @@ jobs:
           git -C renpy fetch --depth 1 origin 39895c1e017f0b36ffea2447d97eccd69d76ee1c
           git -C renpy checkout --detach FETCH_HEAD
           test "$(git -C renpy rev-parse HEAD)" = 39895c1e017f0b36ffea2447d97eccd69d76ee1c
+      - name: Restore compiler cache
+        id: compiler-cache
+        continue-on-error: true
+        uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: .ci-ccache
+          key: renpy-ios-8.5.3-ubuntu24-llvm18-ccache-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: renpy-ios-8.5.3-ubuntu24-llvm18-ccache-v1-
       - name: Build official device and simulator libraries
+        id: source-build
         run: |
           source tmp/ci/venv/bin/activate
+          ccache --zero-stats
           # 与 build.sh 相同的官方入口；隔离宿主依赖，避免 uv 自动更换 Cython。
           python -m renpybuild --platform ios --arch arm64,sim-x86_64,sim-arm64 --python 3 \
             2>&1 | tee tmp/ci/logs/build.log
+      - name: Record compiler cache statistics
+        if: always() && (steps.source-build.outcome == 'success' || steps.source-build.outcome == 'failure')
+        run: ccache --show-stats 2>&1 | tee tmp/ci/ccache-stats.txt
+      - name: Save compiler cache even after compile failure
+        if: always() && !cancelled() && (steps.source-build.outcome == 'success' || steps.source-build.outcome == 'failure') && steps.compiler-cache.outputs.cache-primary-key != ''
+        continue-on-error: true
+        uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: .ci-ccache
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
       - name: Verify and package source-built libraries
         run: python3 tools/ci_ios.py package
       - name: Upload build products

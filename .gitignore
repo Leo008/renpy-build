@@ -20,3 +20,4 @@ live2d
 renpyweb
 tmp.initial/
 unpacked
+/.ci-ccache/

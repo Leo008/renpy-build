@@ -10,22 +10,29 @@ def clean(c: Context):
 
 @task(kind="host-python", platforms="all", pythons="3", always=True)
 def gen_static3(c: Context):
+    """生成静态模块及 C API 头文件，缺失时立即终止源码构建。"""
 
     c.chdir("{{ renpy }}")
     c.env("RENPY_DEPS_INSTALL", "/usr::/usr/lib/x86_64-linux-gnu/")
     c.env("RENPY_STATIC", "1")
     c.env("RENPY_REGENERATE_CYTHON", "1")
     c.run("{{ hostpython }} setup.py generate")
+    header = c.path("{{ renpy }}/tmp/gen3-static/renpy.pygame.surface_api.h")
+    if not header.is_file():
+        raise RuntimeError(f"[RenPyCI] 静态 Cython API 头文件未生成：{header}")
+    print(f"[RenPyCI] 静态 Cython API 头文件已验证：{header.name}")
 
 
 @task(kind="python", platforms="all", always=True)
 def build(c: Context):
+    """编译静态模块，使用与 Cython 输出一致的生成目录查找 API 头文件。"""
 
     if c.platform == "web" and c.python == "2":
         return
 
-    c.env("CFLAGS", """{{ CFLAGS }} "-I{{ renpy }}/src" "-I{{renpy}}/tmp/gen3" """)
-    c.env("CXXFLAGS", """{{ CXXFLAGS }} "-I{{ renpy }}/src" "-I{{renpy}}/tmp/gen3" """)
+    c.env("CFLAGS", """{{ CFLAGS }} "-I{{ renpy }}/src" "-I{{renpy}}/tmp/gen3-static" """)
+    c.env("CXXFLAGS", """{{ CXXFLAGS }} "-I{{ renpy }}/src" "-I{{renpy}}/tmp/gen3-static" """)
+    print("[RenPyCI] librenpy 使用 tmp/gen3-static 中的静态 Cython API 头文件")
 
     gen = "gen3-static/"
 
