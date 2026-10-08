@@ -67,6 +67,7 @@ jobs:
           dpkg-query -W > tmp/ci/ubuntu-packages.txt
           clang-18 --version > tmp/ci/compiler.txt
           python3 tools/ci_ios.py check-space
+          python3 tools/ci_ios.py check-tools
       - name: Checkout matching engine
         run: |
           git init renpy

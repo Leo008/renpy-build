@@ -95,6 +95,22 @@ Linux Clang 18 / CPython 3.12.8 / 三架构完整结果仍以 Actions 为准。
 CPython 安装日志中的 `_multiprocessing` 缺失是上游 `compileall -j0` 的已忽略错误，
 相关任务随后完成；它不是此轮使 Actions 退出的原因。
 
+运行 `37754960959` 已完成三架构源码编译、标准库打包和官方 lipo 聚合，
+但 `tools/ci_ios.py package` 对普通 `ar` 归档执行 `llvm-lipo-15 -archs` 时 SIGSEGV。
+这是校验工具的输入处理缺陷：`printBinaryArchs` 没有普通 Archive 分支，
+落入 IRObjectFile 强制转换。已核对 LLVM 15.0.7 和 18.1.8 官方源码中都有同一逻辑，
+因此不能假定升级到 LLVM 18 就会修复，也没有证据把它归因于 LTO/bitcode 版本不匹配。
+依据：[LLVM 15 的实现](https://github.com/llvm/llvm-project/blob/llvmorg-15.0.7/llvm/tools/llvm-lipo/llvm-lipo.cpp#L382)、
+[LLVM 18 的实现](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/tools/llvm-lipo/llvm-lipo.cpp#L379)。
+
+校验函数识别普通归档后，先用已有且成功执行的 `-create` 路径封装临时单切片 universal，
+再用 `-archs` 查询；临时文件随即清理，原始库不改写。原有精确架构集合检查继续保留。
+新增 `check-tools`：完整编译前用 Linux Clang 18 / llvm-ar-18 生成真实 arm64/x86_64 归档，
+验证普通与双架构归档的查询路径，尽早暴露工具问题。
+本地 Xcode lipo 验证三目标归档、双架构聚合、10 个官方核心库和损坏归档拒绝路径通过；
+Linux 工具检查和最终 CI 打包结果仍需实际运行确认。
+本轮已保存约 250 MB 的 ccache，后续可恢复；不复用完成标记或安装目录。
+
 成功后提供 `renpy-8.5.3-ios-source-<run>-<attempt>` artifact，包含 tar.gz 与 SHA-256：
 
 - `renios/`：官方模板、静态库与 MetalANGLE。

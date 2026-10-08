@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import urllib.request
 import zipfile
 
@@ -19,6 +20,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 BASE_COMMIT = "7bfab40c1174f622f644b24669afd5fb167fbb79"
 ENGINE_COMMIT = "39895c1e017f0b36ffea2447d97eccd69d76ee1c"
+LIPO = "llvm-lipo-15"
 INPUTS = (
     ("IOS_DEVICE_SDK", "iPhoneOS14.0.sdk.tar.gz"),
     ("IOS_SIMULATOR_SDK", "iPhoneSimulator14.0.sdk.tar.gz"),
@@ -124,6 +126,47 @@ def check_space():
         raise ValueError("准备依赖后至少需要 40 GiB 空闲空间，请使用更大 runner")
 
 
+def library_architectures(path):
+    """将普通静态归档临时封装后读取架构，避开 llvm-lipo 的归档查询崩溃。"""
+    with path.open("rb") as stream:
+        is_archive = stream.read(8) == b"!<arch>\n"
+    with tempfile.TemporaryDirectory(prefix="renpy-lipo-") as directory:
+        query = path
+        if is_archive:
+            query = Path(directory) / "universal.a"
+            subprocess.run([LIPO, "-create", str(path), "-output", str(query)], check=True)
+        return set(subprocess.check_output([LIPO, "-archs", str(query)], text=True).split())
+
+
+def check_tools():
+    """在完整编译前实际验证普通归档和双架构归档的校验路径。"""
+    with tempfile.TemporaryDirectory(prefix="renpy-tool-check-") as directory:
+        root = Path(directory)
+        libraries = []
+        results = {}
+        for arch, target in (("arm64", "arm64-apple-ios13.0"),
+                             ("x86_64", "x86_64-apple-ios13.0-simulator")):
+            obj = root / f"{arch}.o"
+            library = root / f"{arch}.a"
+            subprocess.run(["clang-18", "-target", target, "-x", "c", "-c", "-",
+                            "-o", str(obj)], input="int renpy_ci_probe(void) { return 0; }\n",
+                           text=True, check=True)
+            subprocess.run(["llvm-ar-18", "rcs", str(library), str(obj)], check=True)
+            actual = library_architectures(library)
+            if actual != {arch}:
+                raise ValueError(f"工具链普通归档架构异常：{arch} / {actual}")
+            results[arch] = sorted(actual)
+            libraries.append(str(library))
+        universal = root / "universal.a"
+        subprocess.run([LIPO, "-create", *libraries, "-output", str(universal)], check=True)
+        actual = library_architectures(universal)
+        if actual != {"arm64", "x86_64"}:
+            raise ValueError(f"工具链双架构归档异常：{actual}")
+        results["universal"] = sorted(actual)
+    (ROOT / "tmp/ci/toolchain-check.json").write_text(json.dumps(results, indent=2) + "\n")
+    log("工具链普通归档与双架构归档校验通过")
+
+
 def package():
     """校验三架构核心静态库、标准库及完成标记，打包可追溯的原始产物。"""
     if git("rev-parse", "HEAD", cwd=ROOT / "renpy") != ENGINE_COMMIT:
@@ -138,8 +181,8 @@ def package():
     for arch, expected in (("arm64", "arm64"), ("sim-arm64", "arm64"), ("sim-x86_64", "x86_64")):
         for name in required:
             path = ROOT / f"tmp/install.ios-{arch}/lib" / name
-            actual = subprocess.check_output(["llvm-lipo-15", "-archs", str(path)], text=True).strip()
-            if actual != expected:
+            actual = library_architectures(path)
+            if actual != {expected}:
                 raise ValueError(f"{arch}/{name} 架构异常：{actual}")
         marker = ROOT / f"tmp/complete/link_ios-renpython.ios-{arch}-py3"
         if not marker.is_file():
@@ -147,7 +190,7 @@ def package():
     for variant, expected in (("release", {"arm64"}), ("debug", {"arm64", "x86_64"})):
         for name in required:
             path = renios / "prototype/prebuilt" / variant / name
-            actual = set(subprocess.check_output(["llvm-lipo-15", "-archs", str(path)], text=True).split())
+            actual = library_architectures(path)
             if actual != expected:
                 raise ValueError(f"renios 聚合产物错误：{variant}/{name}")
     if not (renios / "prototype/Frameworks/MetalANGLE.xcframework/Info.plist").is_file():
@@ -184,11 +227,12 @@ def package():
 def main():
     """分派 CI 阶段，向 Actions 返回真实失败状态。"""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("stage", choices=("inputs", "check-space", "package"))
+    parser.add_argument("stage", choices=("inputs", "check-space", "check-tools", "package"))
     stage = parser.parse_args().stage
     os.chdir(ROOT)
     try:
-        {"inputs": fetch_inputs, "check-space": check_space, "package": package}[stage]()
+        {"inputs": fetch_inputs, "check-space": check_space,
+         "check-tools": check_tools, "package": package}[stage]()
     except (ValueError, OSError, subprocess.CalledProcessError, tarfile.TarError, zipfile.BadZipFile) as error:
         log(f"失败：{error}")
         return 1
