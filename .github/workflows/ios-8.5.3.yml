@@ -1,0 +1,102 @@
+name: RenPy 8.5.3 iOS source build
+
+on:
+  push:
+    branches: [codex/ios-8.5.3-actions]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-8.5.3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONHASHSEED: '0'
+      RENPY_DEPS_INSTALL: /usr::/usr/lib/x86_64-linux-gnu/
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate and fetch external inputs
+        env:
+          IOS_DEVICE_SDK_URL: ${{ secrets.IOS_DEVICE_SDK_URL }}
+          IOS_DEVICE_SDK_SHA256: ${{ secrets.IOS_DEVICE_SDK_SHA256 }}
+          IOS_SIMULATOR_SDK_URL: ${{ secrets.IOS_SIMULATOR_SDK_URL }}
+          IOS_SIMULATOR_SDK_SHA256: ${{ secrets.IOS_SIMULATOR_SDK_SHA256 }}
+          CUBISM_SDK_URL: ${{ secrets.CUBISM_SDK_URL }}
+          CUBISM_SDK_SHA256: ${{ secrets.CUBISM_SDK_SHA256 }}
+          CI_INPUTS_PASSWORD: ${{ secrets.CI_INPUTS_PASSWORD }}
+        run: |
+          mkdir -p tmp/ci/logs
+          python3 tools/ci_ios.py inputs 2>&1 | tee tmp/ci/logs/inputs.log
+      - name: Prepare disposable Linux runner
+        run: |
+          # 仅清理 GitHub 托管临时机的无关工具，给官方源码构建留出空间。
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h .
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git build-essential ccache unzip autoconf autoconf-archive automake libtool-bin \
+            pkg-config python3-dev python3-pip python3-venv curl ca-certificates \
+            libgmp-dev libmpfr-dev libmpc-dev libssl-dev libbz2-dev liblzma-dev \
+            zlib1g-dev libffi-dev bc cmake ninja-build clang-18 lld-18 llvm-18 llvm-15 \
+            libxml2-dev libavcodec-dev libavformat-dev libswresample-dev libswscale-dev \
+            libfreetype6-dev libfribidi-dev libsdl2-dev libsdl2-image-dev \
+            libsdl2-gfx-dev libsdl2-mixer-dev libsdl2-ttf-dev libjpeg-dev \
+            libharfbuzz-dev libassimp-dev
+          resource_dir="$(clang-18 -print-resource-dir)"
+          sudo mkdir -p "$resource_dir/lib"
+          sudo tar xzf prebuilt/clang_rt.tar.gz -C "$resource_dir/lib"
+          python3 -m venv tmp/ci/venv
+          tmp/ci/venv/bin/python -m pip install -r requirements.txt
+          tmp/ci/venv/bin/python -m pip freeze > tmp/ci/host-python-requirements.txt
+          dpkg-query -W > tmp/ci/ubuntu-packages.txt
+          clang-18 --version > tmp/ci/compiler.txt
+          python3 tools/ci_ios.py check-space
+      - name: Checkout matching engine
+        run: |
+          git init renpy
+          git -C renpy remote add origin https://github.com/renpy/renpy.git
+          git -C renpy fetch --depth 1 origin 39895c1e017f0b36ffea2447d97eccd69d76ee1c
+          git -C renpy checkout --detach FETCH_HEAD
+          test "$(git -C renpy rev-parse HEAD)" = 39895c1e017f0b36ffea2447d97eccd69d76ee1c
+      - name: Build official device and simulator libraries
+        run: |
+          source tmp/ci/venv/bin/activate
+          # 与 build.sh 相同的官方入口；隔离宿主依赖，避免 uv 自动更换 Cython。
+          python -m renpybuild --platform ios --arch arm64,sim-x86_64,sim-arm64 --python 3 \
+            2>&1 | tee tmp/ci/logs/build.log
+      - name: Verify and package source-built libraries
+        run: python3 tools/ci_ios.py package
+      - name: Upload build products
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: renpy-8.5.3-ios-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/renpy-8.5.3-ios-source.tar.gz
+            dist/renpy-8.5.3-ios-source.tar.gz.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload diagnostic evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: renpy-8.5.3-ios-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            tmp/ci/logs/
+            tmp/ci/*.json
+            tmp/ci/*.txt
+          if-no-files-found: warn
+          retention-days: 14
