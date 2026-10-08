@@ -62,6 +62,19 @@ CI 从 Ubuntu 仓库安装编译依赖，并使用本提交的 `requirements.txt
 避免它更换已锁定的引擎或要求 Linux 图形界面。目标 CPython 仍由官方任务从 3.12.8 源码编译。
 LLVM 15 仅用于上游硬编码的 lipo/otool 检查，编译器为 LLVM 18。
 
+### 已定位的 CI 失败及修复
+
+运行 `37742861468` 在 `build-libavif.ios-arm64` 失败：
+`clang-18: error: -framework MetalANGLE: 'linker' input unused [-Werror,-Wunused-command-line-argument]`。
+上游 `metalangle.annotate` 将链接参数混入 CFLAGS/CXXFLAGS，libavif 启用 `-Werror`；
+较新的 CMake 路径又会移除 CC 中原有的 unused-argument 抑制参数，因此错误在此处暴露。
+修复将 `-framework MetalANGLE` 和链接搜索路径移入 LDFLAGS，编译参数保留 `-F` 和 `-DMETALANGLE`。
+没有关闭 `-Werror`，也没有移除 AVIF 或 MetalANGLE 功能。
+
+本地使用 Xcode Clang、iOS 14 SDK 和实际 MetalANGLE framework 验证了三架构 × C/C++：
+旧参数六组均复现错误；新参数六组编译与链接均通过。该验证不等同于 Linux Clang 18 完整构建通过，
+后者以修复提交的新 Actions 结果为准。
+
 成功后提供 `renpy-8.5.3-ios-source-<run>-<attempt>` artifact，包含 tar.gz 与 SHA-256：
 
 - `renios/`：官方模板、静态库与 MetalANGLE。
