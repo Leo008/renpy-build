@@ -214,6 +214,10 @@ def python3(c: Context):
 
     # The list of rules.
     rules = set(PY3_MODULES.split())
+    # iOS 不执行桌面 Steamworks 生成任务，独立构建不能要求它的生成文件。
+    if c.platform == "ios":
+        rules.remove("steamapi")
+        print("[RenPyCI] iOS 标准库不要求桌面专用 steamapi；其余模块仍严格检查")
     used_rules = set()
 
     search = [

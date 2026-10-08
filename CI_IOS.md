@@ -39,6 +39,8 @@ Ren’Py 8.5.3 已要求 Live2D 5.3 Core，而 5-r.4.1 Core 缺少 `csmGetRender
 依据：[Ren’Py 8.5.3 变更记录](https://www.renpy.org/doc/html/changelog.html)、
 [Live2D 官方 Core 分发说明](https://docs.live2d.com/en/cubism-sdk-manual/cubism-sdk-for-native/)。
 Steamworks 不用于此 iOS 目标，不要求提供。
+独立 iOS 构建不会执行 `steam.build` 的桌面生成步骤，因此 `pythonlib` 在 iOS 上移除
+`steamapi` 打包规则，避免最后阶段把本就未生成的桌面专用文件当作必需项；其余缺失模块继续报错。
 
 ## 执行与产物
 
