@@ -34,6 +34,8 @@ Cubism 使用用户从官网下载的 5-r.4.1 完整 SDK，仅提供 Cython/原�
 GitHub Framework release 不包含 Core。`tasks/live2d.py` 明确更新文件名和目录，不把新版本改名冒充旧版。
 Ren’Py 8.5.3 已要求 Live2D 5.3 Core，而 5-r.4.1 Core 缺少 `csmGetRenderOrders`；
 本工作流不链接/打包其 Core 二进制，不宣称 Live2D 已可运行。后续必须接入匹配 Core 并验收模型。
+本地 `nm` 已确认 5-r.4.1 的 iPhoneOS 和 iPhoneSimulator Core 均缺少此符号；
+其 Release 模拟器库仅有 x86_64，后续还需补齐 arm64 模拟器 Core。
 依据：[Ren’Py 8.5.3 变更记录](https://www.renpy.org/doc/html/changelog.html)、
 [Live2D 官方 Core 分发说明](https://docs.live2d.com/en/cubism-sdk-manual/cubism-sdk-for-native/)。
 Steamworks 不用于此 iOS 目标，不要求提供。
@@ -44,6 +46,10 @@ Steamworks 不用于此 iOS 目标，不要求提供。
 首次创建分支即可由 `push` 触发；GitHub 的 `workflow_dispatch` 需要工作流先存在于默认分支，
 因此在未合并默认分支时，请使用已有运行的 Re-run 或再次推送。
 fork 如果尚未启用 Actions，先在网页 Actions 中启用工作流。
+
+2026-10-08：已完成独立 GitHub 授权、同版 libc++ 头文件补齐、SDK 真实版本和哈希校验、
+输入加密与本地解密验证。使用者已明确授权将三个加密输入上传至自己的公开 fork，仅用于自行构建。
+首个配置提交使用 `[skip ci]`，待输入附件上传完成后再推送本说明更新来触发首轮源码构建。
 
 工作流从空构建目录开始，顺序编译 device arm64 和 simulator x86_64/arm64。
 这三种架构是官方 `renios.lipo` 的固定聚合输入。模拟器切片不会增大真机 App。
