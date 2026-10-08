@@ -111,6 +111,16 @@ CPython 安装日志中的 `_multiprocessing` 缺失是上游 `compileall -j0` �
 Linux 工具检查和最终 CI 打包结果仍需实际运行确认。
 本轮已保存约 250 MB 的 ccache，后续可恢复；不复用完成标记或安装目录。
 
+### 已通过的源码 CI
+
+2026-10-08，修复提交 `37b59c805d481b976b4ceb26fcad0aade52d4783` 对应的
+[运行 37760587281](https://github.com/Leo008/renpy-build/actions/runs/37760587281) 已全部成功。
+Linux 工具链提前检查、三架构源码编译、标准库打包、核心库精确架构校验、最终打包及 artifact 上传均通过。
+产物为 `renpy-8.5.3-ios-source-37760587281-1`，另有日志和构建报告 artifact。
+恢复上一轮 ccache 后，可缓存编译调用命中率 96.22%；源码阶段为 884.3 秒，
+上一轮为 2037.7 秒（约 34 分钟降至 14 分 44 秒）。此对比不是整个 job 的耗时。
+这确认源码 CI 阻塞已解除，macOS XCFramework 封装、Xcode 完整链接和运行验收仍需后续完成。
+
 成功后提供 `renpy-8.5.3-ios-source-<run>-<attempt>` artifact，包含 tar.gz 与 SHA-256：
 
 - `renios/`：官方模板、静态库与 MetalANGLE。
