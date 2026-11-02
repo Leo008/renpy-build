@@ -15,13 +15,13 @@
         "run_linux_host_python_bootstrap.py",
         "ci_linux_host_python_bootstrap.py"
       ],
-      "sha256": "154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63"
+      "sha256": "1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7"
     },
     "H1_execution": {
       "aliases": [
         "run_locked_host_python_tasks.py"
       ],
-      "sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612"
+      "sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c"
     },
     "inventory": {
       "aliases": [
@@ -30,8 +30,8 @@
       "sha256": "2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824"
     }
   },
-  "H1_ci_plan_sha256": "4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537",
-  "H1_host_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+  "H1_ci_plan_sha256": "d686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2",
+  "H1_host_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
   "extra": {
     "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h2-target-inputs-20261102-01.tar.gz.enc",
     "ciphertext": {
@@ -83,6 +83,8 @@
     "H0/H2输入各用独立宿主密钥经stdin解密，清空容器环境，不传秘密、不读取Apple SDK。",
     "只验独立有效route完整导出，不因H1 aggregate失败拒绝其他有效route；缺route未运行，坏route失败。",
     "恢复原完整prefix后再核实际版本/SSL/ELF/分发及原九scope计划；18证据/两producer/六原wheel不可裁剪或重写。",
-    "本组原exit2及9scope行保留，不代表完整源码CI、iOS ABI/会话或RenPy移植完成。"
-  ]
+    "本组原exit2及9scope行保留，不代表完整源码CI、iOS ABI/会话或RenPy移植完成。",
+    "只接纳本固定execution hostplan9e，旧addon352仅作输入来源；不得用新profile重核旧成功产物。"
+  ],
+  "H1_addon_host_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
 }

@@ -23,7 +23,7 @@ import zipfile
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-target-python-replay-ci-plan.json"
-PLAN_SHA256 = "d24928eea6d61fd88372821542244c5c5063d60382319928cdcb2670f49016d8"
+PLAN_SHA256 = "a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb"
 ALL_SCOPES = {"8.5.3-host-ci-success", "8.5.3-target-ci-success", "8.5.3-target-recipe", "8.4.1-host-recipe",
               "8.4.1-target-recipe", "8.3.7-host-recipe", "8.3.7-target-recipe", "7.8.7-host-recipe", "7.8.7-target-recipe"}
 TARGETS = {"24.04": ["8.5.3-target-ci-success", "8.5.3-target-recipe", "8.4.1-target-recipe"],
@@ -220,12 +220,13 @@ def load_plan(path=DEFAULT_PLAN):
     raw = guarded(path).read_bytes()
     require(hashlib.sha256(raw).hexdigest() == PLAN_SHA256, "H2计划原字节改变")
     plan = json.loads(raw)
-    require(set(plan) == {"schema_version", "task", "scope", "helpers", "H1_ci_plan_sha256", "H1_host_plan_sha256",
+    require(set(plan) == {"schema_version", "task", "scope", "helpers", "H1_ci_plan_sha256", "H1_host_plan_sha256", "H1_addon_host_plan_sha256",
                           "extra", "extra_manifest", "groups", "versions", "runtime", "six_wheel_lock_sha256", "limitations"}
             and type(plan["schema_version"]) is int and plan["schema_version"] == 1
             and plan["task"] == "R00-02J2C-H2-Linux" and plan["groups"] == TARGETS and plan["versions"] == VERSIONS
             and plan["scope"] == "five_exact_target_version_linux_scopes_only_no_ios_acceptance"
             and plan["runtime"] == RUNTIME and plan["extra_manifest"] == EXTRA_MANIFEST
+            and plan["H1_addon_host_plan_sha256"] == "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
             and plan["six_wheel_lock_sha256"] == SIX_LOCK, "H2固定范围/输入身份错误")
     return plan
 
@@ -297,7 +298,9 @@ def classify_exports(h0, h1, artifact, ubuntu, plan):
     require(header["task"] == "R00-02J2C-H1-Linux" and header["ubuntu"] == ubuntu and header["sdk_inputs_consumed"] is False,
             "H1原artifact范围不符")
     source_matches = (header.get("execution_h1_tool_sha256") == plan["helpers"]["H1_execution"]["sha256"]
-                      and header.get("H1_plan_sha256") == plan["H1_host_plan_sha256"])
+                      and header.get("H1_plan_sha256") == plan["H1_host_plan_sha256"]
+                      and header.get("execution_h1_plan_sha256") == plan["H1_host_plan_sha256"]
+                      and header.get("addon_h1_plan_sha256") == plan["H1_addon_host_plan_sha256"])
     replay_path = artifact / "container/python-replay/report.json"
     frontend_sha = file_identity(replay_path)["sha256"]
     frontend = h0.decode(h0.read(replay_path))
