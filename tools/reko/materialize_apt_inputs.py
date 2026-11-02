@@ -166,11 +166,16 @@ def environment_profile(lock_path, expected_sha, ubuntu):
 
 
 class SnapshotOnlyRedirect(urllib.request.HTTPRedirectHandler):
-    """HTTPS运输只允许固定snapshot服务内重定向，不向其他来源取包。"""
+    """每次运输只允许原精确HTTPS端点，镜像切换必须由显式计划留证据。"""
+
+    def __init__(self, url):
+        """绑定本次请求原URL，不接受同站换文件或隐式跨镜像重定向。"""
+        super().__init__()
+        self.url = url
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         """拒绝降级协议、凭据、查询参数和跨站地址。"""
-        validate_url(newurl)
+        require(newurl == self.url, "运输重定向URL越界")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -181,6 +186,22 @@ def validate_url(url):
             and not parsed.query and not parsed.fragment and not parsed.username
             and parsed.path.startswith("/ubuntu/"), "下载URL越界")
     relative(urllib.parse.unquote(parsed.path.removeprefix("/")))
+
+
+def transport_urls(url, mirror_pool=False):
+    """仅为固定snapshot中的同一规范deb派生官方pool镜像，索引始终只有原来源。"""
+    validate_url(url)
+    if not mirror_pool:
+        return [url]
+    parsed = urllib.parse.urlsplit(url)
+    match = re.fullmatch(r"/ubuntu/([0-9]{8}T[0-9]{6}Z)/(pool/.+\.deb)", parsed.path)
+    require(match is not None, "官方镜像运输仅限固定snapshot的deb池路径")
+    datetime.strptime(match[1], "%Y%m%dT%H%M%SZ")
+    filename = relative(urllib.parse.unquote(match[2]))
+    encoded = urllib.parse.quote(filename, safe="/+._~-")
+    require(url == "https://snapshot.ubuntu.com/ubuntu/" + match[1] + "/" + encoded, "deb池URL不是规范固定Filename")
+    return ["https://archive.ubuntu.com/ubuntu/" + encoded,
+            "https://security.ubuntu.com/ubuntu/" + encoded, url]
 
 
 def retryable_download_error(error):
@@ -206,7 +227,7 @@ def download_attempt(url, path, temporary, expected_sha, expected_size, opener):
     os.link(temporary, path)
 
 
-def reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root):
+def reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root, plan):
     """只复用独立缓存中逐字节通过的原件，坏缓存失败，复制后再次核验再独占发布。"""
     source = guarded(cache / target)
     if not source.exists() and not source.is_symlink():
@@ -222,14 +243,15 @@ def reuse_cached_download(cache, target, path, expected_sha, expected_size, url,
         temporary.unlink(missing_ok=True)
     write_json(evidence_root / "downloads" / uuid.uuid4().hex / "cache.json",
                {"result": "verified", "transport": "verified_original_bytes_cache", "url": url,
+                "source_url": url, "transport_urls": plan, "endpoint": "verified_cache", "fallback": False,
                 "source": str(source), "target": target, "bytes": expected_size, "sha256": expected_sha})
     print("[RenPyAptInputs] 复用已校验原件：" + target, flush=True)
     return True
 
 
-def download(url, path, expected_sha, expected_size, evidence_root, cache=None):
-    """固定源有界重试暂态运输故障，逐次保留证据，身份/路径错误立即失败。"""
-    validate_url(url)
+def download(url, path, expected_sha, expected_size, evidence_root, cache=None, mirror_pool=False):
+    """按固定源或deb官方镜像计划运输，只有缺文件/暂态耗尽允许切端点，身份错误即停。"""
+    plan = transport_urls(url, mirror_pool)
     valid_sha(expected_sha)
     require(type(expected_size) is int and expected_size > 0, "下载大小错误")
     path = guarded(path)
@@ -237,43 +259,51 @@ def download(url, path, expected_sha, expected_size, evidence_root, cache=None):
     evidence_root = guarded(evidence_root)
     target = relative(path.relative_to(evidence_root).as_posix())
     path.parent.mkdir(parents=True, exist_ok=True)
-    if cache is not None and reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root):
+    if cache is not None and reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root, plan):
         return
-    log_dir = evidence_root / "downloads" / uuid.uuid4().hex
-    opener = urllib.request.build_opener(SnapshotOnlyRedirect())
-    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
-        row = {"url": url, "target": target, "expected_sha256": expected_sha,
-               "expected_bytes": expected_size, "attempt": attempt, "max_attempts": DOWNLOAD_ATTEMPTS,
-               "started_at_utc": datetime.now(timezone.utc).isoformat()}
-        write_json(log_dir / ("%02d-started.json" % attempt), {**row, "result": "started"})
-        print(f"[RenPyAptInputs] 下载 {attempt}/{DOWNLOAD_ATTEMPTS}：{url}", flush=True)
-        temporary = path.with_name(path.name + ".part-" + uuid.uuid4().hex)
-        try:
-            download_attempt(url, path, temporary, expected_sha, expected_size, opener)
-        except Exception as error:
-            retryable = retryable_download_error(error)
-            retry = retryable and attempt < DOWNLOAD_ATTEMPTS
-            delay = 2 ** (attempt - 1) if retry else 0
-            result_path = log_dir / ("%02d-result.json" % attempt)
-            write_json(result_path, {**row, "result": "failed", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
-                                    "error_type": type(error).__name__,
-                                    "error": str(error), "http_status": getattr(error, "code", None),
-                                    "received_bytes": temporary.stat().st_size if temporary.exists() else 0,
-                                    "retryable": retryable, "retry_planned": retry, "retry_delay_seconds": delay})
-            if isinstance(error, urllib.error.HTTPError):
-                error.close()
-            print(f"[RenPyAptInputs] 下载失败 {attempt}/{DOWNLOAD_ATTEMPTS}：{error}；"
-                  + (f"{delay}秒后重试" if retry else "停止"), flush=True)
-            if not retry:
-                raise AptInputError("固定源下载失败：" + url + "；" + str(error) + "；详见" + str(result_path)) from error
-        else:
-            write_json(log_dir / ("%02d-result.json" % attempt), {**row, "result": "verified", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
-                                                               "actual_bytes": expected_size, "actual_sha256": expected_sha})
-            print(f"[RenPyAptInputs] 下载校验通过：{target}（{expected_size}字节）", flush=True)
-            return
-        finally:
-            temporary.unlink(missing_ok=True)
-        time.sleep(delay)
+    for endpoint_index, actual_url in enumerate(plan):
+        log_dir = evidence_root / "downloads" / uuid.uuid4().hex
+        opener = urllib.request.build_opener(SnapshotOnlyRedirect(actual_url))
+        for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+            row = {"source_url": url, "url": actual_url, "transport_urls": plan,
+                   "endpoint": urllib.parse.urlsplit(actual_url).netloc, "endpoint_index": endpoint_index,
+                   "fallback": endpoint_index > 0, "target": target, "expected_sha256": expected_sha,
+                   "expected_bytes": expected_size, "attempt": attempt, "max_attempts": DOWNLOAD_ATTEMPTS,
+                   "started_at_utc": datetime.now(timezone.utc).isoformat()}
+            write_json(log_dir / ("%02d-started.json" % attempt), {**row, "result": "started"})
+            print(f"[RenPyAptInputs] 下载端点 {endpoint_index + 1}/{len(plan)} 尝试 {attempt}/{DOWNLOAD_ATTEMPTS}：{actual_url}", flush=True)
+            temporary = path.with_name(path.name + ".part-" + uuid.uuid4().hex)
+            try:
+                download_attempt(actual_url, path, temporary, expected_sha, expected_size, opener)
+            except Exception as error:
+                retryable = retryable_download_error(error)
+                retry = retryable and attempt < DOWNLOAD_ATTEMPTS
+                absent = isinstance(error, urllib.error.HTTPError) and error.code in (404, 410)
+                fallback = endpoint_index + 1 < len(plan) and (absent or (retryable and not retry))
+                delay = 2 ** (attempt - 1) if retry else 0
+                result_path = log_dir / ("%02d-result.json" % attempt)
+                write_json(result_path, {**row, "result": "failed", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
+                                        "error_type": type(error).__name__, "error": str(error), "http_status": getattr(error, "code", None),
+                                        "received_bytes": temporary.stat().st_size if temporary.exists() else 0,
+                                        "retryable": retryable, "retry_planned": retry, "retry_delay_seconds": delay,
+                                        "fallback_planned": fallback})
+                if isinstance(error, urllib.error.HTTPError):
+                    error.close()
+                print(f"[RenPyAptInputs] 下载失败 {attempt}/{DOWNLOAD_ATTEMPTS}：{error}；"
+                      + (f"{delay}秒后重试" if retry else "切换计划中下一端点" if fallback else "停止"), flush=True)
+                if not retry:
+                    if fallback:
+                        break
+                    raise AptInputError("固定身份下载失败：" + actual_url + "；" + str(error) + "；详见" + str(result_path)) from error
+            else:
+                write_json(log_dir / ("%02d-result.json" % attempt), {**row, "result": "verified", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
+                                                                   "actual_bytes": expected_size, "actual_sha256": expected_sha})
+                print(f"[RenPyAptInputs] 下载校验通过：{target}（{expected_size}字节）", flush=True)
+                return
+            finally:
+                temporary.unlink(missing_ok=True)
+            time.sleep(delay)
+    raise AptInputError("固定身份运输计划没有完成")
 
 
 def release_fields(data):
@@ -546,7 +576,7 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
             control = item["control"]
             path = repo / request["filename"]
             url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(request["filename"], safe="/+._~-")
-            download(url, path, control["SHA256"], int(control["Size"]), output, cache)
+            download(url, path, control["SHA256"], int(control["Size"]), output, cache, mirror_pool=True)
             execute(["mkdir", "-p", "/reko/repo/" + str(PurePosixPath(request["filename"]).parent)], "deb-directory-%04d" % index)
             copy_to(path, "/reko/repo/" + request["filename"], "copy-deb-%04d" % index)
             raw_control, command = execute(["dpkg-deb", "--field", "/reko/repo/" + request["filename"]], "deb-control-%04d" % index)
@@ -554,6 +584,7 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
             actual = list(package_stanzas(control_path))
             require(len(actual) == 1 and all(actual[0].get(k) == control[k] for k in ("Package", "Version", "Architecture")), "实际deb控制身份不符")
             packages.append({**request, "source_url": url, "suite": item["suite"], "component": item["component"],
+                             "transport_urls": transport_urls(url, True),
                              "origins": item["origins"],
                              "control": control, "deb": file_record(output, path), "control_label": command["label"]})
         execute([*apt, "--yes", "--download-only", "--no-install-recommends", "install", *profile["direct_requirements"]], "apt-download-only")
@@ -667,7 +698,7 @@ def verify_bundle(root, expected_manifest_sha):
         path = check_file(root, package["deb"])
         require(digest(path) == control["SHA256"] and path.stat().st_size == int(control["Size"]), "deb与签名Packages不符")
         expected_url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(package["filename"], safe="/+._~-")
-        require(package["source_url"] == expected_url, "分发来源越界")
+        require(package["source_url"] == expected_url and package.get("transport_urls") == transport_urls(expected_url, True), "分发来源或运输计划越界")
         command, _ = command_by_label(root, manifest, package["control_label"])
         actual_control = list(package_stanzas(check_file(root, command["stdout"])))
         require("dpkg-deb" in command["argv"] and len(actual_control) == 1

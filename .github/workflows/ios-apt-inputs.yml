@@ -30,7 +30,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
       REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
-      REKO_APT_COLLECTOR_SHA256: '70a8592fa1011e8096e02d7f7aeaae6f5190e9bfbdd992768d47f4e997e03350'
+      REKO_APT_COLLECTOR_SHA256: '3f762dbcdd0e2e6c6dbad1a3ea6fc4b7814d4779661126dc6965a5c56b7c2c85'
       REKO_APT_ENVIRONMENT_SHA256: '674cbd94766fb3ca9da3a1d1a2ada05b942645257dafccec73aaf0b4fee1c6cc'
     steps:
       - name: 检出独立候选输入工具
