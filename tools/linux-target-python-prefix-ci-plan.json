@@ -119,21 +119,21 @@
     "7.8.7": "7.8.7-host-recipe"
   },
   "worker": {
-    "sha256": "d091b803a2675914c99f78410532d0efbabfbf9eea0debfc9c93a2021fd6e5fe",
-    "bytes": 54112,
-    "plan_sha256": "42498a925e9f968048c13ff4d1751bfe75aee3045839f8b9b4760ec68ae48e4e",
-    "plan_bytes": 103911
+    "sha256": "a8d5d3b9b5890194c40d77334d172804ed9b86b2f2447787593d4d6a739bc14b",
+    "bytes": 61610,
+    "plan_sha256": "5c74961aa0f957dc86553d38461674057130013cf4104dacd6bf4c940d4940d8",
+    "plan_bytes": 107494
   },
   "metadata_addon": [
     {
       "path": "runtime/run_locked_target_python_tasks.py",
-      "bytes": 54112,
-      "sha256": "d091b803a2675914c99f78410532d0efbabfbf9eea0debfc9c93a2021fd6e5fe"
+      "bytes": 61610,
+      "sha256": "a8d5d3b9b5890194c40d77334d172804ed9b86b2f2447787593d4d6a739bc14b"
     },
     {
       "path": "runtime/target-python-prefix-plan.json",
-      "bytes": 103911,
-      "sha256": "42498a925e9f968048c13ff4d1751bfe75aee3045839f8b9b4760ec68ae48e4e"
+      "bytes": 107494,
+      "sha256": "5c74961aa0f957dc86553d38461674057130013cf4104dacd6bf4c940d4940d8"
     },
     {
       "path": "runtime/validate_lock.py",
@@ -180,5 +180,5 @@
     "只执行原SDK/toolchain/mockrt/MetalANGLE/C静态前置任务；worker必须真实原/候选driver通过才继续C家族，失败无成功收据，无自动fallback。",
     "不执行target Python install/pip；不声明生产shared/iOS ABI或会话通过，运行结果仅由实际选中cell及完整回提产生。"
   ],
-  "metadata_source_commit": "00500d307a66e3fdc2bebf6e3762a30a62bd76ff"
+  "metadata_source_commit": "6828f4d6f92990b44841ee253e61c6fdb9e9df0b"
 }

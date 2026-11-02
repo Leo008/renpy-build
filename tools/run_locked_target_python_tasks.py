@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import importlib
 import json
@@ -25,7 +26,7 @@ import zipfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "target-python-prefix-plan.json"
-PLAN_SHA256 = "42498a925e9f968048c13ff4d1751bfe75aee3045839f8b9b4760ec68ae48e4e"
+PLAN_SHA256 = "5c74961aa0f957dc86553d38461674057130013cf4104dacd6bf4c940d4940d8"
 SCOPE = "four_approved_routes_original_ios_C_prerequisites_only"
 RELEASES = ("8.5.3", "8.4.1", "8.3.7", "7.8.7")
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
@@ -584,14 +585,107 @@ def driver_probe(original, tasks, row, arch, workspace, plan, output, preflight)
             (output / (stem + ".stdout")).write_bytes(result.stdout);(output / (stem + ".stderr")).write_bytes(result.stderr)
             records[label]["commands"].append({"argv": argv, "returncode": result.returncode, "stdout_sha256": sha(result.stdout), "stderr_sha256": sha(result.stderr)})
             if result.returncode != 0:break
-        records[label]["passed"] = len(records[label]["commands"]) == 2 and all(c["returncode"] == 0 for c in records[label]["commands"])
-        if records[label]["passed"]:
-            records[label]["object"] = {"sha256": sha(raw_file(obj)), **preflight.check_macho(raw_file(obj), cpu, target)}
-            records[label]["executable"] = {"sha256": sha(raw_file(executable)), **preflight.check_macho(raw_file(executable), cpu, target, True)}
+        records[label]["commands_passed"] = len(records[label]["commands"]) == 2 and all(c["returncode"] == 0 for c in records[label]["commands"])
+        records[label]["passed"] = False
+        if records[label]["commands_passed"]:
+            try:
+                for kind, path in (("object", obj), ("executable", executable)):
+                    raw = raw_file(path)
+                    records[label][kind] = {"sha256": sha(raw), "bytes": len(raw), **preflight.macho_identity(raw)}
+                    preflight.check_macho(raw, cpu, target, kind == "executable")
+                records[label]["passed"] = True
+            except Exception as error:
+                # 原命令成功但SDK/min等元数据拒绝仍是原driver失败；保留原值后继续明确候选。
+                records[label]["metadata_error"] = {"type": type(error).__name__, "message": str(error)}
+                log(label + " driver元数据拒绝；原值和错误保留至driver-result.json")
     write_new(output / "driver-result.json", records)
     require(records["candidate"]["passed"], "实际原 Context 候选 driver 未通过；见独占 driver-result.json")
     require(changes or records["original"]["passed"], "原 driver 失败且无批准候选")
     return records
+
+
+def bzip2_candidate_sources(workspace, row, plan, j8):
+    """只读取J1固定原包的Makefile和三个alias目标脚本，不能用同名自签材料替代。"""
+    config = plan["candidate_adaptations"]["bzip2_relative_aliases"]
+    require(row["release"] in config["releases"] and config["version"] == "1.0.8", "bzip2 alias路线/版本未批准")
+    source = next(item for item in row["sources"] if item["family"] == "bzip2")
+    require(source["version"] == config["version"], "bzip2原包版本不符")
+    archive = workspace / source["archive"]["path"]
+    j8.verify_bytes(raw_file(archive), source["archive"])
+    contents = {}
+    with tarfile.open(archive, "r:gz") as bundle:
+        for descriptor in (config["makefile_member"], *config["target_scripts"]):
+            member = bundle.getmember(descriptor["member"])
+            require(member.isfile(), "bzip2候选来源不是原普通成员")
+            data = bundle.extractfile(member).read()
+            require(len(data) == descriptor["bytes"] and sha(data) == descriptor["sha256"], "bzip2候选原成员SHA不符")
+            contents[descriptor["member"]] = data
+    return source["archive"], contents
+
+
+def prepare_bzip2_makefile_candidate(args, row, plan, j8):
+    """仅历史派生Makefile将唯一LDFLAGS=改为?=，保持原Task及两条原链接行不变。"""
+    config = plan["candidate_adaptations"]["bzip2_ldflags_environment"]
+    if row["release"] not in config["releases"]:
+        return None
+    archive, _ = bzip2_candidate_sources(args.workspace, row, plan, j8)
+    require(config["makefile_member"] == plan["candidate_adaptations"]["bzip2_relative_aliases"]["makefile_member"], "bzip2候选Makefile来源不一致")
+    patch = next(item for item in row["extra_inputs"] if item["path"] == "patches/bzip2-no-tests.diff")
+    require(patch == config["original_no_tests_patch"], "bzip2原no-tests补丁身份不符")
+    j8.verify_bytes(raw_file(args.workspace / patch["path"]), patch)
+    spec = next(item for item in row["tasks"] if (item["name"], item["task"]) == ("bzip2", "build"))
+    build, _ = expected_paths(args.workspace, row, args.arch, spec)
+    path = build / ("bzip2-" + config["version"]) / "Makefile";before = raw_file(path)
+    require({"bytes": len(before), "sha256": sha(before)} == config["after_original_no_tests"], "bzip2原no-tests后Makefile不符")
+    original, candidate = config["original_assignment"].encode(), config["candidate_assignment"].encode()
+    require(original == b"LDFLAGS=\n" and candidate == b"LDFLAGS?=\n" and before.count(original) == 1
+            and all(before.count(line.encode()) == 1 for line in config["link_recipes"]), "bzip2精确赋值/两链接行不同")
+    after = before.replace(original, candidate, 1)
+    require({"bytes": len(after), "sha256": sha(after)} == config["derived_makefile"], "bzip2派生Makefile身份不符")
+    difference = "".join(difflib.unified_diff(before.decode().splitlines(keepends=True), after.decode().splitlines(keepends=True),
+                                            fromfile="a/Makefile", tofile="b/Makefile"))
+    require(difference == config["derived_patch"] and sha(difference.encode()) == config["derived_patch_sha256"], "bzip2精确候选补丁不符")
+    with (args.output / "bzip2-makefile-before-candidate.txt").open("xb") as stream:stream.write(before)
+    with (args.output / "bzip2-ldflags-candidate.diff").open("x") as stream:stream.write(difference)
+    with path.open("wb") as stream:stream.write(after)
+    record = {"candidate": "bzip2_ldflags_environment", "reason": config["reason"], "archive": archive,
+              "original_makefile": config["makefile_member"], "original_no_tests_patch": patch,
+              "before": config["after_original_no_tests"], "after": config["derived_makefile"],
+              "derived_patch_sha256": config["derived_patch_sha256"], "original_Task_body_unchanged": True}
+    write_new(args.output / "bzip2-makefile-candidate.json", record)
+    log("已应用bzip2派生Makefile唯一LDFLAGS?=候选")
+    return record
+
+
+def normalize_bzip2_aliases(args, row, plan, context, j8, inventory):
+    """仅四个原Makefile的精确内部绝对alias改相对，先全核原链接/目标脚本再修改。"""
+    config = plan["candidate_adaptations"]["bzip2_relative_aliases"]
+    archive, contents = bzip2_candidate_sources(args.workspace, row, plan, j8)
+    prefix = guarded(context.install)
+    require(prefix == args.workspace / ("tmp/install.ios-" + args.arch) and (context.name, context.task) == ("bzip2", "build"), "bzip2 alias前缀/Task不符")
+    sources = {Path(item["member"]).name: item for item in config["target_scripts"]};changes = []
+    for item in config["aliases"]:
+        path = prefix / item["path"];guarded(path.parent)
+        expected = str(prefix / item["target"])
+        require(stat.S_ISLNK(path.lstat().st_mode) and os.readlink(path) == expected, "bzip2原alias不是精确已批准内部绝对目标")
+        target = prefix / item["target"];data = raw_file(target)
+        source = sources[Path(item["target"]).name]
+        require(data == contents[source["member"]] and item["relative_target"] == Path(item["target"]).name, "bzip2 alias目标脚本原字节/相对名不符")
+        changes.append({"path": item["path"], "original_target": expected, "relative_target": item["relative_target"], "target_source": source})
+    require(len(changes) == 4, "bzip2四原alias不完整")
+    approved = {item["path"]: item["original_target"] for item in changes}
+    for path in prefix.rglob("*"):
+        if path.is_symlink() and Path(os.readlink(path)).is_absolute():
+            require(approved.get(path.relative_to(prefix).as_posix()) == os.readlink(path), "bzip2候选拒绝未知绝对链接")
+    inventory.validate_links({item["path"]: item["relative_target"] for item in changes})
+    for item in changes:
+        path = prefix / item["path"];path.unlink();path.symlink_to(item["relative_target"])
+    record = {"candidate": "bzip2_relative_aliases", "reason": config["reason"], "archive": archive,
+              "original_makefile": config["makefile_member"], "links": changes, "only_explicit_internal_aliases_normalized": True,
+              "C_prerequisites_verified": False}
+    write_new(args.output / "bzip2-alias-normalization.json", record)
+    log("已将bzip2四个已批准内部alias规范为相对链接")
+    return record
 
 
 def gate_inputs(args, row, validator, common, commands):
@@ -654,12 +748,15 @@ def execute_tasks(args, plan, row, j8, original, tasks, inventory, preflight):
     before_functions = [t.function for t in tasks.tasks]
     method, annotators = tasks.Task.run, list(tasks.annotators)
     events, receipts, probes, bootstrap = [], [], None, None
+    bzip2_makefile, bzip2_aliases = None, None
     context_type = audited_context(original, row, args.arch, args.workspace, plan, events, args.output / "task-events.jsonl")
     for task, spec in selected:
         require(task.name in ("toolchain", "metalangle") or (probes is not None and probes["candidate"]["passed"]),
                 "完整候选 driver 通过前禁止运行其他 C 家族")
         require(task.function is before_functions[spec["index"]] and tasks.Task.run is method and tasks.annotators == annotators,
                 "原 Task/body/annotators 被替换")
+        if (task.name, task.task) == ("bzip2", "build"):
+            bzip2_makefile = prepare_bzip2_makefile_candidate(args, row, plan, j8)
         context = context_type("ios", args.arch, row["python"], args.workspace, argparse.Namespace(nostrip=False, sdl=False, experimental=False))
         task.run(context)
         require(context.audit_position == len(spec["operations"][args.arch]) and context.task_name in tasks.ran_tasks,
@@ -677,7 +774,10 @@ def execute_tasks(args, plan, row, j8, original, tasks, inventory, preflight):
             archive = args.workspace / "source" / ("MetalANGLE.framework.ios.zip" if args.arch == "arm64" else "MetalANGLE.framework.ios.simulator.zip")
             framework = verify_framework(archive, context.install, args.arch, inventory)
             probes = driver_probe(original, tasks, row, args.arch, args.workspace, plan, args.output, preflight)
+        if (task.name, task.task) == ("bzip2", "build"):
+            bzip2_aliases = normalize_bzip2_aliases(args, row, plan, context, j8, inventory)
     require(bootstrap is not None and probes is not None and probes["candidate"]["passed"], "缺实际 bootstrap 或候选 driver")
+    require(bzip2_aliases is not None, "缺四个原bzip2内部alias的明确规范记录")
     require(all(t.function is before_functions[i] for i, t in enumerate(tasks.tasks)) and tasks.Task.run is method
             and tasks.annotators == annotators, "执行过程污染完整原注册表")
     prefix = args.workspace / ("tmp/install.ios-" + args.arch)
@@ -688,6 +788,7 @@ def execute_tasks(args, plan, row, j8, original, tasks, inventory, preflight):
     write_new(args.output / "c-headers-and-sources.json", {"headers": products["headers"], "sources": products["sources"], "extra_inputs": row["extra_inputs"]})
     return {"prefix": str(prefix), "tasks": receipts, "commands": events, "SDK_install": sdk, "framework_install": framework,
             "driver_probes": probes, "mockrt_bootstrap": bootstrap, "all_archive_objects_verified": True,
+            "bzip2_makefile_candidate": bzip2_makefile, "bzip2_alias_normalization": bzip2_aliases,
             "inventory_sha256": sha(raw_file(args.output / "c-prefix-inventory.json")),
             "archive_objects_sha256": sha(raw_file(args.output / "c-archive-objects.json")),
             "headers_and_sources_sha256": sha(raw_file(args.output / "c-headers-and-sources.json"))}
