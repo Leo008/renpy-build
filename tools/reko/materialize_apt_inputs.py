@@ -42,6 +42,8 @@ DEB_BACKUPS = {
         "url": "https://mirror-prg.webglobe.com/ubuntu/pool/main/t/tzdata/tzdata_2026c-0ubuntu0.24.04.1_all.deb",
         "sha256": "ef12c9ef81905b5ac558504b2f8c20da9be5f28861020b3fb5e8b15fb3fae2f6", "bytes": 279816},
 }
+# 显式开关仅允许这两个固定HTTPS根运输已签索引中的同Filename，绝不提供可信元数据。
+POOL_BACKUP_ROOTS = ("https://reflection.grit.ucsb.edu/debian/ubuntu/", "https://mirror-prg.webglobe.com/ubuntu/")
 
 
 class AptInputError(ValueError):
@@ -197,10 +199,12 @@ def validate_url(url):
     relative(urllib.parse.unquote(parsed.path.removeprefix("/")))
 
 
-def transport_urls(url, mirror_pool=False, expected_sha=None, expected_size=None):
-    """派生同一规范deb运输计划；两份明确备份还须匹配固定SHA/大小，索引不扩源。"""
+def transport_urls(url, mirror_pool=False, expected_sha=None, expected_size=None, pool_backup_mirrors=False):
+    """派生同Filename计划；可选固定备份根只运输已签SHA/大小，索引与两旧包身份不放宽。"""
+    require(type(pool_backup_mirrors) is bool, "备份镜像策略必须为严格bool")
     validate_url(url)
     if not mirror_pool:
+        require(not pool_backup_mirrors, "备份镜像只允许用于已签索引匹配的deb池文件")
         return [url]
     parsed = urllib.parse.urlsplit(url)
     match = re.fullmatch(r"/ubuntu/([0-9]{8}T[0-9]{6}Z)/(pool/.+\.deb)", parsed.path)
@@ -215,8 +219,13 @@ def transport_urls(url, mirror_pool=False, expected_sha=None, expected_size=None
         backup = DEB_BACKUPS[filename]
         require(expected_sha == backup["sha256"] and type(expected_size) is int
                 and expected_size == backup["bytes"], "固定备份Filename对应的SHA/大小不符")
-        plan.append(backup["url"])
-    return [*plan, url]
+        if not pool_backup_mirrors:
+            plan.append(backup["url"])
+    if pool_backup_mirrors:
+        valid_sha(expected_sha)
+        require(type(expected_size) is int and expected_size > 0, "备份镜像缺少已签索引的有效整数大小")
+        plan.extend(root + encoded for root in POOL_BACKUP_ROOTS)
+    return list(dict.fromkeys([*plan, url]))
 
 
 def retryable_download_error(error):
@@ -264,9 +273,9 @@ def reuse_cached_download(cache, target, path, expected_sha, expected_size, url,
     return True
 
 
-def download(url, path, expected_sha, expected_size, evidence_root, cache=None, mirror_pool=False):
+def download(url, path, expected_sha, expected_size, evidence_root, cache=None, mirror_pool=False, pool_backup_mirrors=False):
     """按固定源或deb官方镜像计划运输，只有缺文件/暂态耗尽允许切端点，身份错误即停。"""
-    plan = transport_urls(url, mirror_pool, expected_sha, expected_size)
+    plan = transport_urls(url, mirror_pool, expected_sha, expected_size, pool_backup_mirrors)
     valid_sha(expected_sha)
     require(type(expected_size) is int and expected_size > 0, "下载大小错误")
     path = guarded(path)
@@ -281,6 +290,7 @@ def download(url, path, expected_sha, expected_size, evidence_root, cache=None, 
         opener = urllib.request.build_opener(SnapshotOnlyRedirect(actual_url))
         for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
             row = {"source_url": url, "url": actual_url, "transport_urls": plan,
+                   "pool_backup_mirrors": pool_backup_mirrors,
                    "endpoint": urllib.parse.urlsplit(actual_url).netloc, "endpoint_index": endpoint_index,
                    "fallback": endpoint_index > 0, "target": target, "expected_sha256": expected_sha,
                    "expected_bytes": expected_size, "attempt": attempt, "max_attempts": DOWNLOAD_ATTEMPTS,
@@ -504,8 +514,9 @@ def check_apt_index_order(data):
             "APT有效压缩优先级不是独占xz：" + repr(parents + order))
 
 
-def collect(lock_path, lock_sha, ubuntu, output, cache=None):
+def collect(lock_path, lock_sha, ubuntu, output, cache=None, pool_backup_mirrors=False):
     """通过无网络容器验签和APT求解，host运输全部已签索引和分发，不安装软件。"""
+    require(type(pool_backup_mirrors) is bool, "备份镜像策略必须为严格bool")
     require(platform.system() == "Linux" and platform.machine() in ("x86_64", "amd64"), "采集需要真实Linux amd64 host")
     docker = shutil.which("docker")
     require(docker is not None, "采集需要Docker运行时")
@@ -591,7 +602,8 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
             control = item["control"]
             path = repo / request["filename"]
             url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(request["filename"], safe="/+._~-")
-            download(url, path, control["SHA256"], int(control["Size"]), output, cache, mirror_pool=True)
+            download(url, path, control["SHA256"], int(control["Size"]), output, cache, mirror_pool=True,
+                     pool_backup_mirrors=pool_backup_mirrors)
             execute(["mkdir", "-p", "/reko/repo/" + str(PurePosixPath(request["filename"]).parent)], "deb-directory-%04d" % index)
             copy_to(path, "/reko/repo/" + request["filename"], "copy-deb-%04d" % index)
             raw_control, command = execute(["dpkg-deb", "--field", "/reko/repo/" + request["filename"]], "deb-control-%04d" % index)
@@ -599,7 +611,7 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
             actual = list(package_stanzas(control_path))
             require(len(actual) == 1 and all(actual[0].get(k) == control[k] for k in ("Package", "Version", "Architecture")), "实际deb控制身份不符")
             packages.append({**request, "source_url": url, "suite": item["suite"], "component": item["component"],
-                             "transport_urls": transport_urls(url, True, control["SHA256"], int(control["Size"])),
+                             "transport_urls": transport_urls(url, True, control["SHA256"], int(control["Size"]), pool_backup_mirrors),
                              "origins": item["origins"],
                              "control": control, "deb": file_record(output, path), "control_label": command["label"]})
         execute([*apt, "--yes", "--download-only", "--no-install-recommends", "install", *profile["direct_requirements"]], "apt-download-only")
@@ -607,6 +619,7 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
         after_status, _ = execute(["cat", "/var/lib/dpkg/status"], "base-status-after")
         require(after_rows == base_rows and after_status == base_status, "采集意外改变base已安装包状态")
         manifest = {"schema_version": 1, "scope": SCOPE, "environment_lock_sha256": lock_sha,
+                    "pool_backup_mirrors": pool_backup_mirrors,
                     "ubuntu": ubuntu, "snapshot": profile["snapshot"], "image": profile["image"], "image_id": profile["image_id"],
                     "direct_requirements": profile["direct_requirements"], "recorded_signature_verified": True,
                     "apt_acquisition_complete": True, "apt_container_executed": True, **{k: False for k in UNVERIFIED},
@@ -636,7 +649,8 @@ def verify_bundle(root, expected_manifest_sha):
     require(digest(root / "manifest.json") == valid_sha(expected_manifest_sha), "采集清单独立SHA不符")
     manifest = read_json(root / "manifest.json")
     require(type(manifest.get("schema_version")) is int and manifest["schema_version"] == 1
-            and manifest.get("scope") == SCOPE and manifest.get("recorded_signature_verified") is True
+            and manifest.get("scope") == SCOPE and type(manifest.get("pool_backup_mirrors")) is bool
+            and manifest.get("recorded_signature_verified") is True
             and manifest.get("apt_acquisition_complete") is True and manifest.get("apt_container_executed") is True
             and all(manifest.get(k) is False for k in UNVERIFIED), "采集清单状态/范围错误")
     report = read_json(root / "collect-report.json")
@@ -713,7 +727,7 @@ def verify_bundle(root, expected_manifest_sha):
         path = check_file(root, package["deb"])
         require(digest(path) == control["SHA256"] and path.stat().st_size == int(control["Size"]), "deb与签名Packages不符")
         expected_url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(package["filename"], safe="/+._~-")
-        require(package["source_url"] == expected_url and package.get("transport_urls") == transport_urls(expected_url, True, control["SHA256"], int(control["Size"])), "分发来源或运输计划越界")
+        require(package["source_url"] == expected_url and package.get("transport_urls") == transport_urls(expected_url, True, control["SHA256"], int(control["Size"]), manifest["pool_backup_mirrors"]), "分发来源或运输计划越界")
         command, _ = command_by_label(root, manifest, package["control_label"])
         actual_control = list(package_stanzas(check_file(root, command["stdout"])))
         require("dpkg-deb" in command["argv"] and len(actual_control) == 1
@@ -738,6 +752,7 @@ def main(argv=None):
     capture.add_argument("--ubuntu", choices=PROFILES, required=True)
     capture.add_argument("--output", type=Path, required=True)
     capture.add_argument("--cache", type=Path)
+    capture.add_argument("--pool-backup-mirrors", action="store_true", help="显式启用两个固定pool备份运输根，仍须同已签Filename/SHA/大小；不扩展索引来源")
     verify = commands.add_parser("verify")
     verify.add_argument("--bundle", type=Path, required=True)
     verify.add_argument("--manifest-sha256", required=True)
@@ -752,7 +767,8 @@ def main(argv=None):
             require(not directory.exists() and not directory.is_symlink(), "采集输出目录必须全新")
             directory.mkdir(parents=True)
             output = directory / "collect-report.json"
-            manifest = collect(guarded(args.environment_lock), args.environment_lock_sha256, args.ubuntu, directory, args.cache)
+            manifest = collect(guarded(args.environment_lock), args.environment_lock_sha256, args.ubuntu, directory, args.cache,
+                               pool_backup_mirrors=args.pool_backup_mirrors)
             write_json(directory / "manifest.json", manifest)
             report.update(result="passed", manifest_sha256=digest(directory / "manifest.json"),
                           package_count=len(manifest["packages"]), recorded_signature_verified=True,

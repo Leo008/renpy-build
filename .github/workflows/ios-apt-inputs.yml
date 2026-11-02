@@ -30,7 +30,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
       REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
-      REKO_APT_COLLECTOR_SHA256: '220d732a3a8ee3a21c6dfdde87021feb47d451d8fb104c3612bac0589de6b10a'
+      REKO_APT_COLLECTOR_SHA256: 'f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac'
       REKO_APT_ENVIRONMENT_SHA256: '674cbd94766fb3ca9da3a1d1a2ada05b942645257dafccec73aaf0b4fee1c6cc'
     steps:
       - name: 检出独立候选输入工具
@@ -60,8 +60,8 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           github-token: ${{ github.token }}
-          run-id: 41413939050
-          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41413939050-1
+          run-id: 41417237669
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41417237669-1
           path: tmp/apt-cache-${{ matrix.ubuntu }}
       - name: 固定镜像内验签与APT求解
         shell: bash
@@ -71,6 +71,7 @@ jobs:
             --environment-lock tools/reko/environment-inputs.lock.json \
             --environment-lock-sha256 "$REKO_APT_ENVIRONMENT_SHA256" \
             --ubuntu "$REKO_APT_UBUNTU" \
+            --pool-backup-mirrors \
             --cache "tmp/apt-cache-$REKO_APT_UBUNTU/apt-inputs-$REKO_APT_UBUNTU" \
             --output "tmp/apt-inputs-$REKO_APT_UBUNTU"
       - name: 复核完整采集原件
