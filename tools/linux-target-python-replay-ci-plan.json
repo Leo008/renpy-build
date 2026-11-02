@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J2C-H2-Linux",
+  "scope": "five_exact_target_version_linux_scopes_only_no_ios_acceptance",
+  "helpers": {
+    "transport": {
+      "aliases": [
+        "run_ci_linux_python_replay.py",
+        "ci_linux_host_replay.py"
+      ],
+      "sha256": "bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011"
+    },
+    "H1_wrapper": {
+      "aliases": [
+        "run_linux_host_python_bootstrap.py",
+        "ci_linux_host_python_bootstrap.py"
+      ],
+      "sha256": "154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63"
+    },
+    "H1_execution": {
+      "aliases": [
+        "run_locked_host_python_tasks.py"
+      ],
+      "sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612"
+    },
+    "inventory": {
+      "aliases": [
+        "inventory_source_inputs.py"
+      ],
+      "sha256": "2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824"
+    }
+  },
+  "H1_ci_plan_sha256": "4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537",
+  "H1_host_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+  "extra": {
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h2-target-inputs-20261102-01.tar.gz.enc",
+    "ciphertext": {
+      "bytes": 10335744,
+      "sha256": "6af6f7179c7781d8556537f0279d95ebcf7c38d98d2a33bfd51b7689ad07ffcc"
+    },
+    "plaintext": {
+      "bytes": 10335724,
+      "sha256": "80150dedbb54dfac9bb79a23b31dd0fe1bd789692a67389b6e690336fc88dfdf"
+    },
+    "encryption": {
+      "cipher": "aes-256-cbc",
+      "kdf": "pbkdf2",
+      "digest": "sha256",
+      "iterations": 200000,
+      "salt_bytes": 8
+    },
+    "archive": "ustar-33-regular-mode0644-uid0-gid0-mtime0"
+  },
+  "extra_manifest": {
+    "bytes": 39023,
+    "sha256": "06bb4fe782d9ac734c43df6d88077dd07570dbfdc6b418bed38fba4f88729dfc"
+  },
+  "groups": {
+    "24.04": [
+      "8.5.3-target-ci-success",
+      "8.5.3-target-recipe",
+      "8.4.1-target-recipe"
+    ],
+    "22.04": [
+      "8.3.7-target-recipe",
+      "7.8.7-target-recipe"
+    ]
+  },
+  "versions": {
+    "8.5.3": "3.12.8",
+    "8.4.1": "3.12.8",
+    "8.3.7": "3.9.10",
+    "7.8.7": "2.7.18"
+  },
+  "runtime": {
+    "lock_python_inputs.py": "690ba4f9401987f5a2c459605195904a2fad03e239a48181e1e44e0ad50b6779",
+    "build_python_wheels.py": "829712b376ce71ccd39f36299ba2f5e09eb92ba7c21a21f9134ec11e2f2391a6",
+    "replay_python_inputs.py": "d955cd1fbf1dfaf88e19cfcad5e66f20d58b02ab473b205bf107605ec13ae84c"
+  },
+  "six_wheel_lock_sha256": "aca801ab1c1d5f83793ada79957655ec3de1c90dd6a62a3309acdc896df16987",
+  "limitations": [
+    "H1原ZIP独立SHA及大小必须由CLI强制传入，计划不预填尚未产出的host哈希。",
+    "H0/H2输入各用独立宿主密钥经stdin解密，清空容器环境，不传秘密、不读取Apple SDK。",
+    "只验独立有效route完整导出，不因H1 aggregate失败拒绝其他有效route；缺route未运行，坏route失败。",
+    "恢复原完整prefix后再核实际版本/SSL/ELF/分发及原九scope计划；18证据/两producer/六原wheel不可裁剪或重写。",
+    "本组原exit2及9scope行保留，不代表完整源码CI、iOS ABI/会话或RenPy移植完成。"
+  ]
+}
