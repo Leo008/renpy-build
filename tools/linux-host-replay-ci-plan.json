@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J2C-H0-CI",
+  "scope": "fixed_host_transport_and_four_frontend_scopes_only",
+  "h0_tool_sha256": "7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc",
+  "h0_plan_sha256": "d7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d",
+  "transport": {
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h0-linux-host-inputs-20261102-01.tar.gz.enc",
+    "ciphertext": {
+      "bytes": 116556720,
+      "sha256": "4beeb8544d248c59f7f12216cd11a8d291d0d4edcf660eb854fbc4abcb1b34c5"
+    },
+    "plaintext": {
+      "bytes": 116556690,
+      "sha256": "3d33a763aed626af50ab56e7ea07904e3930e26e871bb12a8ed81fd15a3f280a"
+    },
+    "encryption": {
+      "cipher": "aes-256-cbc",
+      "kdf": "pbkdf2",
+      "digest": "sha256",
+      "iterations": 200000,
+      "salt_bytes": 8
+    },
+    "archive": "ustar-103-regular-mode0644-uid0-gid0-mtime0"
+  },
+  "limitations": [
+    "只宿主运输批准的加密H0输入，密钥只从REKO_H0_INPUTS_PASSWORD读取后删除环境项，并以stdin传OpenSSL。",
+    "固定H0原件和原计划保持独立文件；103catalog与两组OCI身份由原计划SHA绑定。",
+    "临时密文、明文tar和解包输入不属于公开artifact，退出清理；不下载、解密或消费Apple SDK。",
+    "只有实际Linux两selected scope offline_replayed、原exit2及其余七scope not_run，才允许该组H0完成；J2C仍不完整。"
+  ]
+}

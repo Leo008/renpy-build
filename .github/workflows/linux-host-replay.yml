@@ -1,0 +1,141 @@
+name: RenPy fixed Linux four host frontend replay
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths:
+      - .github/workflows/linux-host-replay.yml
+      - tools/ci_linux_host_replay.py
+      - tools/run_linux_python_replay.py
+      - tools/python-linux-host-replay-plan.json
+      - tools/linux-host-replay-ci-plan.json
+      - CI_LINUX_HOST_REPLAY.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-linux-host-replay-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: Fixed Ubuntu ${{ matrix.ubuntu }} two host scopes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['22.04', '24.04']
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: 检出冻结入口与两份固定计划
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools/ci_linux_host_replay.py
+            tools/run_linux_python_replay.py
+            tools/python-linux-host-replay-plan.json
+            tools/linux-host-replay-ci-plan.json
+          sparse-checkout-cone-mode: false
+      - name: 核验全部部署原件身份
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import hashlib
+          from pathlib import Path
+          import platform
+          import sys
+          if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
+              raise SystemExit('[RenPyHostReplayCI] 缺少Linux amd64 Python3.10宿主编排环境')
+          expected = {
+              'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
+              'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
+              'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
+              'tools/linux-host-replay-ci-plan.json': '12b054af1b9cf268484cba265f3948c6020aeab84aa27c904dfe1389e6e0b63e',
+          }
+          for name, digest in expected.items():
+              path = Path(name)
+              if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                  raise SystemExit('[RenPyHostReplayCI] 部署原字节不符：' + name)
+          print('[RenPyHostReplayCI] 四原件SHA一致；实际host Python=' + platform.python_version(), flush=True)
+          PYCODE
+      - name: 取得固定完整APT分发
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41419224335-1
+          path: ${{ runner.temp }}/reko-h0-apt-inputs
+      - name: 宿主解密并在禁网容器实际重放两host scope
+        shell: bash
+        env:
+          REKO_H0_INPUTS_PASSWORD: ${{ secrets.REKO_H0_INPUTS_PASSWORD }}
+        run: |
+          /usr/bin/python3.10 -B tools/ci_linux_host_replay.py \
+            --ubuntu '${{ matrix.ubuntu }}' \
+            --bundle "$RUNNER_TEMP/reko-h0-apt-inputs/apt-inputs-${{ matrix.ubuntu }}" \
+            --output "$RUNNER_TEMP/reko-h0-evidence"
+      - name: 显示真实失败阶段
+        if: failure()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          base = Path(os.environ['RUNNER_TEMP']) / 'reko-h0-evidence'
+          for name in ('transport-report.json', 'h0/report.json', 'h0/python-replay/report.json'):
+              path = base / name
+              if path.is_file():
+                  data = json.loads(path.read_bytes())
+                  public = {k:v for k,v in data.items() if k in ('result', 'status', 'errors') or type(v) is bool}
+                  print('[RenPyHostReplayCI] ' + name + ': ' + json.dumps(public, ensure_ascii=False), flush=True)
+          commands = base / 'h0/commands.json'
+          if commands.is_file():
+              for row in json.loads(commands.read_bytes())['commands']:
+                  if row['returncode'] != 0 and not row.get('expected_failure') and not row.get('expected_partial_result'):
+                      print('[RenPyHostReplayCI] 失败命令：' + row['label'], flush=True)
+                      for channel in ('stdout', 'stderr'):
+                          path = base / 'h0' / row[channel]['path']
+                          print(channel + ':\n' + path.read_bytes()[-12000:].decode(errors='replace'), flush=True)
+          PYCODE
+      - name: 兜底清理本轮受控容器和私有临时目录
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+          for name in result.stdout.decode().splitlines():
+              if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}', name):
+                  state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                  host = state['HostConfig']
+                  if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
+                      raise SystemExit('[RenPyHostReplayCI] 容器清理边界不符')
+                  subprocess.run(['docker', 'rm', '--force', name], check=True)
+          for path in Path(os.environ['RUNNER_TEMP']).glob('reko-h0-transport-*'):
+              if path.is_symlink() or not path.is_dir():
+                  raise SystemExit('[RenPyHostReplayCI] 临时材料清理路径异常')
+              shutil.rmtree(path)
+          PYCODE
+      - name: 仅保存实际重放报告和公开命令日志
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-linux-host-replay-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-h0-evidence/
+          if-no-files-found: warn
+          compression-level: 6
+          retention-days: 30
