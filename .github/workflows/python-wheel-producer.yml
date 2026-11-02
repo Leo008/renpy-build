@@ -1,0 +1,147 @@
+name: RenPy fixed Linux Python2 wheel producer
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths:
+      - .github/workflows/python-wheel-producer.yml
+      - tools/ci_python_wheels.py
+      - CI_PYTHON_WHEELS.md
+      - scripts/renpy/lock_python_inputs.py
+      - scripts/renpy/build_python_wheels.py
+      - scripts/renpy/python-inputs.lock.json
+      - scripts/renpy/python-wheel-build-plan.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-python-wheel-producer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  producer:
+    name: Fixed jammy Python2 pure wheels
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      REKO_PRODUCER_SHA256: 'a7cc6d638902a40e48c38021541232ca2e93084eac8d8f9efb6a7a4853895849'
+      REKO_PREFLIGHT_SHA256: 'c4584adae0e197c3c934bba0e5d00f08307788ef819707e640e3d12513f74839'
+      REKO_COLLECTOR_SHA256: 'f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac'
+      REKO_APT_MANIFEST_SHA256: 'd722e3aa9db55925062e70a35486e1e0b1405c064a6dc5a8b7a289900d5c6851'
+    steps:
+      - name: 检出固定生成工具与原件
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            scripts/renpy
+      - name: 校验全部部署字节与实际编排解释器
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import hashlib
+          import os
+          from pathlib import Path
+          import platform
+          import sys
+          if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
+              raise SystemExit('[RenPyPythonWheelsCI] 缺少实际Linux amd64 Python3.10编排环境')
+          expected = {
+              'tools/ci_python_wheels.py': os.environ['REKO_PRODUCER_SHA256'],
+              'tools/ci_environment.py': os.environ['REKO_PREFLIGHT_SHA256'],
+              'tools/reko/materialize_apt_inputs.py': os.environ['REKO_COLLECTOR_SHA256'],
+              'scripts/renpy/lock_python_inputs.py': 'eece439195f241cd7a3533e26404f68e4a294636c3a8366d9dde9bc27403468d',
+              'scripts/renpy/build_python_wheels.py': 'd09089eb5ba37ba19db773d2beaaf890372bc5ce8461d133a3123c7551fb6cbe',
+              'scripts/renpy/python-inputs.lock.json': '4a9a85b719dd1ef3fb5ded2fcd383f5c9bd8925c0e537bd8f5db0a1132602935',
+              'scripts/renpy/python-wheel-build-plan.json': '9b231a3a1460180ed1de53474669e0eba786df3a4ff70da981b87eece89cdea4',
+          }
+          for filename, digest in expected.items():
+              if hashlib.sha256(Path(filename).read_bytes()).hexdigest() != digest:
+                  raise SystemExit('[RenPyPythonWheelsCI] 部署原件身份不符：' + filename)
+          print('[RenPyPythonWheelsCI] 全部部署原件通过；host Python=' + platform.python_version(), flush=True)
+          PYCODE
+      - name: 取得已完整验证的jammy APT原件
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-22.04-41419224335-1
+          path: ${{ runner.temp }}/reko-python-apt-inputs
+      - name: 取得并校验八个官方原始Python分发
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B tools/ci_python_wheels.py prepare \
+            --runtime-dir "$GITHUB_WORKSPACE/scripts/renpy" \
+            --cache "$RUNNER_TEMP/reko-python-inputs" \
+            --output "$RUNNER_TEMP/reko-python-evidence/prepare" --download
+      - name: 禁网安装并真实构建两个Python2纯wheel
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B tools/ci_python_wheels.py run \
+            --runtime-dir "$GITHUB_WORKSPACE/scripts/renpy" \
+            --cache "$RUNNER_TEMP/reko-python-inputs" \
+            --bundle "$RUNNER_TEMP/reko-python-apt-inputs/apt-inputs-22.04" \
+            --manifest-sha256 "$REKO_APT_MANIFEST_SHA256" \
+            --collector "$GITHUB_WORKSPACE/tools/reko/materialize_apt_inputs.py" \
+            --collector-sha256 "$REKO_COLLECTOR_SHA256" \
+            --preflight "$GITHUB_WORKSPACE/tools/ci_environment.py" \
+            --preflight-sha256 "$REKO_PREFLIGHT_SHA256" \
+            --output "$RUNNER_TEMP/reko-python-evidence/run"
+      - name: 保存真实失败阶段和公开命令诊断
+        if: failure()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'reko-python-evidence'
+          for phase in ('prepare', 'run'):
+              folder = evidence / phase
+              report = folder / 'linux-python-wheels-report.json'
+              if report.is_file():
+                  data = json.loads(report.read_bytes())
+                  print('[RenPyPythonWheelsCI] ' + phase + ': ' + json.dumps(
+                      {k:v for k,v in data.items() if k in ('result', 'errors') or type(v) is bool}, ensure_ascii=False), flush=True)
+              commands = folder / 'commands.json'
+              if commands.is_file():
+                  for row in json.loads(commands.read_bytes())['commands']:
+                      if row['returncode'] != 0 and not row.get('expected_failure'):
+                          print('[RenPyPythonWheelsCI] 失败命令：' + row['label'], flush=True)
+                          for kind in ('stdout', 'stderr'):
+                              path = folder / row[kind]['path']
+                              print(kind + ':\n' + path.read_bytes()[-12000:].decode(errors='replace'), flush=True)
+          PYCODE
+      - name: 兜底清理本轮生成容器
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import re
+          import subprocess
+          result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+          for name in result.stdout.decode().splitlines():
+              if re.fullmatch(r'reko-python-wheels-[0-9a-f]{32}', name):
+                  state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                  host = state['HostConfig']
+                  if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
+                      raise SystemExit('[RenPyPythonWheelsCI] 拒绝清理边界不符的容器')
+                  subprocess.run(['docker', 'rm', '--force', name], check=True)
+          PYCODE
+      - name: 仅保存真实生成证据和两个产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-python2-wheel-producer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-python-evidence/
+          if-no-files-found: warn
+          compression-level: 6
+          retention-days: 30
