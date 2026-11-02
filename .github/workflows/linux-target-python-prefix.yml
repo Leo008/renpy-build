@@ -60,7 +60,7 @@ jobs:
           if sys.version_info[:2] != (3,10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyPrefixCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_target_python_prefix.py': 'ffbac5ed17990f78854001c0d0ad70a9d87690a8a7d8a742313b27483cb4d06b',
+              'tools/ci_linux_target_python_prefix.py': 'bc5cec0b8f388bf6faaa41fe0010e65eaf9668a079f37672fcbbdffddbae744f',
               'tools/linux-target-python-prefix-ci-plan.json': '1fa125c4c3524a367c7666f1b9cb72418041487e07e14428e163b71954d797c0',
               'tools/run_locked_target_python_tasks.py': 'd091b803a2675914c99f78410532d0efbabfbf9eea0debfc9c93a2021fd6e5fe',
               'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4',

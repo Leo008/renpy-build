@@ -431,7 +431,8 @@ def execute_cells(run, h2, h0, native, inventory, payload, h0_plan, metadata, me
     python_manifest, _ = h0.verify_original_contracts(payload, h0_plan["files"])
     frontend = h0.replay_host_group(run, payload, group, h0_plan, python_manifest, report)
     frontend_sha = report["original_replay_report_sha256"]
-    run.run(["mkdir", "-p", REMOTE_ROOT, REMOTE_WORKSPACES, REMOTE_OUTPUT, "/reko/j9-private-products"], "j9-directories")
+    # 原C0仅复制/解包SDK，不建立其父目录；H0容器须显式补齐原C1私有与SDK输入根。
+    run.run(["mkdir", "-p", REMOTE_ROOT, REMOTE_WORKSPACES, REMOTE_OUTPUT, "/reko/j9-private-products", "/reko/private", "/reko/sdk"], "j9-directories")
     run.copy(str(metadata) + "/.", REMOTE_ROOT, "j9-copy-complete-runtime")
     run.checksum("j9-complete-runtime", [(r["sha256"], REMOTE_ROOT + "/" + r["path"]) for r in metadata_rows])
     report["active_stage"] = "host_restore"
