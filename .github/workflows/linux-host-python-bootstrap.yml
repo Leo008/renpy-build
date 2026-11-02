@@ -1,0 +1,149 @@
+name: RenPy fixed Linux four route native host bootstrap
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths:
+      - .github/workflows/linux-host-python-bootstrap.yml
+      - tools/ci_linux_host_python_bootstrap.py
+      - tools/linux-host-python-bootstrap-ci-plan.json
+      - tools/run_locked_host_python_tasks.py
+      - tools/ci_linux_host_replay.py
+      - tools/run_linux_python_replay.py
+      - tools/python-linux-host-replay-plan.json
+      - CI_LINUX_HOST_PYTHON_BOOTSTRAP.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-linux-host-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: Fixed Ubuntu ${{ matrix.ubuntu }} two native host builds
+    runs-on: ubuntu-22.04
+    timeout-minutes: 280
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['22.04', '24.04']
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: 检出固定编排与独立执行验证器
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools/ci_linux_host_python_bootstrap.py
+            tools/linux-host-python-bootstrap-ci-plan.json
+            tools/run_locked_host_python_tasks.py
+            tools/ci_linux_host_replay.py
+            tools/run_linux_python_replay.py
+            tools/python-linux-host-replay-plan.json
+          sparse-checkout-cone-mode: false
+      - name: 核验全部部署原件身份
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import hashlib
+          from pathlib import Path
+          import platform
+          import sys
+          if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
+              raise SystemExit('[RenPyHostBootstrapCI] 缺少Linux amd64 Python3.10宿主编排环境')
+          expected = {
+              'tools/ci_linux_host_python_bootstrap.py': '402efd2ecaa389b4fe75fed056e7faba4dc1c339f3312caa5a7acf904c6d1b0c',
+              'tools/linux-host-python-bootstrap-ci-plan.json': 'f907026a1a6ea40d81a44fe15ba918e0371e435ce921f439ea7d6ed4722ceb09',
+              'tools/run_locked_host_python_tasks.py': '4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0',
+              'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
+              'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
+              'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
+          }
+          for name, digest in expected.items():
+              path = Path(name)
+              if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                  raise SystemExit('[RenPyHostBootstrapCI] 部署原字节不符：' + name)
+          print('[RenPyHostBootstrapCI] 六原件SHA一致；实际host Python=' + platform.python_version(), flush=True)
+          PYCODE
+      - name: 取得固定完整APT分发
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41419224335-1
+          path: ${{ runner.temp }}/reko-h1-apt-inputs
+      - name: 同容器先重放前端再运行两路线原host构建任务
+        shell: bash
+        env:
+          REKO_H0_INPUTS_PASSWORD: ${{ secrets.REKO_H0_INPUTS_PASSWORD }}
+        run: |
+          /usr/bin/python3.10 -B tools/ci_linux_host_python_bootstrap.py \
+            --ubuntu '${{ matrix.ubuntu }}' \
+            --bundle "$RUNNER_TEMP/reko-h1-apt-inputs/apt-inputs-${{ matrix.ubuntu }}" \
+            --output "$RUNNER_TEMP/reko-h1-evidence"
+      - name: 显示真实失败阶段
+        if: failure()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          base = Path(os.environ['RUNNER_TEMP']) / 'reko-h1-evidence'
+          report = base / 'linux-host-python-bootstrap-report.json'
+          if report.is_file():
+              data = json.loads(report.read_bytes())
+              public = {k:v for k,v in data.items() if k in ('result', 'errors', 'routes') or type(v) is bool}
+              print('[RenPyHostBootstrapCI] ' + json.dumps(public, ensure_ascii=False), flush=True)
+          commands = base / 'container/commands.json'
+          if commands.is_file():
+              for row in json.loads(commands.read_bytes())['commands']:
+                  if row['returncode'] != 0 and not row.get('expected_failure') and not row.get('expected_partial_result'):
+                      print('[RenPyHostBootstrapCI] 失败命令：' + row['label'], flush=True)
+                      for channel in ('stdout', 'stderr'):
+                          path = base / 'container' / row[channel]['path']
+                          print(channel + ':\n' + path.read_bytes()[-12000:].decode(errors='replace'), flush=True)
+          for path in sorted((base / 'container').glob('host-*/native-build.log')):
+              print('[RenPyHostBootstrapCI] 原构建日志：' + path.parent.name, flush=True)
+              print(path.read_bytes()[-16000:].decode(errors='replace'), flush=True)
+          PYCODE
+      - name: 兜底清理本轮受控容器和私有临时目录
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+          for name in result.stdout.decode().splitlines():
+              if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}', name):
+                  state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                  host = state['HostConfig']
+                  if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
+                      raise SystemExit('[RenPyHostBootstrapCI] 容器清理边界不符')
+                  subprocess.run(['docker', 'rm', '--force', name], check=True)
+          for path in Path(os.environ['RUNNER_TEMP']).glob('reko-h1-inputs-*'):
+              if path.is_symlink() or not path.is_dir():
+                  raise SystemExit('[RenPyHostBootstrapCI] 临时材料清理路径异常')
+              shutil.rmtree(path)
+          PYCODE
+      - name: 保存真实原任务日志收据与完整host分发
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-linux-host-bootstrap-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-h1-evidence/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
