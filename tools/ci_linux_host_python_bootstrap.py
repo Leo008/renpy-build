@@ -25,15 +25,16 @@ HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-host-python-bootstrap-ci-plan.json"
 HELPER_SHA = "bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011"
 ADDON_H1_SHA = "3de9c6597e9028bb2e35c79e4064db46b68a60417516ca77e52728f5002f88e3"
-EXECUTION_H1_SHA = "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612"
-EXECUTION_REASON = "按精确CPython保留linux2/linux平台，并以严格多架构包身份核对完整APT环境"
-H1_PLAN_SHA = "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
+EXECUTION_H1_SHA = "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c"
+EXECUTION_REASON = "保留精确CPython平台和严格多架构APT身份；补齐7.8.7原native SSL构建及install_sw命令"
+ADDON_H1_PLAN_SHA = "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
+EXECUTION_H1_PLAN_SHA = "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32"
 MANIFEST = {"bytes": 1345712, "sha256": "feec48d352fcdda2668663e9d516abbf29eb4ed23e6f146392395c9980626667"}
 ADDON = {"url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h1-public-recipe-addon-20261102-01.tar.gz",
          "bytes": 264133884, "sha256": "0da8d46083c0c882b1e246a5c7e3df526e20c92246c823abfe3f617271fb5ec2"}
 RUNTIME = {
     "run_locked_host_python_tasks.py": ADDON_H1_SHA,
-    "host-python-bootstrap-plan.json": H1_PLAN_SHA,
+    "host-python-bootstrap-plan.json": ADDON_H1_PLAN_SHA,
     "run_locked_source_tasks.py": "7b355837494c22ee642f014652ce0b1adc328dd47928126880df320f960a5b45",
     "inventory_source_inputs.py": "2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824",
     "source-task-binding-plan.json": "32abe3927eef6d0b887e95b6de83bed38b510644c300a88b314bfeb517a791a5",
@@ -62,9 +63,14 @@ for row in plan['installers'].values():
    digest.update(block)
  assert digest.hexdigest()==row['source_archive_sha256']
  archives.append({'path':row['source_archive'],'sha256':digest.hexdigest(),'bytes':path.stat().st_size})
+assert 'run_locked_host_python_tasks' not in sys.modules
 import run_locked_host_python_tasks as h1
+tool_sha=hashlib.sha256(pathlib.Path(h1.__file__).read_bytes()).hexdigest()
+plan_sha=hashlib.sha256(pathlib.Path(h1.__file__).with_name('host-python-bootstrap-plan.json').read_bytes()).hexdigest()
+assert tool_sha=='5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c'
+assert plan_sha=='9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32'
 h1.load_plan()
-print(json.dumps({'root':str(root),'replay_root':str(replay.ROOT),'inputs_root':str(replay.inputs.ROOT),'build_root':str(replay.build.ROOT),'source_evidence_count':len(evidence),'source_archives':archives,'H1_dependency_contract_verified':True,'native_build_executed':False}))
+print(json.dumps({'root':str(root),'replay_root':str(replay.ROOT),'inputs_root':str(replay.inputs.ROOT),'build_root':str(replay.build.ROOT),'source_evidence_count':len(evidence),'source_archives':archives,'execution_h1_tool_sha256':tool_sha,'execution_h1_plan_sha256':plan_sha,'H1_dependency_contract_verified':True,'native_build_executed':False}))
 '''
 PRESERVE = r'''import hashlib,json,os,pathlib,stat,sys,tarfile
 release=sys.argv[1]
@@ -85,12 +91,14 @@ for name in ('report.json','worker-report.json','native-build.log','task-events.
 if not (target/'host-receipt.json').is_file():sys.exit(0)
 receipt=json.loads((target/'host-receipt.json').read_bytes())
 assert receipt['host_bootstrap_verified'] is True and receipt['release']==release and receipt['prefix']==str(prefix)
-assert receipt['plan_sha256']=='352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0'
+assert receipt['plan_sha256']=='9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32'
 distribution=target/'host-distribution.json'
 assert sha(distribution.read_bytes())==receipt['distribution']['sha256']
 sys.path.insert(0,'/reko/h1-runtime/root/scripts/renpy')
 import run_locked_host_python_tasks as h1
-assert sha(pathlib.Path(h1.__file__).read_bytes())=='6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612'
+assert sha(pathlib.Path(h1.__file__).read_bytes())=='5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c'
+assert sha(pathlib.Path(h1.__file__).with_name('host-python-bootstrap-plan.json').read_bytes())=='9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32'
+h1.load_plan()
 inventory=h1.host_inventory(prefix)
 assert inventory==json.loads(distribution.read_bytes())
 archive=target/'host-distribution.tar.gz'
@@ -133,13 +141,14 @@ def load_helpers():
 def load_plan(transport):
     """锁定现有 H0/H1 原件与公开 addon，拒绝新入口或任意后置任务。"""
     plan = transport.read_json(DEFAULT_PLAN)
-    require(set(plan) == {"schema_version", "task", "scope", "transport_helper_sha256", "h0_tool_sha256", "h0_plan_sha256", "addon_h1_tool_sha256", "execution_h1_tool_sha256", "execution_overlay_reason", "H1_plan_sha256", "addon", "addon_manifest", "groups", "runtime_layout", "limitations"}
+    require(set(plan) == {"schema_version", "task", "scope", "transport_helper_sha256", "h0_tool_sha256", "h0_plan_sha256", "addon_h1_tool_sha256", "execution_h1_tool_sha256", "execution_overlay_reason", "addon_h1_plan_sha256", "execution_h1_plan_sha256", "addon", "addon_manifest", "groups", "runtime_layout", "limitations"}
             and type(plan["schema_version"]) is int and plan["schema_version"] == 1
             and plan["task"] == "R00-02J2C-H1-Linux" and plan["scope"] == "same_lifetime_H0_then_original_host_tasks_no_sdk_or_engine"
             and plan["transport_helper_sha256"] == HELPER_SHA and plan["h0_tool_sha256"] == transport.H0_TOOL_SHA256
             and plan["h0_plan_sha256"] == transport.H0_PLAN_SHA256 and plan["addon_h1_tool_sha256"] == ADDON_H1_SHA
             and plan["execution_h1_tool_sha256"] == EXECUTION_H1_SHA and plan["execution_overlay_reason"] == EXECUTION_REASON
-            and plan["H1_plan_sha256"] == H1_PLAN_SHA and plan["addon"] == ADDON and plan["addon_manifest"] == MANIFEST
+            and plan["addon_h1_plan_sha256"] == ADDON_H1_PLAN_SHA and plan["execution_h1_plan_sha256"] == EXECUTION_H1_PLAN_SHA
+            and plan["addon"] == ADDON and plan["addon_manifest"] == MANIFEST
             and plan["groups"] == GROUPS and plan["runtime_layout"] == RUNTIME_LAYOUT
             and isinstance(plan["limitations"], list) and plan["limitations"], "H1 CI计划不是批准固定身份")
     require(type(plan["addon"]["bytes"]) is int and type(plan["addon_manifest"]["bytes"]) is int, "H1大小字段须为整数")
@@ -162,8 +171,10 @@ def check_source(actual, expected):
         require(actual == expected, "addon CAS来源错误")
 
 
-def derive_addon(transport, h0, payload, addon_manifest, h0_plan, h1_plan):
+def derive_addon(transport, h0, payload, addon_manifest, h0_plan, h1_plan_raw):
     """从独立J1及H1原计划重建1793投影/630对象，manifest仅作运输登记。"""
+    require(isinstance(h1_plan_raw, bytes) and h0.digest(h1_plan_raw) == ADDON_H1_PLAN_SHA, "addon必须消费旧352计划完整原字节")
+    h1_plan = h0.decode(h1_plan_raw)
     j1 = h0.decode(h0.read(payload / "root/scripts/renpy/source-inputs.lock.json"))
     require(addon_manifest["schema_version"] == 1 and addon_manifest["scope"] == "H1_complete_J1_recipe_input_addon_only_no_execution", "addon范围错误")
     require(len(addon_manifest["routes"]) == 4 and len(addon_manifest["content_objects"]) == 630, "addon路线或对象数错误")
@@ -280,6 +291,7 @@ def runtime_root_catalog(h0_plan, manifest, *, execution):
     require(len(overlays) == RUNTIME_LAYOUT["overlay_file_count"], "runtime覆盖须恰好14文件")
     if execution:
         overlays["run_locked_host_python_tasks.py"].update(bytes=51630, sha256=EXECUTION_H1_SHA)
+        overlays["host-python-bootstrap-plan.json"].update(bytes=11568, sha256=EXECUTION_H1_PLAN_SHA)
     expected.update({row["path"]: row for row in overlays.values()})
     require(len(expected) == RUNTIME_LAYOUT["derived_file_count"], "派生root完整集合须35文件")
     return sorted(expected.values(), key=lambda row: row["path"])
@@ -328,22 +340,30 @@ def verify_fresh_runtime(h0, destination, output):
     proof = h0.decode(result.stdout)
     require(proof["root"] == proof["replay_root"] == proof["inputs_root"] == proof["build_root"] == str(destination)
             and proof["source_evidence_count"] == 18 and len(proof["source_archives"]) == 3
+            and proof["execution_h1_tool_sha256"] == EXECUTION_H1_SHA and proof["execution_h1_plan_sha256"] == EXECUTION_H1_PLAN_SHA
             and proof["H1_dependency_contract_verified"] is True and proof["native_build_executed"] is False, "fresh runtime来源范围不符")
     return proof
 
 
 def apply_execution_overlay(h0, runtime, expected):
-    """先证实旧addon源码，再只替换派生runtime中的固定basename；新旧身份分别保留。"""
+    """先完整核验旧addon源码/计划，再只覆盖派生runtime中两固定文件；原件身份不变。"""
     require(expected == EXECUTION_H1_SHA and expected != ADDON_H1_SHA, "H1执行覆盖身份不是批准新原件")
-    name = "run_locked_host_python_tasks.py";target = runtime / name
-    require(h0.digest(h0.read(target)) == ADDON_H1_SHA, "执行覆盖前不是已验addon旧H1原件")
-    source = h0.read(HERE / name, 128 * 1024)
-    require(h0.digest(source) == expected, "同目录H1执行原件SHA不符")
-    temporary = runtime / "host-task-execution-overlay.tmp"
-    with temporary.open("xb") as stream:stream.write(source)
-    os.replace(temporary, target)
-    require(h0.digest(h0.read(target)) == expected, "派生runtime执行覆盖实际字节不符")
-    return {"basename": name, "addon_h1_tool_sha256": ADDON_H1_SHA, "execution_h1_tool_sha256": expected,
+    identities = [("run_locked_host_python_tasks.py", ADDON_H1_SHA, EXECUTION_H1_SHA, 51630),
+                  ("host-python-bootstrap-plan.json", ADDON_H1_PLAN_SHA, EXECUTION_H1_PLAN_SHA, 11568)]
+    staged = []
+    for name, original_sha, execution_sha, size in identities:
+        require(h0.digest(h0.read(runtime / name)) == original_sha, "覆盖前不是已验addon旧H1源码/计划")
+        source = h0.read(HERE / name, 128 * 1024)
+        require(len(source) == size and h0.digest(source) == execution_sha, "同目录H1执行源码/计划原字节不符")
+        staged.append((name, source, execution_sha))
+    for name, source, _ in staged:
+        with (runtime / (name + ".execution-overlay.tmp")).open("xb") as stream:stream.write(source)
+    for name, _, execution_sha in staged:
+        os.replace(runtime / (name + ".execution-overlay.tmp"), runtime / name)
+        require(h0.digest(h0.read(runtime / name)) == execution_sha, "派生runtime双执行覆盖实际字节不符")
+    return {"basename": "run_locked_host_python_tasks.py", "plan_basename": "host-python-bootstrap-plan.json",
+            "addon_h1_tool_sha256": ADDON_H1_SHA, "execution_h1_tool_sha256": expected,
+            "addon_h1_plan_sha256": ADDON_H1_PLAN_SHA, "execution_h1_plan_sha256": EXECUTION_H1_PLAN_SHA,
             "reason": EXECUTION_REASON, "only_derived_runtime_modified": True}
 
 
@@ -416,7 +436,7 @@ def verify_export(h0, folder, release, frontend_sha):
     report = h0.decode(h0.read(folder / "report.json"));export = h0.decode(h0.read(folder / "host-export.json"))
     prefix = "/reko/h1-workspaces/" + release + "/tmp/host"
     require(report["result"] == "passed" and report["host_bootstrap_verified"] is True and report["linux_native_bootstrap_completed"] is True
-            and receipt["release"] == release and receipt["plan_sha256"] == H1_PLAN_SHA and receipt["prefix"] == prefix
+            and receipt["release"] == release and receipt["plan_sha256"] == EXECUTION_H1_PLAN_SHA and receipt["prefix"] == prefix
             and receipt["host_bootstrap_verified"] is True and receipt["kernel_network_isolation_verified"] is True
             and receipt["original_host_task_count"] == 2 and receipt["frontend"]["sha256"] == frontend_sha
             and receipt["explicit_native_ssl_candidate_count"] == (2 if release == "7.8.7" else 0)
@@ -504,8 +524,8 @@ def main(argv=None):
             addon_manifest = read_manifest(transport, h0, archive, private / "addon-manifest.json")
             with tarfile.open(archive, "r:gz") as bundle:
                 data = bundle.extractfile("runtime/host-python-bootstrap-plan.json").read(1024**2)
-            require(h0.digest(data) == H1_PLAN_SHA, "H1计划原件SHA错误");h1_plan = h0.decode(data)
-            routes, objects, catalog = derive_addon(transport, h0, payload, addon_manifest, h0_plan, h1_plan)
+            require(h0.digest(data) == ADDON_H1_PLAN_SHA, "addon旧H1计划原件SHA错误")
+            routes, objects, catalog = derive_addon(transport, h0, payload, addon_manifest, h0_plan, data)
             addon = private / "addon";transport.extract_payload(archive, addon, catalog);archive.unlink()
             for sha, row in objects.items():raw_object(h0, payload, addon, sha, row)
             j8 = h0.load_module(addon / "runtime/run_locked_source_tasks.py", RUNTIME["run_locked_source_tasks.py"], "reko_h1_source_tasks")
@@ -522,9 +542,12 @@ def main(argv=None):
             container_output = args.output / "container";container_output.mkdir();args_for_h0 = argparse.Namespace(payload=payload, bundle=args.bundle, ubuntu=args.ubuntu, output=container_output)
             report.update(addon_inputs_verified=True, original_recipe_entries=1793, unique_source_objects=630,
                           addon_h1_tool_sha256=ADDON_H1_SHA, execution_h1_tool_sha256=EXECUTION_H1_SHA,
-                          H1_plan_sha256=H1_PLAN_SHA, addon_manifest_sha256=MANIFEST["sha256"], addon_sha256=ADDON["sha256"])
+                          addon_h1_plan_sha256=ADDON_H1_PLAN_SHA, execution_h1_plan_sha256=EXECUTION_H1_PLAN_SHA,
+                          H1_plan_sha256=EXECUTION_H1_PLAN_SHA,
+                          addon_manifest_sha256=MANIFEST["sha256"], addon_sha256=ADDON["sha256"])
             # 此派生字段只向固定编排提供原计划路线，不写回addon原件或原计划。
-            execution_manifest = {**addon_manifest, "host_routes": h1_plan["routes"]}
+            execution_plan = h0.decode(h0.read(runtime / "scripts/renpy/host-python-bootstrap-plan.json"))
+            execution_manifest = {**addon_manifest, "host_routes": execution_plan["routes"]}
             try:
                 with h0.open_environment(args_for_h0, h0_plan, report) as run:
                     execute_group(run, h0, payload, h0_plan, python_manifest, execution_manifest, workspaces, runtime, args.ubuntu, report)

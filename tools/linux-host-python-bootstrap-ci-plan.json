@@ -6,9 +6,10 @@
   "h0_tool_sha256": "7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc",
   "h0_plan_sha256": "d7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d",
   "addon_h1_tool_sha256": "3de9c6597e9028bb2e35c79e4064db46b68a60417516ca77e52728f5002f88e3",
-  "execution_h1_tool_sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612",
-  "execution_overlay_reason": "按精确CPython保留linux2/linux平台，并以严格多架构包身份核对完整APT环境",
-  "H1_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+  "execution_h1_tool_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+  "execution_overlay_reason": "保留精确CPython平台和严格多架构APT身份；补齐7.8.7原native SSL构建及install_sw命令",
+  "addon_h1_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+  "execution_h1_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
   "addon": {
     "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h1-public-recipe-addon-20261102-01.tar.gz",
     "bytes": 264133884,
@@ -41,6 +42,7 @@
   "limitations": [
     "同一固定C1容器先完成两host前端重放，再用各原venv/bin/python执行两路线原host任务。",
     "addon只是原J1完整配方字节/mode/link运输投影，不伪造或恢复Git元数据；H0原103输入保持原字节。",
+    "公开addon旧源码3de9与旧计划352保持原字节；新执行源码5abab与新执行计划9e072只覆盖派生runtime两固定文件，旧成功证据不改写。",
     "派生runtime完整复制H0的28件root子树，保留18份来源及3个原CPython归档；只在scripts/renpy叠加14固定文件，并整棵root传入容器。",
     "host完整分发tar、原manifest/receipt/native-build.log在容器关闭前保全，逐字节复核后仅登记本组H1。",
     "不消费Apple SDK、engine或J7，不关闭完整九scope、target安装/pip、源码CI或Reko会话验收。"

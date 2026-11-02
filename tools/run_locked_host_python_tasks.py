@@ -23,7 +23,7 @@ import tarfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "host-python-bootstrap-plan.json"
-PLAN_SHA256 = "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
+PLAN_SHA256 = "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32"
 SCOPE = "four_approved_routes_original_hostpython_tasks_and_explicit_legacy_native_ssl_candidate"
 VERSIONS = {"8.5.3": "3.12.8", "8.4.1": "3.12.8", "8.3.7": "3.9.10", "7.8.7": "2.7.18"}
 PRODUCT_PROBE = r'''import sys,os,json,platform,hashlib,ssl,zlib,bz2,ctypes,sysconfig
