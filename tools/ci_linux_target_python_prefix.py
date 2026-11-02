@@ -119,27 +119,30 @@ with tarfile.open(archive,'r:gz') as source:
     while block:=stream.read(262144):digest.update(block);size+=len(block)
    assert size==item['bytes'] and digest.hexdigest()==item['sha256']
 assert seen==set(expected);destination=folder/'verified-prefix';assert not destination.exists();destination.mkdir()
-with tarfile.open(archive,'r:gz') as source:
- for member in source:
-  item=expected[member.name];target=destination/member.name
-  if item['type']=='symlink':continue
-  target.parent.mkdir(parents=True,exist_ok=True)
-  if item['type']=='directory':target.mkdir(exist_ok=True)
-  else:
-   with source.extractfile(member) as inp,target.open('xb') as out:shutil.copyfileobj(inp,out,262144)
-   target.chmod(int(item['permissions'],8))
-for item in entries:
- if item['type']=='symlink':(destination/item['path']).symlink_to(item['target'])
-for item in sorted(entries,key=lambda r:r['path'].count('/'),reverse=True):
- if item['type']=='directory':(destination/item['path']).chmod(int(item['permissions'],8))
-actual=m.verify_c_products(destination,row,arch,inventory,preflight)
-objects={key:actual[key] for key in ('archives','executables','object_sdk_boundary')}
-assert actual['inventory']==entries and objects==json.loads((folder/'c-archive-objects.json').read_bytes())
-headers=json.loads((folder/'c-headers-and-sources.json').read_bytes());assert headers=={'headers':actual['headers'],'sources':row['sources'],'extra_inputs':row['extra_inputs']}
-framework=next(x for x in row['extra_inputs'] if x['path']==('source/MetalANGLE.framework.ios.zip' if arch=='arm64' else 'source/MetalANGLE.framework.ios.simulator.zip'))
-source=workspace/framework['path'];assert source.stat().st_size==framework['size'] and hashlib.sha256(source.read_bytes()).hexdigest()==framework['sha256']
-m.verify_framework(source,destination,arch,inventory)
-shutil.rmtree(destination)
+# 无论解包/产物核验在哪一步拒绝，均只清理本轮临时展开树；原tar和诊断通道保留。
+try:
+ with tarfile.open(archive,'r:gz') as source:
+  for member in source:
+   item=expected[member.name];target=destination/member.name
+   if item['type']=='symlink':continue
+   target.parent.mkdir(parents=True,exist_ok=True)
+   if item['type']=='directory':target.mkdir(exist_ok=True)
+   else:
+    with source.extractfile(member) as inp,target.open('xb') as out:shutil.copyfileobj(inp,out,262144)
+    target.chmod(int(item['permissions'],8))
+ for item in entries:
+  if item['type']=='symlink':(destination/item['path']).symlink_to(item['target'])
+ for item in sorted(entries,key=lambda r:r['path'].count('/'),reverse=True):
+  if item['type']=='directory':(destination/item['path']).chmod(int(item['permissions'],8))
+ actual=m.verify_c_products(destination,row,arch,inventory,preflight)
+ objects={key:actual[key] for key in ('archives','executables','object_sdk_boundary')}
+ assert actual['inventory']==entries and objects==json.loads((folder/'c-archive-objects.json').read_bytes())
+ headers=json.loads((folder/'c-headers-and-sources.json').read_bytes());assert headers=={'headers':actual['headers'],'sources':row['sources'],'extra_inputs':row['extra_inputs']}
+ framework=next(x for x in row['extra_inputs'] if x['path']==('source/MetalANGLE.framework.ios.zip' if arch=='arm64' else 'source/MetalANGLE.framework.ios.simulator.zip'))
+ source=workspace/framework['path'];assert source.stat().st_size==framework['size'] and hashlib.sha256(source.read_bytes()).hexdigest()==framework['sha256']
+ m.verify_framework(source,destination,arch,inventory)
+finally:
+ shutil.rmtree(destination)
 print(json.dumps({'release':release,'arch':arch,'inventory_members':len(entries),'static_archive_count':len(actual['archives']),
  'MachO_object_count':sum(a['object_count'] for a in actual['archives']),'all_exported_member_bytes_and_MachO_objects_verified':True,'MetalANGLE_original_binary_verified_not_source_rebuilt':True,'returned_binary_executed_on_host':False}))
 '''
