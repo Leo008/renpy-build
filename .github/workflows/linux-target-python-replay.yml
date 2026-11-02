@@ -7,8 +7,8 @@ name: RenPy fixed Linux exact target Python input replay
         description: 固定Ubuntu组；只选择实际依赖已具备的作用域
         required: true
         type: choice
-        default: all
-        options: [all, '22.04', '24.04']
+        default: '22.04'
+        options: ['22.04']
 
 permissions:
   contents: read
@@ -26,13 +26,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ${{ fromJSON((inputs.ubuntu_group || 'all') == 'all' && '["22.04","24.04"]' || (inputs.ubuntu_group == '22.04' && '["22.04"]' || '["24.04"]')) }}
+        ubuntu: ['22.04']
     env:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
-      H1_ARTIFACT_ID: ${{ matrix.ubuntu == '22.04' && '13140657277' || '13139309222' }}
-      H1_ARTIFACT_BYTES: ${{ matrix.ubuntu == '22.04' && '63429871' || '127832210' }}
-      H1_ARTIFACT_SHA256: ${{ matrix.ubuntu == '22.04' && '084ebc94eb7e7beeda9e9f627886567f7ac569ebe1281a4b7713a5b6fccc3bb9' || '9ba657645c1076623ba4d3315390ae060f9d1b4344517d6692d701db825fe0da' }}
+      H1_ARTIFACT_ID: '13143390321'
+      H1_ARTIFACT_BYTES: '101989031'
+      H1_ARTIFACT_SHA256: '7c22c8e81eae045770f618907961c9b20741b9049cdf82b76af73f30949a5ec8'
     steps:
       - name: 检出固定target编排与已审核校验器
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -61,12 +61,12 @@ jobs:
           if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyTargetReplayCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_target_python_replay.py': '73bb4c1dd3ed065fcd189b538d4459d38c00b23033dcb545028775cb70c75ec9',
-              'tools/linux-target-python-replay-ci-plan.json': 'd24928eea6d61fd88372821542244c5c5063d60382319928cdcb2670f49016d8',
+              'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4',
+              'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb',
               'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824',
-              'tools/ci_linux_host_python_bootstrap.py': '154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63',
-              'tools/linux-host-python-bootstrap-ci-plan.json': '4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537',
-              'tools/run_locked_host_python_tasks.py': '6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612',
+              'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7',
+              'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2',
+              'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c',
               'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
               'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
               'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
