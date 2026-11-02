@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J9D",
+  "scope": "same_C1_H0_H1_original_iOS_C_prerequisites_only_no_target_python_or_pip",
+  "groups": {
+    "22.04": [
+      "8.3.7",
+      "7.8.7"
+    ],
+    "24.04": [
+      "8.5.3",
+      "8.4.1"
+    ]
+  },
+  "architectures": [
+    "arm64",
+    "sim-arm64",
+    "sim-x86_64"
+  ],
+  "helpers": {
+    "h2": {
+      "aliases": [
+        "run_linux_target_python_replay.py",
+        "ci_linux_target_python_replay.py"
+      ],
+      "sha256": "0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4"
+    }
+  },
+  "producer_profiles": {
+    "22.04": {
+      "ubuntu": "22.04",
+      "execution_source_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+      "execution_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
+      "addon_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+      "require_explicit_plan_fields": true,
+      "artifact": {
+        "id": 13143390321,
+        "run_id": 41446746901,
+        "bytes": 101989031,
+        "sha256": "7c22c8e81eae045770f618907961c9b20741b9049cdf82b76af73f30949a5ec8"
+      }
+    },
+    "24.04": {
+      "ubuntu": "24.04",
+      "execution_source_sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612",
+      "execution_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+      "addon_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+      "require_explicit_plan_fields": false,
+      "artifact": {
+        "id": 13139309222,
+        "run_id": 41441641090,
+        "bytes": 127832210,
+        "sha256": "9ba657645c1076623ba4d3315390ae060f9d1b4344517d6692d701db825fe0da"
+      }
+    }
+  },
+  "host_producers": {
+    "8.5.3": {
+      "execution_source_sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612",
+      "execution_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+      "original_prefix": "/reko/h1-workspaces/8.5.3/tmp/host",
+      "receipt": {
+        "bytes": 14703,
+        "sha256": "28a763692ca484b2485b8c1804be6006d69e917a083190d014e83c68ce614400"
+      },
+      "inventory": {
+        "bytes": 905321,
+        "sha256": "6816c38cff9ae4e79417839a0d2f56fc9ffb0874657929caf95c583b31f23594"
+      },
+      "interpreter_sha256": "7ceb00b0cf27c73776302cf19856d557080536c8e7543b1117a25ae14441f366"
+    },
+    "8.4.1": {
+      "execution_source_sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612",
+      "execution_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+      "original_prefix": "/reko/h1-workspaces/8.4.1/tmp/host",
+      "receipt": {
+        "bytes": 14691,
+        "sha256": "588589d98379b58311ff6fcb41b71951aed64c21dfc8d1f11bc16be42b9da91b"
+      },
+      "inventory": {
+        "bytes": 905321,
+        "sha256": "b77a23c04a5fc7f3ac965bfc832176784ae278886474ff92de177f87567ce9dd"
+      },
+      "interpreter_sha256": "57869c3c64813d716057b2c4f65d70221f0a5da32b2377518768abb61f2b20b3"
+    },
+    "8.3.7": {
+      "execution_source_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+      "execution_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
+      "original_prefix": "/reko/h1-workspaces/8.3.7/tmp/host",
+      "receipt": {
+        "bytes": 44463,
+        "sha256": "639f0e6f2fabe2692ebebae391a5aa93c2a5597192515ff57b1b0832b793edf3"
+      },
+      "inventory": {
+        "bytes": 2208274,
+        "sha256": "dcfe9ceebb1289795c6105cc1d1ab2f9cc766378b18a921b564c2d88f37ad91e"
+      },
+      "interpreter_sha256": "1cb8b7ed30f467349a1d5566dc441124145975c94de59494689a8de93ad16b6a"
+    },
+    "7.8.7": {
+      "execution_source_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+      "execution_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
+      "original_prefix": "/reko/h1-workspaces/7.8.7/tmp/host",
+      "receipt": {
+        "bytes": 40180,
+        "sha256": "df9f8bbce22566f6b4e22514e96af2df951a9d74399ee6230ec7dd6a64c5bf5f"
+      },
+      "inventory": {
+        "bytes": 1083385,
+        "sha256": "aea965b9449f478353b7cc75efae947f440aa432b23de6892baa8f5c068ea6a1"
+      },
+      "interpreter_sha256": "4411c1b2f2d3cb9d4d39fb9d8667f7bfa2a1da8d05e10be961a0b63629765f89"
+    }
+  },
+  "frontend_scopes": {
+    "8.5.3": "8.5.3-host-ci-success",
+    "8.4.1": "8.4.1-host-recipe",
+    "8.3.7": "8.3.7-host-recipe",
+    "7.8.7": "7.8.7-host-recipe"
+  },
+  "worker": {
+    "sha256": "d091b803a2675914c99f78410532d0efbabfbf9eea0debfc9c93a2021fd6e5fe",
+    "bytes": 54112,
+    "plan_sha256": "42498a925e9f968048c13ff4d1751bfe75aee3045839f8b9b4760ec68ae48e4e",
+    "plan_bytes": 103911
+  },
+  "metadata_addon": [
+    {
+      "path": "runtime/run_locked_target_python_tasks.py",
+      "bytes": 54112,
+      "sha256": "d091b803a2675914c99f78410532d0efbabfbf9eea0debfc9c93a2021fd6e5fe"
+    },
+    {
+      "path": "runtime/target-python-prefix-plan.json",
+      "bytes": 103911,
+      "sha256": "42498a925e9f968048c13ff4d1751bfe75aee3045839f8b9b4760ec68ae48e4e"
+    },
+    {
+      "path": "runtime/validate_lock.py",
+      "bytes": 15605,
+      "sha256": "db85e412be38b26a032569bb82aa5b572cf61a25ed1eb2f7c62f7037a6405620"
+    },
+    {
+      "path": "runtime/build_common.py",
+      "bytes": 16169,
+      "sha256": "ece90c0026468c42ded2b4278e55538977fd60ad114261b1729fca73b5b61147"
+    },
+    {
+      "path": "runtime/materialize_source_inputs.py",
+      "bytes": 25801,
+      "sha256": "cccba73ae66c4f6131ff4ae5007b1c07d304d929277e54784ad5b2e932bc4ca6"
+    },
+    {
+      "path": "runtime/remote-sources.lock.json",
+      "bytes": 49818,
+      "sha256": "7515fb7b12608d3911fbebcbbd4d38d9e65044bfbd2fd03a63020cd51dacbfbf"
+    },
+    {
+      "path": "runtime/runtime-lock.json",
+      "bytes": 36693,
+      "sha256": "e26aa71cdefa8adbd17ab20542726539daac72984f1388c6aa7dd5346518af7c"
+    }
+  ],
+  "auditor_functions": {
+    "verify_export": "32d10fe4b9a71e26793738fae736dc6ab65f41e4a9db662c1021d5ea6db18f80",
+    "native_functions_equal_between_exact_6a_and_5abab": {
+      "verify_product": "8ab551ed20183a7caeed5bbc3587dabede9c4c62690fdd8a47cb1c60626760b9",
+      "host_inventory": "d09ca93e35ffbc13f8f5def6f5dec4784b49bfb74b6a5be0a0e6b284342c1648",
+      "dynamic_dependencies": "989db2420370202b16d05e5b8f5f9ad4ebc5d39e4528c990efb43b711e3a3b34",
+      "elf_identity": "7313b0b5cc86dd35f0e1ea39fa8139385b10a795482a4e042e7acfa1824ddcb4",
+      "ar_identity": "9a326d752d3b6e7c6d45cf2b391ab371f58a792aa99287f5d0646a5457cdc86e"
+    }
+  },
+  "limitations": [
+    "首轮建议仅显式调度22历史组，但两组能力均有明确原producer map，不接受其他profile或重标旧352证据。",
+    "增量七件均来自metadata_source_commit已提交原Git blob（其中runtime-lock保留3117历史字节）；根在工具提交后再实际打包，CLI必须给真实外部包SHA/大小，不预填尚无的URL或hash。",
+    "保留完整H0.root/18来源/3原CPython tar和旧J2依赖，再显式添加J9原件；不改旧103输入或H1 addon。",
+    "SDK仅接受C1宿主已核原明文路径；工具不读取SDK URL/password，不向容器发送运输秘密。H0密码仅宿主stdin，全部容器exec env-i。",
+    "未知原Task/SDK/失败日志及回传C前缀均只放private-diagnostics；公开白名单仅public-summary.json与其中身份，不默认上传安装树。根CI另负责私有诊断加密取回。",
+    "只执行原SDK/toolchain/mockrt/MetalANGLE/C静态前置任务；worker必须真实原/候选driver通过才继续C家族，失败无成功收据，无自动fallback。",
+    "不执行target Python install/pip；不声明生产shared/iOS ABI或会话通过，运行结果仅由实际选中cell及完整回提产生。"
+  ],
+  "metadata_source_commit": "00500d307a66e3fdc2bebf6e3762a30a62bd76ff"
+}
