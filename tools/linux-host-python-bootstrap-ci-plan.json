@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J2C-H1-Linux",
+  "scope": "same_lifetime_H0_then_original_host_tasks_no_sdk_or_engine",
+  "transport_helper_sha256": "bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011",
+  "h0_tool_sha256": "7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc",
+  "h0_plan_sha256": "d7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d",
+  "addon_h1_tool_sha256": "3de9c6597e9028bb2e35c79e4064db46b68a60417516ca77e52728f5002f88e3",
+  "execution_h1_tool_sha256": "4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0",
+  "execution_overlay_reason": "保留CPython2.7原sys.platform=linux2并按精确版本校验；CPython3仍为linux",
+  "H1_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+  "addon": {
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h1-public-recipe-addon-20261102-01.tar.gz",
+    "bytes": 264133884,
+    "sha256": "0da8d46083c0c882b1e246a5c7e3df526e20c92246c823abfe3f617271fb5ec2"
+  },
+  "addon_manifest": {
+    "bytes": 1345712,
+    "sha256": "feec48d352fcdda2668663e9d516abbf29eb4ed23e6f146392395c9980626667"
+  },
+  "groups": {
+    "24.04": [
+      "8.5.3",
+      "8.4.1"
+    ],
+    "22.04": [
+      "8.3.7",
+      "7.8.7"
+    ]
+  },
+  "limitations": [
+    "同一固定C1容器先完成两host前端重放，再用各原venv/bin/python执行两路线原host任务。",
+    "addon只是原J1完整配方字节/mode/link运输投影，不伪造或恢复Git元数据；H0原103输入保持原字节。",
+    "host完整分发tar、原manifest/receipt/native-build.log在容器关闭前保全，逐字节复核后仅登记本组H1。",
+    "不消费Apple SDK、engine或J7，不关闭完整九scope、target安装/pip、源码CI或Reko会话验收。"
+  ]
+}
