@@ -454,6 +454,11 @@ def cross_probes(run, major, inputs, report):
         undefined, _ = run.run([nm, "--undefined-only", prefix + "-cxx.o"], name + "-availability-reference")
         require(re.search(rb"__is(?:Platform|OS)VersionAtLeast", undefined), "探针未实际引用Darwin availability runtime")
         link = [cxx, *flags, "-stdlib=libc++", "-fuse-ld=lld", "--ld-path=/usr/bin/ld64.lld-" + str(major), prefix + "-cxx.o", "-Wl,-t", "-o", prefix + "-linked"]
+        # Clang15默认仍生成旧版minimum参数；ld64.lld15要求显式平台/最低版本/SDK，按实际目标补足。
+        if major == 15:
+            platform_name = "ios" if target_platform == 2 else "ios-simulator"
+            minimum = "14.0.0" if target_platform == 7 and architecture == "arm64" else "13.0.0"
+            link.append("-Wl,-platform_version," + platform_name + "," + minimum + ",14.0")
         run.run([*link, "-###"], name + "-link-driver")
         trace, _ = run.run(link, name + "-sdk-link")
         runtime = "libclang_rt.iossim.a" if target_platform == 7 else "libclang_rt.ios.a"

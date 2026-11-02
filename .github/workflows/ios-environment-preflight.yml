@@ -36,7 +36,7 @@ jobs:
       REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
       REKO_APT_MANIFEST_SHA256: ${{ matrix.manifest_sha256 }}
       REKO_APT_COLLECTOR_SHA256: 'f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac'
-      REKO_PREFLIGHT_SHA256: '0d20cb8d8f01f2c0efc3b232f092256ff863952efe89d48500c8e91bcb74f939'
+      REKO_PREFLIGHT_SHA256: 'c4584adae0e197c3c934bba0e5d00f08307788ef819707e640e3d12513f74839'
     steps:
       - name: 检出独立预检工具和原resource归档
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
