@@ -22,7 +22,7 @@ import types
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-target-python-prefix-ci-plan.json"
-PLAN_SHA256 = "0ccd2615dde8d009b25a3e076edfac9dccab33f34d956e42ef4f55ee1105a58b"
+PLAN_SHA256 = "9cef7b6e9af815c248427f092eb583b4530ce7c58a2d86122aba07f8e02d187d"
 GROUPS = {"22.04": ["8.3.7", "7.8.7"], "24.04": ["8.5.3", "8.4.1"]}
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
 REMOTE_ROOT = "/reko/j9-runtime/root"

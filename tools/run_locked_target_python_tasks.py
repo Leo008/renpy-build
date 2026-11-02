@@ -26,7 +26,7 @@ import zipfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "target-python-prefix-plan.json"
-PLAN_SHA256 = "5c74961aa0f957dc86553d38461674057130013cf4104dacd6bf4c940d4940d8"
+PLAN_SHA256 = "dc884e3e22a41365030d6e3e4928d230b7e18d55b04d3801cbaf22b9f428ac39"
 SCOPE = "four_approved_routes_original_ios_C_prerequisites_only"
 RELEASES = ("8.5.3", "8.4.1", "8.3.7", "7.8.7")
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
@@ -175,7 +175,7 @@ def selected_tasks(tasks, route, row, arch, workspace):
 
 
 def candidate_environment(context, row, arch, plan):
-    """只按已锁原函数和精确原片段施加两个公开候选，不修改原源码或语言标准。"""
+    """按已锁原片段和独立LLVM15/18分组施加候选，不修改原源码或语言标准。"""
     require(arch in ARCHES and context.platform == "ios" and context.arch == arch, "候选目标不符")
     original = {key: context.environ[key] for key in ENV_KEYS}
     updated, changes = dict(original), []
@@ -195,6 +195,14 @@ def candidate_environment(context, row, arch, plan):
         suffix = " -Wl,-platform_version," + config["platform_by_arch"][arch] + "," + config["minimum_by_arch"][arch] + ",14.0"
         updated["LDFLAGS"] += suffix
         changes.append({"candidate": "llvm15_platform", "source": row["flag_sources"]["run_source"],
+                        "append": suffix, "reason": config["reason"]})
+    if row["release"] in plan["candidate_adaptations"]["llvm18_platform"]["releases"]:
+        config = plan["candidate_adaptations"]["llvm18_platform"]
+        require(shlex.split(updated["CC"])[:2] == ["ccache", "clang-18"] and "-platform_version" not in " ".join(updated.values()),
+                "LLVM18原driver必须是精确ccache clang-18，且不能重复施加候选")
+        suffix = " -Wl,-platform_version," + config["platform_by_arch"][arch] + "," + config["minimum_by_arch"][arch] + ",14.0"
+        updated["LDFLAGS"] += suffix
+        changes.append({"candidate": "llvm18_platform", "source": row["flag_sources"]["run_source"],
                         "append": suffix, "reason": config["reason"]})
     require(all(updated[key] == original[key] for key in ("CC", "CXX", "CPP", "AR", "RANLIB", "CPPFLAGS", "PATH")),
             "候选越界修改工具或语言标准")
@@ -624,7 +632,7 @@ def bzip2_candidate_sources(workspace, row, plan, j8):
 
 
 def prepare_bzip2_makefile_candidate(args, row, plan, j8):
-    """仅历史派生Makefile将唯一LDFLAGS=改为?=，保持原Task及两条原链接行不变。"""
+    """四路线派生Makefile只将唯一LDFLAGS=改为?=，保持原Task及两条原链接行不变。"""
     config = plan["candidate_adaptations"]["bzip2_ldflags_environment"]
     if row["release"] not in config["releases"]:
         return None
