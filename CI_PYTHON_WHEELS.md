@@ -15,3 +15,5 @@ APT 来自 run41419224335 的完整 Ubuntu22.04 bundle，manifest SHA `d722e3aa9
 B1 原构建器必须证明同一 Python 的回环成功对照及新 netns 的实际拒绝，环境变量或 Docker network none 不替代该证据。builder 在独立无pip环境使用已锁 setuptools/wheel/virtualenv，两个输出核纯Python标签、METADATA/RECORD及完整内容；helper 再将全部实际 payload 与原 sdist 字节直接对照，拒绝源/收据/产物错配。
 
 公开 evidence 只保留完整阶段报告、原命令日志、两个实际wheel及构建器原报告，禁止复制整个 venv/bootstrap/source 目录来冒充已消费。未选的四job保持 not_run；exact-target、导入、J2C、iOS runtime 字段保持 false。always清理本轮生成容器，失败或缺少Python/内核隔离不能计为通过。完成后由 Reko 主代理下载原ZIP独立核SHA、报告/源码/工具/产物身份，再在 J2B2 登记真实结果。
+
+Python2 的真实 `sys.platform` 为 `linux2`，Python3 为 `linux`；解释器校验按所要求的精确版本分别接受，其他平台仍拒绝。首轮执行已安装固定包、验证容器能力，但被错误的统一platform检查拒绝；原报告保留，修复后的两个wheel必须经新CI生成后才可登记。

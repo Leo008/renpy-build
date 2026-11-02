@@ -225,13 +225,15 @@ def transfer_inputs(run, runtime, artifacts, cache):
 
 def interpreter_identity(run, executable, version, label):
     """读取真实系统解释器/标准模块与二进制身份；APT名义版本不能代替实际执行。"""
+    expected_platform = {"2.7.18": "linux2", "3.10.12": "linux"}.get(version)
+    require(expected_platform is not None, "未批准的系统解释器版本契约")
     path, _ = run.run(["readlink", "-f", executable], label + "-path")
     path = path.decode().strip()
     require(path.startswith("/usr/") and "\n" not in path, "系统解释器路径不受控")
     code = "import json,platform,sys,site,sysconfig,socket,zlib,ssl,distutils;print(json.dumps({'version':platform.python_version(),'implementation':platform.python_implementation(),'platform':sys.platform,'machine':platform.machine(),'executable':sys.executable}))"
     raw, _ = run.run([path, "-E", "-s", "-c", code], label + "-runtime")
     identity = json.loads(raw)
-    require(identity["version"] == version and identity["implementation"] == "CPython" and identity["platform"] == "linux"
+    require(identity["version"] == version and identity["implementation"] == "CPython" and identity["platform"] == expected_platform
             and identity["machine"] == "x86_64", "实际系统解释器版本/平台不符合生成端要求")
     sha, _ = run.run(["sha256sum", path], label + "-hash")
     checksum = sha.decode().split()
