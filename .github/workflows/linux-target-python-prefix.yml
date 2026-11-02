@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: renpy-linux-target-prefix-${{ github.ref }}
+  group: renpy-linux-target-prefix-${{ github.ref }}-${{ inputs.ubuntu_group || '22.04' }}
   cancel-in-progress: false
 
 jobs:

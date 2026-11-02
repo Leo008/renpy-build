@@ -13,3 +13,5 @@ SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后
 公开 artifact 白名单只有 `public-summary.json`、前置失败时的 `workflow-status.json`、`cms-selftest.json`、`private-diagnostics.cms` 和登记完整密文/明文字节身份及成员身份的 `private-diagnostics-identity.json`，封装失败时另有固定状态 `diagnostics-transport-status.json`。原始目录和 SDK 原文不能作为 artifact 上传。密文和身份均在私有临时目录完整形成后才发布；异常与超时均不上传部分密文。始终先加密，再清理受控容器、SDK、H1 ZIP 与私有临时输入，最后上传白名单。原诊断目录仅在完整密文再次匹配身份后删除；封装失败保留 runner 私有原诊断并明确记不可取回，不能声称证据已归档。原构建失败状态继续保持红色。
 
 本地取回时先核 GitHub 原 artifact ZIP 的完整 API 摘要/大小，再安全解包白名单，核密文身份。使用已保留的私钥解密到全新私有临时文件；只有 CMS 返回成功且完整明文身份一致后才读取或安全解包。解密失败可能留下部分文件，必须删除该临时文件；保留原密文用于调查。后续独立复核与验收状态由主项目记录，不将工具测试或注册跳过运行计作源码通过。
+
+构建队列按分支和固定 Ubuntu 组分别隔离，同组仍串行且不取消运行中任务。不同组各自独立的容器、APT、host producer 与 artifact 名可以同时推进；同一工作区修改及集成由主代理串行控制。初始历史组与现代组的既有运行保留其原候选与结果。
