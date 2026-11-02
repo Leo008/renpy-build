@@ -1,10 +1,6 @@
 name: RenPy fixed Linux original iOS C prerequisites
 
 'on':
-  # 新工作流只注册，不在push事件执行源码；明确dispatch后才使用实际输入。
-  push:
-    branches: ['codex/ios-locked-inputs-20261102']
-    paths: ['.github/workflows/linux-target-python-prefix.yml']
   workflow_dispatch:
     inputs:
       ubuntu_group:
