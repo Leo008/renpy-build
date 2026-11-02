@@ -28,9 +28,20 @@
       "7.8.7"
     ]
   },
+  "runtime_layout": {
+    "scope": "complete_H0_root_plus_14_fixed_runtime_overlays",
+    "base_root_file_count": 28,
+    "base_root_bytes": 82566005,
+    "overlay_subdirectory": "scripts/renpy",
+    "overlay_file_count": 14,
+    "derived_file_count": 35,
+    "container_root": "/reko/h1-runtime/root",
+    "fresh_process_source_evidence_count": 18
+  },
   "limitations": [
     "同一固定C1容器先完成两host前端重放，再用各原venv/bin/python执行两路线原host任务。",
     "addon只是原J1完整配方字节/mode/link运输投影，不伪造或恢复Git元数据；H0原103输入保持原字节。",
+    "派生runtime完整复制H0的28件root子树，保留18份来源及3个原CPython归档；只在scripts/renpy叠加14固定文件，并整棵root传入容器。",
     "host完整分发tar、原manifest/receipt/native-build.log在容器关闭前保全，逐字节复核后仅登记本组H1。",
     "不消费Apple SDK、engine或J7，不关闭完整九scope、target安装/pip、源码CI或Reko会话验收。"
   ]

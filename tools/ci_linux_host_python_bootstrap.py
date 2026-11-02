@@ -12,6 +12,7 @@ import re
 import shutil
 import stat
 import struct
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -38,7 +39,33 @@ RUNTIME = {
     "source-task-binding-plan.json": "32abe3927eef6d0b887e95b6de83bed38b510644c300a88b314bfeb517a791a5",
 }
 GROUPS = {"24.04": ["8.5.3", "8.4.1"], "22.04": ["8.3.7", "7.8.7"]}
-REMOTE_RUNTIME = "/reko/h1-runtime/root/scripts/renpy"
+REMOTE_ROOT = "/reko/h1-runtime/root"
+REMOTE_RUNTIME = REMOTE_ROOT + "/scripts/renpy"
+RUNTIME_LAYOUT = {"scope": "complete_H0_root_plus_14_fixed_runtime_overlays", "base_root_file_count": 28,
+                  "base_root_bytes": 82566005, "overlay_subdirectory": "scripts/renpy", "overlay_file_count": 14,
+                  "derived_file_count": 35, "container_root": REMOTE_ROOT, "fresh_process_source_evidence_count": 18}
+FRESH_RUNTIME_PROBE = r'''import hashlib,json,pathlib,sys
+root=pathlib.Path(sys.argv[1]);sys.path.insert(0,str(root/'scripts/renpy'))
+assert not any(name in sys.modules for name in ('replay_python_inputs','build_python_wheels','lock_python_inputs'))
+import replay_python_inputs as replay
+assert replay.ROOT==replay.inputs.ROOT==replay.build.ROOT==root
+plan,builder,manifest,sha=replay.load_plan(root/'scripts/renpy/python-replay-plan.json')
+assert sha=='89763ed8ba512a39dd2c63c4e3d871354de300064638ea3b5272294e6428fef4'
+evidence=replay.inputs.verify_evidence(manifest['scopes']);assert len(evidence)==18
+archives=[]
+for row in plan['installers'].values():
+ path=root/row['source_archive'];digest=hashlib.sha256()
+ with path.open('rb') as stream:
+  while True:
+   block=stream.read(1048576)
+   if not block:break
+   digest.update(block)
+ assert digest.hexdigest()==row['source_archive_sha256']
+ archives.append({'path':row['source_archive'],'sha256':digest.hexdigest(),'bytes':path.stat().st_size})
+import run_locked_host_python_tasks as h1
+h1.load_plan()
+print(json.dumps({'root':str(root),'replay_root':str(replay.ROOT),'inputs_root':str(replay.inputs.ROOT),'build_root':str(replay.build.ROOT),'source_evidence_count':len(evidence),'source_archives':archives,'H1_dependency_contract_verified':True,'native_build_executed':False}))
+'''
 PRESERVE = r'''import hashlib,json,os,pathlib,stat,sys,tarfile
 release=sys.argv[1]
 assert release in ('8.5.3','8.4.1','8.3.7','7.8.7')
@@ -106,14 +133,15 @@ def load_helpers():
 def load_plan(transport):
     """锁定现有 H0/H1 原件与公开 addon，拒绝新入口或任意后置任务。"""
     plan = transport.read_json(DEFAULT_PLAN)
-    require(set(plan) == {"schema_version", "task", "scope", "transport_helper_sha256", "h0_tool_sha256", "h0_plan_sha256", "addon_h1_tool_sha256", "execution_h1_tool_sha256", "execution_overlay_reason", "H1_plan_sha256", "addon", "addon_manifest", "groups", "limitations"}
+    require(set(plan) == {"schema_version", "task", "scope", "transport_helper_sha256", "h0_tool_sha256", "h0_plan_sha256", "addon_h1_tool_sha256", "execution_h1_tool_sha256", "execution_overlay_reason", "H1_plan_sha256", "addon", "addon_manifest", "groups", "runtime_layout", "limitations"}
             and type(plan["schema_version"]) is int and plan["schema_version"] == 1
             and plan["task"] == "R00-02J2C-H1-Linux" and plan["scope"] == "same_lifetime_H0_then_original_host_tasks_no_sdk_or_engine"
             and plan["transport_helper_sha256"] == HELPER_SHA and plan["h0_tool_sha256"] == transport.H0_TOOL_SHA256
             and plan["h0_plan_sha256"] == transport.H0_PLAN_SHA256 and plan["addon_h1_tool_sha256"] == ADDON_H1_SHA
             and plan["execution_h1_tool_sha256"] == EXECUTION_H1_SHA and plan["execution_overlay_reason"] == EXECUTION_REASON
             and plan["H1_plan_sha256"] == H1_PLAN_SHA and plan["addon"] == ADDON and plan["addon_manifest"] == MANIFEST
-            and plan["groups"] == GROUPS and isinstance(plan["limitations"], list) and plan["limitations"], "H1 CI计划不是批准固定身份")
+            and plan["groups"] == GROUPS and plan["runtime_layout"] == RUNTIME_LAYOUT
+            and isinstance(plan["limitations"], list) and plan["limitations"], "H1 CI计划不是批准固定身份")
     require(type(plan["addon"]["bytes"]) is int and type(plan["addon_manifest"]["bytes"]) is int, "H1大小字段须为整数")
     return plan
 
@@ -236,16 +264,72 @@ def rebuild_workspace(j8, row, destination, get_bytes):
     j8.verify_repository(row, destination)
 
 
-def prepare_runtime(h0, payload, addon, manifest, destination):
-    """派生独立H1运行目录，H0的103原件不变，5新增+9复用逐字节复制。"""
-    destination.mkdir(parents=True)
+def runtime_root_catalog(h0_plan, manifest, *, execution):
+    """独立从H0完整root与14批准覆盖派生35文件身份，禁止额外源码或遗漏来源。"""
+    base = [{**row, "path": row["path"][5:]} for row in h0_plan["files"] if row["path"].startswith("root/")]
+    require(len(base) == RUNTIME_LAYOUT["base_root_file_count"] and sum(row["bytes"] for row in base) == RUNTIME_LAYOUT["base_root_bytes"], "H0完整root集合不符")
+    expected = {row["path"]: row for row in base};overlays = {}
+    for row in manifest["runtime"]:
+        require(row["name"] in RUNTIME and row["sha256"] == RUNTIME[row["name"]], "runtime覆盖不是五固定原件")
+        overlays[row["name"]] = {"path": "scripts/renpy/" + row["name"], "bytes": row["bytes"], "sha256": row["sha256"]}
+    for row in manifest["runtime_reuse_from_h0"]:
+        require(row["runtime_name"] not in overlays, "runtime覆盖名称重复")
+        matches = [item for item in h0_plan["files"] if item["path"] == row["source"]["path"]]
+        require(len(matches) == 1 and (matches[0]["bytes"], matches[0]["sha256"]) == (row["bytes"], row["sha256"]), "runtime复用身份不是H0已取得原件")
+        overlays[row["runtime_name"]] = {"path": "scripts/renpy/" + row["runtime_name"], "bytes": row["bytes"], "sha256": row["sha256"]}
+    require(len(overlays) == RUNTIME_LAYOUT["overlay_file_count"], "runtime覆盖须恰好14文件")
+    if execution:
+        overlays["run_locked_host_python_tasks.py"].update(bytes=47649, sha256=EXECUTION_H1_SHA)
+    expected.update({row["path"]: row for row in overlays.values()})
+    require(len(expected) == RUNTIME_LAYOUT["derived_file_count"], "派生root完整集合须35文件")
+    return sorted(expected.values(), key=lambda row: row["path"])
+
+
+def verify_runtime_root(h0, destination, catalog):
+    """逐件核完整root的实际SHA/size，并拒绝额外目录、链接或特殊文件。"""
+    h0.verify_files(destination, catalog)
+    directories = {parent.as_posix() for row in catalog for parent in Path(row["path"]).parents if parent.as_posix() != "."}
+    for root, names, _ in os.walk(destination, followlinks=False):
+        require(all((Path(root) / name).relative_to(destination).as_posix() in directories for name in names), "派生root多出未批准目录")
+
+
+def prepare_runtime(h0, payload, addon, manifest, destination, h0_plan):
+    """先克隆完整28件H0 root，再叠加14固定原件；原103输入不变、不伪造Git。"""
+    require(not destination.exists() and not destination.is_relative_to(payload) and not payload.is_relative_to(destination), "派生root必须全新且与原H0分离")
+    destination = h0.regular(destination);destination.mkdir(parents=True)
+    for row in h0_plan["files"]:
+        if not row["path"].startswith("root/"):continue
+        data = h0.read(payload / row["path"], row["bytes"])
+        require(len(data) == row["bytes"] and h0.digest(data) == row["sha256"], "H0原root实际字节不符")
+        target = destination / row["path"][5:];h0.regular(target);target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("xb") as stream:stream.write(data)
+    scripts = destination / "scripts/renpy"
     for row in manifest["runtime"]:
         data = h0.read(addon / row["path"]);require(h0.digest(data) == RUNTIME[row["name"]] and len(data) == row["bytes"], "新增runtime原件改变")
         require(hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest() == row["source_blob_oid"], "新增runtime Git blob不符")
-        with (destination / row["name"]).open("xb") as stream:stream.write(data)
+        with (scripts / row["name"]).open("xb") as stream:stream.write(data)
     for row in manifest["runtime_reuse_from_h0"]:
         data = h0.read(payload / row["source"]["path"]);require(h0.digest(data) == row["sha256"] and len(data) == row["bytes"], "复用runtime原件改变")
-        with (destination / row["runtime_name"]).open("xb") as stream:stream.write(data)
+        target = scripts / row["runtime_name"]
+        if target.exists():require(h0.read(target) == data, "已克隆H0原工具不允许改变")
+        else:
+            with target.open("xb") as stream:stream.write(data)
+    verify_runtime_root(h0, destination, runtime_root_catalog(h0_plan, manifest, execution=False))
+
+
+def verify_fresh_runtime(h0, destination, output):
+    """新隔离子进程实际从派生ROOT读取18来源与3原tar，不复用父进程模块缓存。"""
+    require(output.is_dir(), "fresh runtime报告目录不存在")
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", FRESH_RUNTIME_PROBE, str(destination)],
+                            capture_output=True, timeout=180, env={"LANG": "C", "LC_ALL": "C"})
+    for name, data in (("stdout", result.stdout), ("stderr", result.stderr)):
+        with (output / ("derived-runtime-probe." + name)).open("xb") as stream:stream.write(data)
+    require(result.returncode == 0, "全新进程派生root依赖/来源核验失败，见derived-runtime-probe.stderr")
+    proof = h0.decode(result.stdout)
+    require(proof["root"] == proof["replay_root"] == proof["inputs_root"] == proof["build_root"] == str(destination)
+            and proof["source_evidence_count"] == 18 and len(proof["source_archives"]) == 3
+            and proof["H1_dependency_contract_verified"] is True and proof["native_build_executed"] is False, "fresh runtime来源范围不符")
+    return proof
 
 
 def apply_execution_overlay(h0, runtime, expected):
@@ -359,9 +443,10 @@ def execute_group(run, h0, payload, h0_plan, manifest, addon_manifest, workspace
     source, _ = run.run(["sha256sum", "/reko/h0-replay/report.json"], "h1-original-frontend-report-hash")
     frontend_sha = source.decode().split()[0]
     require(frontend_sha == report["original_replay_report_sha256"], "容器原H0收据SHA与回传原件不同")
-    run.run(["mkdir", "-p", REMOTE_RUNTIME, "/reko/h1-workspaces"], "h1-runtime-directories")
-    run.copy(str(runtime) + "/.", REMOTE_RUNTIME, "h1-copy-derived-runtime")
-    run.checksum("h1-runtime", [(h0.digest(h0.read(path)), REMOTE_RUNTIME + "/" + path.name) for path in sorted(runtime.iterdir())])
+    run.run(["mkdir", "-p", REMOTE_ROOT, "/reko/h1-workspaces"], "h1-runtime-directories")
+    run.copy(str(runtime) + "/.", REMOTE_ROOT, "h1-copy-derived-runtime-root")
+    run.checksum("h1-runtime-root", [(h0.digest(h0.read(path)), REMOTE_ROOT + "/" + path.relative_to(runtime).as_posix())
+                                  for path in sorted(runtime.rglob("*")) if path.is_file()])
     report["routes"] = []
     for release in GROUPS[ubuntu]:
         row = {"release": release, "host_bootstrap_verified": False, "errors": []};report["routes"].append(row)
@@ -428,10 +513,12 @@ def main(argv=None):
             workspaces = private / "workspaces";workspaces.mkdir()
             for release in GROUPS[args.ubuntu]:
                 rebuild_workspace(j8, routes[release], workspaces / release, lambda item: raw_object(h0, payload, addon, item["sha256"], objects[item["sha256"]]))
-            runtime = private / "runtime";prepare_runtime(h0, payload, addon, addon_manifest, runtime)
-            report["execution_overlay"] = apply_execution_overlay(h0, runtime, EXECUTION_H1_SHA)
-            execution = h0.load_module(runtime / "run_locked_host_python_tasks.py", EXECUTION_H1_SHA, "reko_h1_execution_gate")
-            execution.load_plan();report["derived_H1_dependency_contract_verified"] = True
+            runtime = private / "h1-runtime/root";prepare_runtime(h0, payload, addon, addon_manifest, runtime, h0_plan)
+            report["execution_overlay"] = apply_execution_overlay(h0, runtime / "scripts/renpy", EXECUTION_H1_SHA)
+            catalog = runtime_root_catalog(h0_plan, addon_manifest, execution=True);verify_runtime_root(h0, runtime, catalog)
+            report["derived_runtime_root"] = {"layout": RUNTIME_LAYOUT, "files": catalog}
+            report["derived_runtime_fresh_contracts"] = verify_fresh_runtime(h0, runtime, args.output)
+            report["derived_H1_dependency_contract_verified"] = True
             container_output = args.output / "container";container_output.mkdir();args_for_h0 = argparse.Namespace(payload=payload, bundle=args.bundle, ubuntu=args.ubuntu, output=container_output)
             report.update(addon_inputs_verified=True, original_recipe_entries=1793, unique_source_objects=630,
                           addon_h1_tool_sha256=ADDON_H1_SHA, execution_h1_tool_sha256=EXECUTION_H1_SHA,
