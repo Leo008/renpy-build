@@ -206,7 +206,28 @@ def download_attempt(url, path, temporary, expected_sha, expected_size, opener):
     os.link(temporary, path)
 
 
-def download(url, path, expected_sha, expected_size, evidence_root):
+def reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root):
+    """只复用独立缓存中逐字节通过的原件，坏缓存失败，复制后再次核验再独占发布。"""
+    source = guarded(cache / target)
+    if not source.exists() and not source.is_symlink():
+        return False
+    require(source.stat().st_size == expected_size and digest(source) == expected_sha, "缓存原件SHA/大小不符：" + str(source))
+    temporary = path.with_name(path.name + ".part-" + uuid.uuid4().hex)
+    try:
+        with os.fdopen(os.open(source, os.O_RDONLY | os.O_NOFOLLOW), "rb") as original, temporary.open("xb") as output:
+            shutil.copyfileobj(original, output)
+        require(temporary.stat().st_size == expected_size and digest(temporary) == expected_sha, "缓存复制后身份不符")
+        os.link(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    write_json(evidence_root / "downloads" / uuid.uuid4().hex / "cache.json",
+               {"result": "verified", "transport": "verified_original_bytes_cache", "url": url,
+                "source": str(source), "target": target, "bytes": expected_size, "sha256": expected_sha})
+    print("[RenPyAptInputs] 复用已校验原件：" + target, flush=True)
+    return True
+
+
+def download(url, path, expected_sha, expected_size, evidence_root, cache=None):
     """固定源有界重试暂态运输故障，逐次保留证据，身份/路径错误立即失败。"""
     validate_url(url)
     valid_sha(expected_sha)
@@ -216,6 +237,8 @@ def download(url, path, expected_sha, expected_size, evidence_root):
     evidence_root = guarded(evidence_root)
     target = relative(path.relative_to(evidence_root).as_posix())
     path.parent.mkdir(parents=True, exist_ok=True)
+    if cache is not None and reuse_cached_download(cache, target, path, expected_sha, expected_size, url, evidence_root):
+        return
     log_dir = evidence_root / "downloads" / uuid.uuid4().hex
     opener = urllib.request.build_opener(SnapshotOnlyRedirect())
     for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
@@ -436,12 +459,15 @@ def check_apt_index_order(data):
             "APT有效压缩优先级不是独占xz：" + repr(parents + order))
 
 
-def collect(lock_path, lock_sha, ubuntu, output):
+def collect(lock_path, lock_sha, ubuntu, output, cache=None):
     """通过无网络容器验签和APT求解，host运输全部已签索引和分发，不安装软件。"""
     require(platform.system() == "Linux" and platform.machine() in ("x86_64", "amd64"), "采集需要真实Linux amd64 host")
     docker = shutil.which("docker")
     require(docker is not None, "采集需要Docker运行时")
     profile = environment_profile(lock_path, lock_sha, ubuntu)
+    if cache is not None:
+        cache = guarded(cache)
+        require(cache.is_dir() and not cache.is_symlink() and not cache.is_relative_to(output), "缓存必须是输出之外的独立普通目录")
     write_new(output / "environment-inputs.lock.json", lock_path.read_bytes())
     commands = Commands(output)
     name = "reko-apt-" + uuid.uuid4().hex
@@ -477,7 +503,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
         for row in profile["snapshots"]:
             suite, source = row["suite"], row["file"]
             path = repo / "dists" / suite / "InRelease"
-            download(source["source_url"], path, source["sha256"], source["bytes"], output)
+            download(source["source_url"], path, source["sha256"], source["bytes"], output, cache)
             execute(["mkdir", "-p", "/reko/repo/dists/" + suite], "prepare-" + suite)
             copy_to(path, "/reko/repo/dists/" + suite + "/InRelease", "copy-" + suite)
             stdout, command = execute(["gpgv", "--status-fd=1", "--keyring", "/usr/share/keyrings/ubuntu-archive-keyring.gpg", "/reko/repo/dists/" + suite + "/InRelease"], "gpgv-" + suite)
@@ -492,7 +518,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
                 require({"sha256": descriptor["sha256"], "bytes": descriptor["bytes"]} == compressed_pin, "A锁索引与实际已签Release不符")
                 compressed = path.parent / (relative_index + ".xz")
                 url = source["source_url"].removesuffix("InRelease") + relative_index + ".xz"
-                download(url, compressed, compressed_pin["sha256"], compressed_pin["bytes"], output)
+                download(url, compressed, compressed_pin["sha256"], compressed_pin["bytes"], output, cache)
                 plain = path.parent / relative_index
                 with lzma.open(compressed, "rb") as stream, plain.open("xb") as target:
                     shutil.copyfileobj(stream, target)
@@ -520,7 +546,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
             control = item["control"]
             path = repo / request["filename"]
             url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(request["filename"], safe="/+._~-")
-            download(url, path, control["SHA256"], int(control["Size"]), output)
+            download(url, path, control["SHA256"], int(control["Size"]), output, cache)
             execute(["mkdir", "-p", "/reko/repo/" + str(PurePosixPath(request["filename"]).parent)], "deb-directory-%04d" % index)
             copy_to(path, "/reko/repo/" + request["filename"], "copy-deb-%04d" % index)
             raw_control, command = execute(["dpkg-deb", "--field", "/reko/repo/" + request["filename"]], "deb-control-%04d" % index)
@@ -665,6 +691,7 @@ def main(argv=None):
     capture.add_argument("--environment-lock-sha256", required=True)
     capture.add_argument("--ubuntu", choices=PROFILES, required=True)
     capture.add_argument("--output", type=Path, required=True)
+    capture.add_argument("--cache", type=Path)
     verify = commands.add_parser("verify")
     verify.add_argument("--bundle", type=Path, required=True)
     verify.add_argument("--manifest-sha256", required=True)
@@ -679,7 +706,7 @@ def main(argv=None):
             require(not directory.exists() and not directory.is_symlink(), "采集输出目录必须全新")
             directory.mkdir(parents=True)
             output = directory / "collect-report.json"
-            manifest = collect(guarded(args.environment_lock), args.environment_lock_sha256, args.ubuntu, directory)
+            manifest = collect(guarded(args.environment_lock), args.environment_lock_sha256, args.ubuntu, directory, args.cache)
             write_json(directory / "manifest.json", manifest)
             report.update(result="passed", manifest_sha256=digest(directory / "manifest.json"),
                           package_count=len(manifest["packages"]), recorded_signature_verified=True,
