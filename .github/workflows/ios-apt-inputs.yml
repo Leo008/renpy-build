@@ -29,7 +29,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
       REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
-      REKO_APT_COLLECTOR_SHA256: '77a2f30ffe8d455e0a4f4e910c4db71a0440f86db42887329a18180f48cd54d2'
+      REKO_APT_COLLECTOR_SHA256: '4e42eca449e99703371b6407a370a63ace668b91d5a9a443250790fda4321890'
       REKO_APT_ENVIRONMENT_SHA256: '674cbd94766fb3ca9da3a1d1a2ada05b942645257dafccec73aaf0b4fee1c6cc'
     steps:
       - name: 检出独立候选输入工具
@@ -83,6 +83,27 @@ jobs:
           ], check=True)
           print('[RenPyAPTInputs] manifest_sha256=' + digest, flush=True)
           PYCODE
+      - name: 输出失败命令诊断
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          bundle = Path('tmp/apt-inputs-' + os.environ['REKO_APT_UBUNTU'])
+          report = bundle / 'collect-report.json'
+          if report.is_file():
+              print(report.read_text(), flush=True)
+          commands = bundle / 'commands.json'
+          if commands.is_file():
+              for row in json.loads(commands.read_bytes())['commands']:
+                  if row['returncode'] != 0:
+                      print('[RenPyAPTInputs] 失败命令：' + row['label'], flush=True)
+                      for kind in ('stdout', 'stderr'):
+                          log = bundle / row[kind]['path']
+                          print(kind + ':\n' + log.read_text(errors='replace')[-12000:], flush=True)
+          PYCODE
       - name: 保存签名/索引/分发及失败证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -90,5 +111,5 @@ jobs:
           name: renpy-apt-inputs-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: tmp/apt-inputs-${{ matrix.ubuntu }}*
           if-no-files-found: warn
-          compression-level: 0
+          compression-level: 6
           retention-days: 30

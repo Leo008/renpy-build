@@ -355,6 +355,7 @@ Dir::State::lists "/reko/apt/lists";
 Dir::Cache::archives "/reko/apt/archives";
 Acquire::Languages "none";
 Acquire::PDiffs "false";
+#clear Acquire::CompressionTypes::Order;
 Acquire::CompressionTypes::Order { "xz"; };
 APT::Install-Recommends "false";
 APT::Install-Suggests "false";
@@ -369,6 +370,12 @@ Acquire::IndexTargets::deb::Packages {
 #clear DPkg::Post-Invoke;
 '''
     return sources.encode(), config.encode()
+
+
+def check_apt_index_order(data):
+    """检查容器合并后的压缩优先级，拒绝Docker预置gzip先于已物化xz。"""
+    order = re.findall(r'^Acquire::CompressionTypes::Order:: "([^"\n]*)";$', data.decode("utf-8"), re.MULTILINE)
+    require(order == ["xz"], "APT有效压缩优先级不是独占xz：" + repr(order))
 
 
 def collect(lock_path, lock_sha, ubuntu, output):
@@ -442,6 +449,8 @@ def collect(lock_path, lock_sha, ubuntu, output):
             write_new(path, data)
             copy_to(path, "/reko/" + filename, "copy-" + filename)
         apt = ["apt-get", "-c", "/reko/apt.conf"]
+        effective_config, _ = execute(["apt-config", "-c", "/reko/apt.conf", "dump"], "apt-effective-config")
+        check_apt_index_order(effective_config)
         execute([*apt, "update"], "apt-update")
         execute([*apt, "--simulate", "--no-install-recommends", "install", *profile["direct_requirements"]], "apt-simulate")
         plan, plan_command = execute([*apt, "--print-uris", "--yes", "--download-only", "--no-install-recommends", "install", *profile["direct_requirements"]], "apt-print-uris")
@@ -534,6 +543,9 @@ def verify_bundle(root, expected_manifest_sha):
     sources, configuration = apt_configuration(profile["codename"])
     require((root / "sources.list").read_bytes() == sources and (root / "apt.conf").read_bytes() == configuration
             and (root / "preferences").read_bytes() == b"", "APT有效源或配置与固定file仓库不符")
+    config_command, effective_config = command_by_label(root, manifest, "apt-effective-config")
+    require(config_command["argv"][-4:] == ["apt-config", "-c", "/reko/apt.conf", "dump"], "有效APT配置采集命令不符")
+    check_apt_index_order(effective_config)
     require(digest(root / "ubuntu-archive-keyring.gpg"), "缺少采集keyring")
     signed = manifest["signed_metadata"]
     require(len(signed) == 3 and {r["suite"] for r in signed} == {r["suite"] for r in profile["snapshots"]}, "签名元数据缺失/重复")
