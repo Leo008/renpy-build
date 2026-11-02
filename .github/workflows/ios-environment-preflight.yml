@@ -90,7 +90,7 @@ jobs:
         run: |
           python3 - <<'PY'
           """仅宿主运输两份已批准 SDK14 原包；自包含，可原样嵌入 Actions Python 块。"""
-    
+
           import hashlib
           import json
           import os
@@ -103,31 +103,31 @@ jobs:
           import time
           import urllib.parse
           import urllib.request
-    
-    
+
+
           INPUTS = (
               {"role": "device_sdk", "prefix": "IOS_DEVICE_SDK", "filename": "iPhoneOS14.0.sdk.tar.gz",
                "bytes": 27728304, "sha256": "2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287"},
               {"role": "simulator_sdk", "prefix": "IOS_SIMULATOR_SDK", "filename": "iPhoneSimulator14.0.sdk.tar.gz",
                "bytes": 21472366, "sha256": "4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5"},
           )
-    
-    
+
+
           class TransportError(Exception):
               """只携带固定角色与脱敏原因码，禁止保留 URL、密码或原始网络异常文本。"""
-    
+
               def __init__(self, role, code):
                   """记录安全的固定枚举，不拼接输入值。"""
                   self.role, self.code = role, code
                   super().__init__(role + ":" + code)
-    
-    
+
+
           def require(condition, role, code):
               """契约不满足立即失败，日志只包含已定义原因。"""
               if not condition:
                   raise TransportError(role, code)
-    
-    
+
+
           def guarded(value):
               """拒绝任一层路径链接、父目录跳转及空目录参数。"""
               require(isinstance(value, str) and bool(value), "transport", "missing_output_path")
@@ -135,8 +135,8 @@ jobs:
               require(".." not in path.parts and not any(p.is_symlink() for p in (path, *path.parents)),
                       "transport", "unsafe_output_path")
               return path
-    
-    
+
+
           def approved_bytes(path, identity, secret_sha):
               """流式双核验 secret SHA 与 C0 原包 SHA/大小，不沿链接读取缓存。"""
               guarded(str(path))
@@ -157,8 +157,8 @@ jobs:
                   raise
               except Exception:
                   raise TransportError(identity["role"], "plain_verification_failed") from None
-    
-    
+
+
           def validate_https(url, role):
               """只接收 HTTPS URL；查询 token 可用但永不写入命令、日志或报告。"""
               try:
@@ -169,17 +169,17 @@ jobs:
                   raise
               except Exception:
                   raise TransportError(role, "invalid_https_url") from None
-    
-    
+
+
           class HttpsRedirects(urllib.request.HTTPRedirectHandler):
               """在请求重定向目标前阻止 HTTP 降级，异常对外只返回固定错误码。"""
-    
+
               def redirect_request(self, request, fp, code, message, headers, newurl):
                   """校验下一跳再交给标准重定向实现，不输出带凭据的目标。"""
                   validate_https(newurl, "transport")
                   return super().redirect_request(request, fp, code, message, headers, newurl)
-    
-    
+
+
           def download_ciphertext(url, path, identity):
               """下载固定 8-byte salt AES-CBC 协议的有界密文，拒绝过大、短包和错误头。"""
               role = identity["role"]
@@ -208,8 +208,8 @@ jobs:
                   raise
               except Exception:
                   raise TransportError(role, "download_failed") from None
-    
-    
+
+
           def decrypt(ciphertext, plaintext, identity, password):
               """复用原 ci_ios.py 的 AES/PBKDF2 参数，仅向 OpenSSL 子进程传密码环境变量。"""
               role = identity["role"]
@@ -229,8 +229,8 @@ jobs:
                   raise
               except Exception:
                   raise TransportError(role, "decrypt_failed") from None
-    
-    
+
+
           def materialize(cache, identity, secret_sha, url, password):
               """先解密和完整校验，再独占发布原包；失败不覆盖缓存、不遗留本轮临时明文。"""
               temporary = []
@@ -252,8 +252,8 @@ jobs:
               finally:
                   for path in temporary:
                       path.unlink(missing_ok=True)
-    
-    
+
+
           def write_report(path, report):
               """仅写可公开身份和脱敏状态，报告目录与 SDK 私有目录强制分离。"""
               guarded(str(path))
@@ -261,8 +261,8 @@ jobs:
               with path.open("x", encoding="utf-8") as stream:
                   json.dump(report, stream, ensure_ascii=False, indent=2)
                   stream.write("\n")
-    
-    
+
+
           def main():
               """验证缓存或取得缺失的两份授权原包；不运行 Docker，不读取任何 APT 身份。"""
               report = {"schema_version": 1, "scope": "host_authorized_sdk_transport_only", "result": "failed", "inputs": [],
@@ -320,8 +320,8 @@ jobs:
                   return 1
               print("[RenPySDKTransport] " + report["result"] + " " + ",".join(row["role"] + ":" + row["code"] for row in report["errors"]), flush=True)
               return 0 if report["result"] == "passed" else 1
-    
-    
+
+
           if __name__ == "__main__":
               raise SystemExit(main())
           PY
