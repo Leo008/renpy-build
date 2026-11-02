@@ -2,7 +2,7 @@
 
 此工作流只执行 R00-02J9 的原始 SDK、toolchain、mockrt、MetalANGLE 安装与静态 C 前置任务。首轮手动调度 Ubuntu 22.04，覆盖 8.3.7 和 7.8.7 的三个架构。24.04 能力绑定各自原 producer，可随后单独调度。成功也不代表 target Python install、pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
 
-编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `6828f4d6f92990b44841ee253e61c6fdb9e9df0b`，总原字节 313190，固定归档 73258 字节、SHA256 `bce012d0b0c9eaf6641d799111fd119e29840fc4712a2ff0e73be02de6a47a7b`，归档名 `j9-c-prefix-runtime-addon-20261102-02.tar.gz`。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
+编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
 
 SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后核明文大小/SHA及既有 SHA 秘密。AES256CBC/PBKDF2-SHA256/200000/salt8 的密码只通过宿主 stdin，不放 argv 或子进程环境。SDK 与 H0 密码不会发送到构建容器。所有实际 C 任务在固定 C1 同一容器内执行，容器无网络、无宿主挂载、非 privileged；保留原 unshare 的受控 capability 设置。
 
@@ -21,3 +21,7 @@ SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后
 第二轮诊断后的明确修复：原driver命令成功但SDK元数据拒绝会完整记原失败后继续既定candidate；候选可执行仍严格SDK14。原bzip2两链接已有LDFLAGS，但Makefile的LDFLAGS=覆盖环境，历史派生Makefile仅该一行改?=并保留原/派生SHA与补丁；四已证内部绝对alias经原脚本字节核对后规范为同目录相对link，未知/外部/错误内部仍拒绝。修复21项回归与完整43件fresh根验证仅为工具验收，实际C须新运行；原01包和两失败运行不重标。
 
 增量02发布原件 asset702126156，GitHub API返回73258字节和SHA256 bce012d0b0c9eaf6641d799111fd119e29840fc4712a2ff0e73be02de6a47a7b，与本地完整归档一致。
+
+现代旧候选的实际driver也编码SDK13，增量03独立加入LLVM18精确ccache clang-18平台候选，LLVM15原分支/理由保持原文；四版原bzip2 archive/补丁/Makefile身份相同，LDFLAGS?=候选扩至现代。默认每cell缓存与显式共享缓存的24原Context组合、四版make-n及21回归已核；新现代C结果须另行实跑，不重标增量02历史组。
+
+增量03发布原件asset702183169，独立API为73548字节/SHA256 1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f，与本地归档相同。

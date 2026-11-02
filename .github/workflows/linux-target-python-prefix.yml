@@ -66,9 +66,9 @@ jobs:
           if sys.version_info[:2] != (3,10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyPrefixCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_target_python_prefix.py': '3e9f50ac6f3118c8cda44209ae271d08b80a9527764163a5c340660c211b28bd',
-              'tools/linux-target-python-prefix-ci-plan.json': '0ccd2615dde8d009b25a3e076edfac9dccab33f34d956e42ef4f55ee1105a58b',
-              'tools/run_locked_target_python_tasks.py': 'a8d5d3b9b5890194c40d77334d172804ed9b86b2f2447787593d4d6a739bc14b',
+              'tools/ci_linux_target_python_prefix.py': '29b866e12d6aca30da8f811fa16ab71469b55c4ad2eac180cf23fb8de2d9965b',
+              'tools/linux-target-python-prefix-ci-plan.json': '9cef7b6e9af815c248427f092eb583b4530ce7c58a2d86122aba07f8e02d187d',
+              'tools/run_locked_target_python_tasks.py': '9600c0db802f9de941ee1962c511d96a07d50cd015360c4aac9afdc2f3279c39',
               'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4',
               'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb',
               'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824',
@@ -183,7 +183,7 @@ jobs:
               except Exception:
                   raise SystemExit('[RenPyPrefixCI] 固定发布输入运输/强身份失败：'+name) from None
               return path
-          download('j9-c-prefix-runtime-addon-20261102-02.tar.gz',73258,'bce012d0b0c9eaf6641d799111fd119e29840fc4712a2ff0e73be02de6a47a7b')
+          download('j9-c-prefix-runtime-addon-20261102-03.tar.gz',73548,'1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f')
           rows=[('iPhoneOS14.0.sdk.tar.gz',27728336,'07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133',27728304,'2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287','IOS_DEVICE_SDK_SHA256'),('iPhoneSimulator14.0.sdk.tar.gz',21472384,'be1c1049401283b6fc4202c4eea6830412ca768c9f07a071734bfeac8b6f004a',21472366,'4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5','IOS_SIMULATOR_SDK_SHA256')]
           child_env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'}
           help_result=subprocess.run(['openssl','enc','-help'],capture_output=True,env=child_env,timeout=30)
@@ -211,9 +211,9 @@ jobs:
             --h1-artifact "$RUNNER_TEMP/reko-j9-H1-artifact.zip" \
             --h1-artifact-sha256 "$H1_ARTIFACT_SHA256" \
             --h1-artifact-bytes "$H1_ARTIFACT_BYTES" \
-            --runtime-addon "$RUNNER_TEMP/reko-j9-sdk-inputs/j9-c-prefix-runtime-addon-20261102-02.tar.gz" \
-            --runtime-addon-sha256 'bce012d0b0c9eaf6641d799111fd119e29840fc4712a2ff0e73be02de6a47a7b' \
-            --runtime-addon-bytes 73258 \
+            --runtime-addon "$RUNNER_TEMP/reko-j9-sdk-inputs/j9-c-prefix-runtime-addon-20261102-03.tar.gz" \
+            --runtime-addon-sha256 '1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f' \
+            --runtime-addon-bytes 73548 \
             --device-sdk "$RUNNER_TEMP/reko-j9-sdk-inputs/iPhoneOS14.0.sdk.tar.gz" \
             --simulator-sdk "$RUNNER_TEMP/reko-j9-sdk-inputs/iPhoneSimulator14.0.sdk.tar.gz" \
             --clang-runtime "$GITHUB_WORKSPACE/prebuilt/clang_rt.tar.gz" \
