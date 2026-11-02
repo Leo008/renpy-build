@@ -1,0 +1,706 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J2B1",
+  "j2a_manifest_sha256": "4a9a85b719dd1ef3fb5ded2fcd383f5c9bd8925c0e537bd8f5db0a1132602935",
+  "sources": {
+    "1187fb9c82fd670d10aa07bbb6cfcfe4bdda42d6fab8d5134f04e8c4d0b71cc9": {
+      "name": "typing",
+      "version": "3.7.4.3",
+      "filename": "typing-3.7.4.3.tar.gz",
+      "build_files": {
+        "setup.py": "d96451bf452b8ad93907247c0683c4ed2fd9923ba61c5d263e0df74a4ae28a8f",
+        "setup.cfg": "db5952370a324c46547137e3d938bd1d8a700499a55b3b503878caae35b65206"
+      },
+      "frontend": "setup.py_bdist_wheel",
+      "pyproject": false,
+      "setup_requires": false,
+      "build_requires": [
+        "setuptools",
+        "wheel"
+      ],
+      "runtime_requires": [],
+      "review": "逐字读取实际 setup.py/setup.cfg；没有 pyproject.toml、setup_requires 或扩展编译；固定命令只执行 bdist_wheel。future 的 Python 2 条件包必须由 Python 2 构建。",
+      "runtime_requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+    },
+    "344a49e40a94e10849f0fe34dddc80f773a12b40675bf2f7be4b8be578bdd94a": {
+      "name": "pefile",
+      "version": "2021.9.3",
+      "filename": "pefile-2021.9.3.tar.gz",
+      "build_files": {
+        "setup.cfg": "1c473cbaee8da5fc46e7f0158794af5cea4414c34a3cf3f180c2001f5e38bd3e",
+        "setup.py": "a4b93e6d9aae1aec6860bea71d501f8140ae48a55832075cd610302c932e1f5c"
+      },
+      "frontend": "setup.py_bdist_wheel",
+      "pyproject": false,
+      "setup_requires": false,
+      "build_requires": [
+        "setuptools",
+        "wheel"
+      ],
+      "runtime_requires": [
+        "future"
+      ],
+      "review": "逐字读取实际 setup.py/setup.cfg；没有 pyproject.toml、setup_requires 或扩展编译；固定命令只执行 bdist_wheel。future 的 Python 2 条件包必须由 Python 2 构建。",
+      "runtime_requires_python": ">=3.6.0"
+    },
+    "34a17436ed1e96697a86f9de3d15a3b0be01d8bc8de9c1dffd59fb8234ed5307": {
+      "name": "future",
+      "version": "0.18.3",
+      "filename": "future-0.18.3.tar.gz",
+      "build_files": {
+        "setup.py": "e19f6a9162ac71e0c470299ddd6f06b8248cb453bdf4914524843c308092b2a5",
+        "setup.cfg": "fcf9c3f4e7f1af8248242fdeec5ac33e8bd64806c5533420d93740d051dbf17f"
+      },
+      "frontend": "setup.py_bdist_wheel",
+      "pyproject": false,
+      "setup_requires": false,
+      "build_requires": [
+        "setuptools",
+        "wheel"
+      ],
+      "runtime_requires": [],
+      "review": "逐字读取实际 setup.py/setup.cfg；没有 pyproject.toml、setup_requires 或扩展编译；固定命令只执行 bdist_wheel。future 的 Python 2 条件包必须由 Python 2 构建。",
+      "runtime_requires_python": ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+    },
+    "a5488a3dd1fd021ce33f969780b88fe0f7eebb76eb20996d7318f307612a045b": {
+      "name": "pefile",
+      "version": "2022.5.30",
+      "filename": "pefile-2022.5.30.tar.gz",
+      "build_files": {
+        "setup.cfg": "1c473cbaee8da5fc46e7f0158794af5cea4414c34a3cf3f180c2001f5e38bd3e",
+        "setup.py": "fe6f2e24cad84aa4fb96be11af8a98afafa51cc2337780fe8728d5ebe5cb8d5b"
+      },
+      "frontend": "setup.py_bdist_wheel",
+      "pyproject": false,
+      "setup_requires": false,
+      "build_requires": [
+        "setuptools",
+        "wheel"
+      ],
+      "runtime_requires": [
+        "future"
+      ],
+      "review": "逐字读取实际 setup.py/setup.cfg；没有 pyproject.toml、setup_requires 或扩展编译；固定命令只执行 bdist_wheel。future 的 Python 2 条件包必须由 Python 2 构建。",
+      "runtime_requires_python": ">=3.6.0"
+    },
+    "a5d6e8305c6b210849b47a6174ddf9c452b2888340b8177874b862ba6c207645": {
+      "name": "pefile",
+      "version": "2019.4.18",
+      "filename": "pefile-2019.4.18.tar.gz",
+      "build_files": {
+        "setup.cfg": "1c473cbaee8da5fc46e7f0158794af5cea4414c34a3cf3f180c2001f5e38bd3e",
+        "setup.py": "e33364440b325e396f49bfb35751c3768e8992a46664863931531fa307ee888f"
+      },
+      "frontend": "setup.py_bdist_wheel",
+      "pyproject": false,
+      "setup_requires": false,
+      "build_requires": [
+        "setuptools",
+        "wheel"
+      ],
+      "runtime_requires": [
+        "future"
+      ],
+      "review": "逐字读取实际 setup.py/setup.cfg；没有 pyproject.toml、setup_requires 或扩展编译；固定命令只执行 bdist_wheel。future 的 Python 2 条件包必须由 Python 2 构建。",
+      "runtime_requires_python": ""
+    }
+  },
+  "tools": {
+    "708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248": {
+      "name": "wheel",
+      "version": "0.45.1",
+      "filename": "wheel-0.45.1-py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/0b/2c/87f3254fd8ffd29e4c02732eee68a83a1d3c346ae39bc6822dcbcb697f2b/wheel-0.45.1-py3-none-any.whl",
+      "sha256": "708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248",
+      "size": 72494,
+      "metadata": {
+        "name": "wheel",
+        "version": "0.45.1",
+        "requires_python": ">=3.8",
+        "requires_dist": [
+          "pytest >= 6.0.0 ; extra == \"test\"",
+          "setuptools >= 65 ; extra == \"test\""
+        ]
+      },
+      "metadata_sha256": "98acfce07ee6ee3b31272cde21c4d53918936f434f315dfd2af3886211a09a30",
+      "inspection": {
+        "metadata": {
+          "name": "wheel",
+          "version": "0.45.1",
+          "requires_python": ">=3.8",
+          "requires_dist": [
+            "pytest >= 6.0.0 ; extra == \"test\"",
+            "setuptools >= 65 ; extra == \"test\""
+          ]
+        },
+        "metadata_sha256": "98acfce07ee6ee3b31272cde21c4d53918936f434f315dfd2af3886211a09a30",
+        "root_is_purelib": true,
+        "tags": [
+          "py3-none-any"
+        ],
+        "native_members": [],
+        "member_count": 37,
+        "dist_info": "wheel-0.45.1.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/wheel/0.45.1/json",
+        "sha256": "617c2b62cc17caeef3fc1e10144bd3d5b8dc2fb93bb67a87f2802c2d0a856c32"
+      },
+      "origin": "official_pypi_exact_version",
+      "usage": "isolated_builder_only"
+    },
+    "df277cb51e61359aba502208d680f90c0493adec6f0e848af94948778aed386e": {
+      "name": "wheel",
+      "version": "0.34.2",
+      "filename": "wheel-0.34.2-py2.py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/8c/23/848298cccf8e40f5bbb59009b32848a4c38f4e7f3364297ab3c3e2e2cd14/wheel-0.34.2-py2.py3-none-any.whl",
+      "sha256": "df277cb51e61359aba502208d680f90c0493adec6f0e848af94948778aed386e",
+      "size": 26502,
+      "metadata": {
+        "name": "wheel",
+        "version": "0.34.2",
+        "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
+        "requires_dist": [
+          "pytest (>=3.0.0) ; extra == 'test'",
+          "pytest-cov ; extra == 'test'"
+        ]
+      },
+      "metadata_sha256": "ba2cc92ea4f8593b33a57653903028527dfae257d75cccfe85ad532c8b9041b5",
+      "inspection": {
+        "metadata": {
+          "name": "wheel",
+          "version": "0.34.2",
+          "requires_python": ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*",
+          "requires_dist": [
+            "pytest (>=3.0.0) ; extra == 'test'",
+            "pytest-cov ; extra == 'test'"
+          ]
+        },
+        "metadata_sha256": "ba2cc92ea4f8593b33a57653903028527dfae257d75cccfe85ad532c8b9041b5",
+        "root_is_purelib": true,
+        "tags": [
+          "py2-none-any",
+          "py3-none-any"
+        ],
+        "native_members": [],
+        "member_count": 21,
+        "dist_info": "wheel-0.34.2.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/wheel/0.34.2/json",
+        "sha256": "f70dbdbc1daee2313188bb0137b975e5056b19c08aa0c1425471bcd6500c0411"
+      },
+      "origin": "official_pypi_exact_version",
+      "usage": "isolated_builder_only"
+    },
+    "9180ce4102c388073bac71ecd041f7f31f9ef8c528edb205d75ae6144d08106e": {
+      "name": "virtualenv",
+      "version": "16.7.12",
+      "filename": "virtualenv-16.7.12-py2.py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/85/d8/9dbb4d0fc19f029a43f4b5290b91da87f86572585f5c9b3ed345c6d9b8d7/virtualenv-16.7.12-py2.py3-none-any.whl",
+      "sha256": "9180ce4102c388073bac71ecd041f7f31f9ef8c528edb205d75ae6144d08106e",
+      "size": 7152717,
+      "metadata": {
+        "name": "virtualenv",
+        "version": "16.7.12",
+        "requires_python": "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7",
+        "requires_dist": [
+          "coverage (<5,>=4.5.0) ; extra == 'testing'",
+          "mock ; (python_version < \"3.3\") and extra == 'testing'",
+          "pypiserver ; extra == 'testing'",
+          "pytest (<5,>=4.0.0) ; extra == 'testing'",
+          "pytest-localserver ; extra == 'testing'",
+          "pytest-timeout (<2,>=1.3.0) ; extra == 'testing'",
+          "pytest-xdist ; extra == 'testing'",
+          "six (<2,>=1.10.0) ; extra == 'testing'",
+          "sphinx (<2,>=1.8.0) ; extra == 'docs'",
+          "sphinx-rtd-theme (<1,>=0.4.2) ; extra == 'docs'",
+          "towncrier (>=18.5.0) ; extra == 'docs'",
+          "xonsh ; (python_version >= \"3.5\") and extra == 'testing'"
+        ]
+      },
+      "metadata_sha256": "28c219586d9aab69ec35b09a0b468b8aa90567a5214c0cbcbb214943624ff954",
+      "inspection": {
+        "metadata": {
+          "name": "virtualenv",
+          "version": "16.7.12",
+          "requires_python": "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7",
+          "requires_dist": [
+            "coverage (<5,>=4.5.0) ; extra == 'testing'",
+            "mock ; (python_version < \"3.3\") and extra == 'testing'",
+            "pypiserver ; extra == 'testing'",
+            "pytest (<5,>=4.0.0) ; extra == 'testing'",
+            "pytest-localserver ; extra == 'testing'",
+            "pytest-timeout (<2,>=1.3.0) ; extra == 'testing'",
+            "pytest-xdist ; extra == 'testing'",
+            "six (<2,>=1.10.0) ; extra == 'testing'",
+            "sphinx (<2,>=1.8.0) ; extra == 'docs'",
+            "sphinx-rtd-theme (<1,>=0.4.2) ; extra == 'docs'",
+            "towncrier (>=18.5.0) ; extra == 'docs'",
+            "xonsh ; (python_version >= \"3.5\") and extra == 'testing'"
+          ]
+        },
+        "metadata_sha256": "28c219586d9aab69ec35b09a0b468b8aa90567a5214c0cbcbb214943624ff954",
+        "root_is_purelib": true,
+        "tags": [
+          "py2-none-any",
+          "py3-none-any"
+        ],
+        "native_members": [],
+        "member_count": 18,
+        "dist_info": "virtualenv-16.7.12.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/virtualenv/16.7.12/json",
+        "sha256": "a8264e559f14ae0baa16ad265fe9a373e2ff5fb1495f47be05be8cdd1a7da6cb"
+      },
+      "origin": "official_pypi_exact_version",
+      "usage": "isolated_builder_only"
+    },
+    "4380abcf2a4ffd1a5ba22d687c6d690dce83b2b51c70e9c6d09f7e8c7e8040dc": {
+      "name": "setuptools",
+      "version": "41.2.0",
+      "filename": "setuptools-41.2.0-py2.py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/b2/86/095d2f7829badc207c893dd4ac767e871f6cd547145df797ea26baea4e2e/setuptools-41.2.0-py2.py3-none-any.whl",
+      "sha256": "4380abcf2a4ffd1a5ba22d687c6d690dce83b2b51c70e9c6d09f7e8c7e8040dc",
+      "size": 576332,
+      "metadata": {
+        "name": "setuptools",
+        "version": "41.2.0",
+        "requires_python": ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+        "requires_dist": [
+          "certifi (==2016.9.26) ; extra == 'certs'",
+          "wincertstore (==0.2) ; (sys_platform == \"win32\") and extra == 'ssl'"
+        ]
+      },
+      "metadata_sha256": "fedd03bcafdb2cb4f6ca3bef34e097892228349be35fa753593f1f2cd56b5109",
+      "inspection": {
+        "metadata": {
+          "name": "setuptools",
+          "version": "41.2.0",
+          "requires_python": ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*",
+          "requires_dist": [
+            "certifi (==2016.9.26) ; extra == 'certs'",
+            "wincertstore (==0.2) ; (sys_platform == \"win32\") and extra == 'ssl'"
+          ]
+        },
+        "metadata_sha256": "fedd03bcafdb2cb4f6ca3bef34e097892228349be35fa753593f1f2cd56b5109",
+        "root_is_purelib": true,
+        "tags": [
+          "py2-none-any",
+          "py3-none-any"
+        ],
+        "native_members": [
+          {
+            "path": "setuptools/cli-32.exe",
+            "sha256": "75f12ea2f30d9c0d872dade345f30f562e6d93847b6a509ba53beec6d0b2c346",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/cli-64.exe",
+            "sha256": "28b001bb9a72ae7a24242bfab248d767a1ac5dec981c672a3944f7a072375e9a",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/cli.exe",
+            "sha256": "75f12ea2f30d9c0d872dade345f30f562e6d93847b6a509ba53beec6d0b2c346",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui-32.exe",
+            "sha256": "5c1af46c7300e87a73dacf6cf41ce397e3f05df6bd9c7e227b4ac59f85769160",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui-64.exe",
+            "sha256": "69828c857d4824b9f850b1e0597d2c134c91114b7a0774c41dffe33b0eb23721",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui.exe",
+            "sha256": "5c1af46c7300e87a73dacf6cf41ce397e3f05df6bd9c7e227b4ac59f85769160",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          }
+        ],
+        "member_count": 100,
+        "dist_info": "setuptools-41.2.0.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/setuptools/41.2.0/json",
+        "sha256": "166c3bd876a7221c34c9c80162f5a9e4ba5658e22989b2735dcb1334ffe984b0"
+      },
+      "origin": "official_pypi_exact_version",
+      "usage": "isolated_builder_only"
+    },
+    "5f4c08aa4d3ebcb57a50c33b1b07e94315d7fc7230f7115e47fc99776c8ce308": {
+      "name": "setuptools",
+      "version": "74.1.2",
+      "filename": "setuptools-74.1.2-py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/cb/9c/9ad11ac06b97e55ada655f8a6bea9d1d3f06e120b178cd578d80e558191d/setuptools-74.1.2-py3-none-any.whl",
+      "sha256": "5f4c08aa4d3ebcb57a50c33b1b07e94315d7fc7230f7115e47fc99776c8ce308",
+      "size": 1262071,
+      "metadata": {
+        "name": "setuptools",
+        "version": "74.1.2",
+        "requires_python": ">=3.8",
+        "requires_dist": [
+          "build[virtualenv] >=1.0.3 ; extra == 'test'",
+          "filelock >=3.4.0 ; extra == 'test'",
+          "furo ; extra == 'doc'",
+          "importlib-metadata >=6 ; (python_version < \"3.10\") and extra == 'core'",
+          "importlib-metadata >=7.0.2 ; (python_version < \"3.10\") and extra == 'type'",
+          "importlib-resources >=5.10.2 ; (python_version < \"3.9\") and extra == 'core'",
+          "ini2toml[lite] >=0.14 ; extra == 'test'",
+          "jaraco.develop >=7.21 ; (python_version >= \"3.9\" and sys_platform != \"cygwin\") and extra == 'test'",
+          "jaraco.develop >=7.21 ; (sys_platform != \"cygwin\") and extra == 'type'",
+          "jaraco.envs >=2.2 ; extra == 'test'",
+          "jaraco.packaging >=9.3 ; extra == 'doc'",
+          "jaraco.path >=3.2.0 ; extra == 'test'",
+          "jaraco.test ; extra == 'test'",
+          "jaraco.text >=3.7 ; extra == 'core'",
+          "jaraco.tidelift >=1.4 ; extra == 'doc'",
+          "more-itertools >=8.8 ; extra == 'core'",
+          "mypy ==1.11.* ; extra == 'type'",
+          "packaging >=23.2 ; extra == 'test'",
+          "packaging >=24 ; extra == 'core'",
+          "pip >=19.1 ; extra == 'test'",
+          "platformdirs >=2.6.2 ; extra == 'core'",
+          "pygments-github-lexers ==0.0.5 ; extra == 'doc'",
+          "pyproject-hooks !=1.1 ; extra == 'doc'",
+          "pyproject-hooks !=1.1 ; extra == 'test'",
+          "pytest !=8.1.*,>=6 ; extra == 'test'",
+          "pytest-checkdocs >=2.4 ; extra == 'check'",
+          "pytest-cov ; extra == 'cover'",
+          "pytest-enabler >=2.2 ; extra == 'enabler'",
+          "pytest-home >=0.5 ; extra == 'test'",
+          "pytest-mypy ; extra == 'type'",
+          "pytest-perf ; (sys_platform != \"cygwin\") and extra == 'test'",
+          "pytest-ruff >=0.2.1 ; (sys_platform != \"cygwin\") and extra == 'check'",
+          "pytest-subprocess ; extra == 'test'",
+          "pytest-timeout ; extra == 'test'",
+          "pytest-xdist >=3 ; extra == 'test'",
+          "rst.linker >=1.9 ; extra == 'doc'",
+          "ruff >=0.5.2 ; (sys_platform != \"cygwin\") and extra == 'check'",
+          "sphinx >=3.5 ; extra == 'doc'",
+          "sphinx-favicon ; extra == 'doc'",
+          "sphinx-inline-tabs ; extra == 'doc'",
+          "sphinx-lint ; extra == 'doc'",
+          "sphinx-notfound-page <2,>=1 ; extra == 'doc'",
+          "sphinx-reredirects ; extra == 'doc'",
+          "sphinxcontrib-towncrier ; extra == 'doc'",
+          "tomli >=2.0.1 ; (python_version < \"3.11\") and extra == 'core'",
+          "tomli-w >=1.0.0 ; extra == 'test'",
+          "towncrier <24.7 ; extra == 'doc'",
+          "virtualenv >=13.0.0 ; extra == 'test'",
+          "wheel >=0.43.0 ; extra == 'core'",
+          "wheel >=0.44.0 ; extra == 'test'"
+        ]
+      },
+      "metadata_sha256": "1465fdc4d8bc9aea72e99b9688344eb55b2e93c496899d55d90beb48a5c4fe97",
+      "inspection": {
+        "metadata": {
+          "name": "setuptools",
+          "version": "74.1.2",
+          "requires_python": ">=3.8",
+          "requires_dist": [
+            "build[virtualenv] >=1.0.3 ; extra == 'test'",
+            "filelock >=3.4.0 ; extra == 'test'",
+            "furo ; extra == 'doc'",
+            "importlib-metadata >=6 ; (python_version < \"3.10\") and extra == 'core'",
+            "importlib-metadata >=7.0.2 ; (python_version < \"3.10\") and extra == 'type'",
+            "importlib-resources >=5.10.2 ; (python_version < \"3.9\") and extra == 'core'",
+            "ini2toml[lite] >=0.14 ; extra == 'test'",
+            "jaraco.develop >=7.21 ; (python_version >= \"3.9\" and sys_platform != \"cygwin\") and extra == 'test'",
+            "jaraco.develop >=7.21 ; (sys_platform != \"cygwin\") and extra == 'type'",
+            "jaraco.envs >=2.2 ; extra == 'test'",
+            "jaraco.packaging >=9.3 ; extra == 'doc'",
+            "jaraco.path >=3.2.0 ; extra == 'test'",
+            "jaraco.test ; extra == 'test'",
+            "jaraco.text >=3.7 ; extra == 'core'",
+            "jaraco.tidelift >=1.4 ; extra == 'doc'",
+            "more-itertools >=8.8 ; extra == 'core'",
+            "mypy ==1.11.* ; extra == 'type'",
+            "packaging >=23.2 ; extra == 'test'",
+            "packaging >=24 ; extra == 'core'",
+            "pip >=19.1 ; extra == 'test'",
+            "platformdirs >=2.6.2 ; extra == 'core'",
+            "pygments-github-lexers ==0.0.5 ; extra == 'doc'",
+            "pyproject-hooks !=1.1 ; extra == 'doc'",
+            "pyproject-hooks !=1.1 ; extra == 'test'",
+            "pytest !=8.1.*,>=6 ; extra == 'test'",
+            "pytest-checkdocs >=2.4 ; extra == 'check'",
+            "pytest-cov ; extra == 'cover'",
+            "pytest-enabler >=2.2 ; extra == 'enabler'",
+            "pytest-home >=0.5 ; extra == 'test'",
+            "pytest-mypy ; extra == 'type'",
+            "pytest-perf ; (sys_platform != \"cygwin\") and extra == 'test'",
+            "pytest-ruff >=0.2.1 ; (sys_platform != \"cygwin\") and extra == 'check'",
+            "pytest-subprocess ; extra == 'test'",
+            "pytest-timeout ; extra == 'test'",
+            "pytest-xdist >=3 ; extra == 'test'",
+            "rst.linker >=1.9 ; extra == 'doc'",
+            "ruff >=0.5.2 ; (sys_platform != \"cygwin\") and extra == 'check'",
+            "sphinx >=3.5 ; extra == 'doc'",
+            "sphinx-favicon ; extra == 'doc'",
+            "sphinx-inline-tabs ; extra == 'doc'",
+            "sphinx-lint ; extra == 'doc'",
+            "sphinx-notfound-page <2,>=1 ; extra == 'doc'",
+            "sphinx-reredirects ; extra == 'doc'",
+            "sphinxcontrib-towncrier ; extra == 'doc'",
+            "tomli >=2.0.1 ; (python_version < \"3.11\") and extra == 'core'",
+            "tomli-w >=1.0.0 ; extra == 'test'",
+            "towncrier <24.7 ; extra == 'doc'",
+            "virtualenv >=13.0.0 ; extra == 'test'",
+            "wheel >=0.43.0 ; extra == 'core'",
+            "wheel >=0.44.0 ; extra == 'test'"
+          ]
+        },
+        "metadata_sha256": "1465fdc4d8bc9aea72e99b9688344eb55b2e93c496899d55d90beb48a5c4fe97",
+        "root_is_purelib": true,
+        "tags": [
+          "py3-none-any"
+        ],
+        "native_members": [
+          {
+            "path": "setuptools/cli-32.exe",
+            "sha256": "32acc1bc543116cbe2cff10cb867772df2f254ff2634c870aef0b46c4b696fdb",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/cli-64.exe",
+            "sha256": "bbb3de5707629e6a60a0c238cd477b28f07f0066982fda953fa6fcec39073a4a",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/cli-arm64.exe",
+            "sha256": "b9a7d08da880dfac8bcf548eba4b06fb59b6f09b17d33148a0f6618328926c61",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/cli.exe",
+            "sha256": "32acc1bc543116cbe2cff10cb867772df2f254ff2634c870aef0b46c4b696fdb",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui-32.exe",
+            "sha256": "85dae1e95d77845f2cb59bcac3d4afe74bbe4c91a9bcc5bf4a71cd43104dbe7c",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui-64.exe",
+            "sha256": "3471b6140eadc6412277dbbefe3fef8c345a0f1a59776086b80a3618c3a83e3b",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui-arm64.exe",
+            "sha256": "e694f4743405c8b5926ff457db6fe7f1a12dec7c16a9c3864784d3f4e07ae097",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          },
+          {
+            "path": "setuptools/gui.exe",
+            "sha256": "85dae1e95d77845f2cb59bcac3d4afe74bbe4c91a9bcc5bf4a71cd43104dbe7c",
+            "kind": "PE",
+            "machine": null,
+            "bits": null
+          }
+        ],
+        "member_count": 560,
+        "dist_info": "setuptools-74.1.2.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/setuptools/74.1.2/json",
+        "sha256": "ada5dfe22bff59b47236a73096ef700c6f40ecfe26b33d76d00a440d295242e1"
+      },
+      "origin": "J2A_locked_distribution_bytes",
+      "usage": "isolated_builder_only"
+    },
+    "5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124": {
+      "name": "packaging",
+      "version": "24.1",
+      "filename": "packaging-24.1-py3-none-any.whl",
+      "type": "wheel",
+      "url": "https://files.pythonhosted.org/packages/08/aa/cc0199a5f0ad350994d660967a8efb233fe0416e4639146c089643407ce6/packaging-24.1-py3-none-any.whl",
+      "sha256": "5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124",
+      "size": 53985,
+      "metadata": {
+        "name": "packaging",
+        "version": "24.1",
+        "requires_python": ">=3.8",
+        "requires_dist": []
+      },
+      "metadata_sha256": "5f7a283b75a709fccd481aea42379f083d4f3801753365922e6b0732042515d9",
+      "inspection": {
+        "metadata": {
+          "name": "packaging",
+          "version": "24.1",
+          "requires_python": ">=3.8",
+          "requires_dist": []
+        },
+        "metadata_sha256": "5f7a283b75a709fccd481aea42379f083d4f3801753365922e6b0732042515d9",
+        "root_is_purelib": true,
+        "tags": [
+          "py3-none-any"
+        ],
+        "native_members": [],
+        "member_count": 21,
+        "dist_info": "packaging-24.1.dist-info"
+      },
+      "metadata_source": {
+        "url": "https://pypi.org/pypi/packaging/24.1/json",
+        "sha256": "e671d25c944220778be9f9abaf7b0bc275bef3903de472d8adf8c1212abd6128"
+      },
+      "origin": "J2A_locked_distribution_bytes",
+      "usage": "isolated_builder_only"
+    }
+  },
+  "families": {
+    "py3": {
+      "python_major": 3,
+      "python_specifier": ">=3.8,<4",
+      "tools": [
+        "5f4c08aa4d3ebcb57a50c33b1b07e94315d7fc7230f7115e47fc99776c8ce308",
+        "708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248",
+        "5b8f2217dbdbd2f7f384c41c628544e6d52f2d0f53c6d0c3ea61aa5d1d7ff124"
+      ],
+      "environment": "stdlib_venv_without_pip",
+      "bootstrap": null
+    },
+    "py2": {
+      "python_major": 2,
+      "python_specifier": ">=2.7,<2.8",
+      "tools": [
+        "4380abcf2a4ffd1a5ba22d687c6d690dce83b2b51c70e9c6d09f7e8c7e8040dc",
+        "df277cb51e61359aba502208d680f90c0493adec6f0e848af94948778aed386e"
+      ],
+      "environment": "virtualenv_without_seed",
+      "bootstrap": "9180ce4102c388073bac71ecd041f7f31f9ef8c528edb205d75ae6144d08106e"
+    }
+  },
+  "jobs": [
+    {
+      "id": "typing-3.7.4.3-py3",
+      "source": "1187fb9c82fd670d10aa07bbb6cfcfe4bdda42d6fab8d5134f04e8c4d0b71cc9",
+      "family": "py3",
+      "expected_tags": [
+        "py3-none-any"
+      ],
+      "consumer_scopes": [
+        "8.5.3-host-ci-success",
+        "8.4.1-host-recipe",
+        "8.3.7-host-recipe",
+        "7.8.7-host-recipe"
+      ],
+      "content_variant": "python_major_specific_wheel",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    },
+    {
+      "id": "future-0.18.3-py3",
+      "source": "34a17436ed1e96697a86f9de3d15a3b0be01d8bc8de9c1dffd59fb8234ed5307",
+      "family": "py3",
+      "expected_tags": [
+        "py3-none-any"
+      ],
+      "consumer_scopes": [
+        "8.3.7-host-recipe",
+        "8.3.7-target-recipe",
+        "7.8.7-host-recipe"
+      ],
+      "content_variant": "python3_packages",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    },
+    {
+      "id": "pefile-2022.5.30-py3",
+      "source": "a5488a3dd1fd021ce33f969780b88fe0f7eebb76eb20996d7318f307612a045b",
+      "family": "py3",
+      "expected_tags": [
+        "py3-none-any"
+      ],
+      "consumer_scopes": [
+        "8.5.3-host-ci-success",
+        "8.5.3-target-ci-success",
+        "8.5.3-target-recipe",
+        "8.4.1-host-recipe",
+        "8.4.1-target-recipe",
+        "8.3.7-host-recipe",
+        "7.8.7-host-recipe"
+      ],
+      "content_variant": "python_major_specific_wheel",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    },
+    {
+      "id": "pefile-2021.9.3-py3",
+      "source": "344a49e40a94e10849f0fe34dddc80f773a12b40675bf2f7be4b8be578bdd94a",
+      "family": "py3",
+      "expected_tags": [
+        "py3-none-any"
+      ],
+      "consumer_scopes": [
+        "8.3.7-target-recipe"
+      ],
+      "content_variant": "python_major_specific_wheel",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    },
+    {
+      "id": "future-0.18.3-py2",
+      "source": "34a17436ed1e96697a86f9de3d15a3b0be01d8bc8de9c1dffd59fb8234ed5307",
+      "family": "py2",
+      "expected_tags": [
+        "py2-none-any"
+      ],
+      "consumer_scopes": [
+        "7.8.7-target-recipe"
+      ],
+      "content_variant": "python2_compatibility_packages",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    },
+    {
+      "id": "pefile-2019.4.18-py2",
+      "source": "a5d6e8305c6b210849b47a6174ddf9c452b2888340b8177874b862ba6c207645",
+      "family": "py2",
+      "expected_tags": [
+        "py2-none-any"
+      ],
+      "consumer_scopes": [
+        "7.8.7-target-recipe"
+      ],
+      "content_variant": "python_major_specific_wheel",
+      "validation_boundary": "生成端解释器/纯 wheel 内容校验；不代表 CP27/39/312 目标语法、导入或 iOS 运行通过。"
+    }
+  ],
+  "limitations": [
+    "当前 macOS Python 3.10 构建仅是 builder/纯内容验证；缺失解释器对应 job 必须明确未执行。",
+    "Linux/真实 CP27、CP39、CP312 的语法、导入和离线消费属于 J2B2/J2C；本计划不含虚构输出 hash。",
+    "setuptools 的逐成员锁定 PE launcher 仅为 host 构建数据，不属于 iOS runtime；输出 wheel 不允许任何原生成员。"
+  ]
+}
