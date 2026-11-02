@@ -180,5 +180,80 @@
     "只执行原SDK/toolchain/mockrt/MetalANGLE/C静态前置任务；worker必须真实原/候选driver通过才继续C家族，失败无成功收据，无自动fallback。",
     "不执行target Python install/pip；不声明生产shared/iOS ABI或会话通过，运行结果仅由实际选中cell及完整回提产生。"
   ],
-  "metadata_source_commit": "07f817962ea074057230c92103ede806db41604c"
+  "metadata_source_commit": "07f817962ea074057230c92103ede806db41604c",
+  "target_install": {
+    "task": "R00-02J9B",
+    "scope": "same_fresh_C1_worker_original_C_then_target_Python_install_no_pip",
+    "metadata_source_commit": "63dde6de0a13918b50328ae696a4c881f733c5cc",
+    "worker": {
+      "bytes": 113612,
+      "sha256": "e5d6a378fdea5cb652941152f7f77d290eb2843c1c0786802784c29bf158cd16",
+      "plan_bytes": 179190,
+      "plan_sha256": "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
+    },
+    "metadata_addon": [
+      {
+        "path": "runtime/run_locked_target_python_tasks.py",
+        "bytes": 113612,
+        "sha256": "e5d6a378fdea5cb652941152f7f77d290eb2843c1c0786802784c29bf158cd16"
+      },
+      {
+        "path": "runtime/target-python-prefix-plan.json",
+        "bytes": 179190,
+        "sha256": "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
+      },
+      {
+        "path": "runtime/validate_lock.py",
+        "bytes": 15605,
+        "sha256": "db85e412be38b26a032569bb82aa5b572cf61a25ed1eb2f7c62f7037a6405620"
+      },
+      {
+        "path": "runtime/build_common.py",
+        "bytes": 16169,
+        "sha256": "ece90c0026468c42ded2b4278e55538977fd60ad114261b1729fca73b5b61147"
+      },
+      {
+        "path": "runtime/materialize_source_inputs.py",
+        "bytes": 25801,
+        "sha256": "cccba73ae66c4f6131ff4ae5007b1c07d304d929277e54784ad5b2e932bc4ca6"
+      },
+      {
+        "path": "runtime/remote-sources.lock.json",
+        "bytes": 49818,
+        "sha256": "7515fb7b12608d3911fbebcbbd4d38d9e65044bfbd2fd03a63020cd51dacbfbf"
+      },
+      {
+        "path": "runtime/runtime-lock.json",
+        "bytes": 36693,
+        "sha256": "e26aa71cdefa8adbd17ab20542726539daac72984f1388c6aa7dd5346518af7c"
+      }
+    ],
+    "allowed_cells": [
+      {
+        "ubuntu": "22.04",
+        "release": "8.3.7",
+        "arch": "sim-arm64"
+      },
+      {
+        "ubuntu": "22.04",
+        "release": "7.8.7",
+        "arch": "sim-arm64"
+      }
+    ],
+    "approved_C_basis": {
+      "run": 41467995255,
+      "report_sha256": "7f87085eb502447121a9a4c9721c07981e84f97845b46b75d9aae50ece5791d1",
+      "exact_C_reader_sha256": "3e9f50ac6f3118c8cda44209ae271d08b80a9527764163a5c340660c211b28bd",
+      "scope": "only two already independently accepted historical sim-arm64 C scopes; each B attempt still rebuilds C in the same fresh worker, no external prefix reuse"
+    },
+    "export_format": "strict_PAX_path_linkpath_only",
+    "diagnostic_failure_snapshot": true,
+    "limitations": [
+      "只有显式target-install且显式release/arch的两已批准C tuple可选择；默认C原profile/导出不变。",
+      "新B成功原件没有预填SHA；必须实际worker原target receipt/fullprefix/stdlib/config/nm/hostcopy/MachO全核后独占写export。",
+      "失败只保存受控prefix/Lib/生成配置的diagnostic_only私有PAX；不作为成功receipt/reader输入，不含cross SDK或完整host树。",
+      "保持原H0/SDK宿主secret与私有CMS边界；target pip/shared/iOS session/global闭包未验收。",
+      "63dde6 CP39明确configure候选单列：原upgrade历史不改，实际no由原configure参数/wrapper/Makefile及完整host不变证明；不计显式pip Task。"
+    ]
+  }
 }

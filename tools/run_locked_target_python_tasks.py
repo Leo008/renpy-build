@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""以完整批准输入执行原 iOS C 前置 Task；目标 Python 安装与 pip 留在后续阶段。"""
+"""执行原 iOS C 前置任务；显式 target-install 在同 worker 衔接原 Python 安装，不运行 pip Task。"""
 
 from __future__ import annotations
 
 import argparse
+import ast
 import difflib
+import fnmatch
 import hashlib
 import importlib
 import json
@@ -26,8 +28,9 @@ import zipfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "target-python-prefix-plan.json"
-PLAN_SHA256 = "dc884e3e22a41365030d6e3e4928d230b7e18d55b04d3801cbaf22b9f428ac39"
+PLAN_SHA256 = "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
 SCOPE = "four_approved_routes_original_ios_C_prerequisites_only"
+TARGET_SCOPE = "same_C1_worker_original_four_target_Python_install_tasks_only"
 RELEASES = ("8.5.3", "8.4.1", "8.3.7", "7.8.7")
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
 ENV_KEYS = ("CC", "CXX", "CPP", "AR", "RANLIB", "CFLAGS", "CXXFLAGS", "CPPFLAGS", "LDFLAGS", "PATH")
@@ -102,11 +105,35 @@ def load_plan(path=DEFAULT_PLAN):
     """以独立 SHA 固定四路线、原任务命令投影、两 host producer 和窄参数候选。"""
     plan = checked_json(path, PLAN_SHA256, 2 * 1024**2)
     require(set(plan) == {"schema_version", "task", "scope", "dependencies", "locks", "host_producers",
-                          "candidate_adaptations", "routes", "limitations"}
+                          "candidate_adaptations", "routes", "limitations", "target_install"}
             and type(plan["schema_version"]) is int and plan["schema_version"] == 1
             and plan["task"] == "R00-02J9A" and plan["scope"] == SCOPE, "计划范围错误")
     require(len(plan["routes"]) == 4 and {r["release"] for r in plan["routes"]} == set(RELEASES)
             and set(plan["host_producers"]) == set(RELEASES), "必须固定四路线和各自 host 产物")
+    target = plan["target_install"]
+    require(set(target) == {"task", "scope", "C_base_provenance", "routes", "limitations"}
+            and target["task"] == "R00-02J9B" and target["scope"] == TARGET_SCOPE
+            and len(target["routes"]) == 4 and {r["release"] for r in target["routes"]} == set(RELEASES), "target-install 计划范围错误")
+    for row in target["routes"]:
+        require([s["task"] for s in row["tasks"]] == ["unpack", "patch_posix", "patch_ios", "build_ios"]
+                and row["expected_make_ensurepip"] == ("upgrade" if row["release"] == "8.3.7" else "no"), "原 Python Task/隐含 ensurepip 范围错误")
+        candidate = row.get("build_context_candidate")
+        if row["release"] == "8.3.7":
+            require(isinstance(candidate, dict) and set(candidate) == {"scope", "task_function_sha256", "common_function_sha256",
+                    "configure_template", "configure_ac", "original_cross_wrapper_fragment", "original_PYTHON_FOR_BUILD_template",
+                    "candidate_PYTHON_FOR_BUILD", "candidate_configure_argument", "effective_make_ensurepip", "configure_discovery_name", "reason",
+                    "makefile_template", "original_install_ensurepip_fragment"}
+                    and candidate["scope"] == "CP39_original_configure_cross_wrapper_and_explicit_no_implicit_ensurepip"
+                    and candidate["task_function_sha256"] == row["tasks"][-1]["function_sha256"]
+                    and candidate["common_function_sha256"] == row["original_helper_functions"][0]["function_sha256"]
+                    and candidate["candidate_PYTHON_FOR_BUILD"] == "" and candidate["effective_make_ensurepip"] == "no"
+                    and candidate["candidate_configure_argument"] == "--with-ensurepip=no"
+                    and candidate["configure_discovery_name"] == "python3.9"
+                    and candidate["original_PYTHON_FOR_BUILD_template"] == "{{ host }}/bin/python3", "CP39 明确构建上下文候选错误")
+            require(all(candidate["configure_template"] == next(o[1] for o in row["tasks"][-1]["operations"][arch] if o[0] == "run")
+                        for arch in ARCHES), "CP39 原 configure 模板不同")
+        else:
+            require(candidate is None, "不允许对其他三路线添加 CP39 上下文候选")
     for name, expected in {**plan["dependencies"], **plan["locks"]}.items():
         require(Path(name).name == name and name not in ("", ".", ".."), "依赖名称错误")
         require(sha(raw_file(HERE / name)) == expected, "固定依赖字节变化：" + name)
@@ -802,6 +829,575 @@ def execute_tasks(args, plan, row, j8, original, tasks, inventory, preflight):
             "headers_and_sources_sha256": sha(raw_file(args.output / "c-headers-and-sources.json"))}
 
 
+def selected_python_tasks(tasks, route, specification, workspace, j8):
+    """只选原四个 Python Task；保留完整 registry、annotators、body 和 Task.run 身份。"""
+    registry, annotators, method = j8.registry_identity(tasks, workspace)
+    require(registry == route["registry"] and annotators == route["annotators"] and method == route["task_run_sha256"],
+            "Python 阶段原完整 registry 身份不符")
+    selected = []
+    for spec in specification["tasks"]:
+        task = tasks.tasks[spec["index"]]
+        require((task.name, task.task, task.kind) == (spec["name"], spec["task"], "python")
+                and registry[spec["index"]]["function_sha256"] == spec["function_sha256"] and not task.always,
+                "Python 原 Task/kind/函数不符")
+        selected.append((task, spec))
+    require([t.task for t, _ in selected] == ["unpack", "patch_posix", "patch_ios", "build_ios"], "只允许原四 Task，禁止 pip/其他任务")
+    return selected
+
+
+def verify_cython(frontend, specification, output):
+    """从已验 H0 前端选择固定 Cython entrypoint，核脚本、shebang、真实版本和解释器。"""
+    require(frontend["linux_frontend_verified"] is True and frontend["scope"] == specification["Cython"]["scope"], "Cython 缺相应真实 H0 前端")
+    directory = guarded(Path(frontend["prefix"]) / "bin")
+    executable = directory / "cython";raw = raw_file(executable, 65536)
+    interpreter = directory / "python"
+    require(executable.stat().st_mode & 0o111 and raw.splitlines()[0] == b"#!" + str(interpreter).encode()
+            and Path(frontend["executable"]) == interpreter and sha(raw_file(interpreter.resolve(strict=True))) == frontend["interpreter_sha256"],
+            "Cython 脚本/shebang/H0 解释器不符")
+    result = subprocess.run([str(executable), "--version"], capture_output=True, timeout=120,
+                            env={"PATH": str(directory) + ":/usr/bin:/bin", "LANG": "C", "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"})
+    text = (result.stdout + result.stderr).decode()
+    versions = re.findall(r"Cython version ([0-9]+\.[0-9]+\.[0-9]+)", text)
+    with (output / "target-cython.stdout").open("xb") as stream:stream.write(result.stdout)
+    with (output / "target-cython.stderr").open("xb") as stream:stream.write(result.stderr)
+    write_new(output / "target-cython-attempt.json", {"argv": [str(executable), "--version"], "returncode": result.returncode,
+              "expected_version": specification["Cython"]["version"], "observed_versions": versions, "source_script_sha256": sha(raw),
+              "stdout_sha256": sha(result.stdout), "stderr_sha256": sha(result.stderr), "target_python_install_verified": False})
+    require(result.returncode == 0 and versions and set(versions) == {specification["Cython"]["version"]}, "Cython 实际版本不是该路线批准值")
+    record = {**specification["Cython"], "executable": str(executable), "bytes": len(raw), "sha256": sha(raw),
+              "interpreter": str(interpreter), "interpreter_sha256": frontend["interpreter_sha256"],
+              "installed_RECORD_gate": frontend["sha256"], "stdout_sha256": sha(result.stdout), "stderr_sha256": sha(result.stderr),
+              "actual_entrypoint_version_verified": True}
+    write_new(output / "target-cython.json", record)
+    return record
+
+
+def captured_original_run(context, original, template, output, ordinal):
+    """委托真正原 Context.run；用独占原始日志保留内部 make/ensurepip 命令与失败。"""
+    path = output / ("target-python-command-" + str(ordinal).zfill(3) + ".log")
+    sys.stdout.flush();sys.stderr.flush()
+    saved_out, saved_error = os.dup(1), os.dup(2)
+    try:
+        with path.open("xb") as stream:
+            os.dup2(stream.fileno(), 1);os.dup2(stream.fileno(), 2)
+            original.Context.run(context, template)
+    finally:
+        sys.stdout.flush();sys.stderr.flush();os.dup2(saved_out, 1);os.dup2(saved_error, 2);os.close(saved_out);os.close(saved_error)
+    return {"path": str(path), "bytes": path.stat().st_size, "sha256": sha(raw_file(path, 1024**3))}
+
+
+def cp39_configure_candidate(context, row, specification, template, plan):
+    """只对已锁 CP39 原 configure 入口清空发现输入并显式禁用隐含 ensurepip。"""
+    candidate = specification.get("build_context_candidate")
+    if row["release"] != "8.3.7" or template != (candidate or {}).get("configure_template"):
+        return template, None
+    require(context.audit_spec["task"] == "build_ios" and context.audit_spec["function_sha256"] == candidate["task_function_sha256"],
+            "CP39 候选不是原 build_ios 函数")
+    source = raw_file(context.cwd / candidate["configure_ac"]["path"])
+    require(len(source) == candidate["configure_ac"]["bytes"] and sha(source) == candidate["configure_ac"]["sha256"]
+            and source.decode().count(candidate["original_cross_wrapper_fragment"]) == 1, "CP39 原补丁后 configure.ac/wrapper 字节不同")
+    makefile = raw_file(context.cwd / candidate["makefile_template"]["path"])
+    require(len(makefile) == candidate["makefile_template"]["bytes"] and sha(makefile) == candidate["makefile_template"]["sha256"]
+            and makefile.decode().count(candidate["original_install_ensurepip_fragment"]) == 1, "CP39 原 Makefile ensurepip 条件片段不同")
+    host = context.path("{{host}}")
+    original = context.environ.get("PYTHON_FOR_BUILD")
+    require(original == context.expand(candidate["original_PYTHON_FOR_BUILD_template"])
+            and original == str(host / "bin/python3"), "CP39 原 PYTHON_FOR_BUILD 输入不同")
+    forbidden = ("PYTHONHOME", "PYTHONPATH", "_PYTHON_PROJECT_BASE", "_PYTHON_HOST_PLATFORM", "_PYTHON_SYSCONFIGDATA_NAME")
+    require(not any(name in context.environ for name in forbidden), "CP39 configure 继承未知 Python 交叉环境")
+    discovered = shutil.which(candidate["configure_discovery_name"], path=context.environ["PATH"])
+    require(discovered == str(host / "bin" / candidate["configure_discovery_name"])
+            and Path(discovered).resolve(strict=True).is_relative_to(host)
+            and sha(raw_file(Path(discovered).resolve(strict=True))) == plan["host_producers"][row["release"]]["interpreter_sha256"],
+            "CP39 原 configure 发现的解释器不是批准 H1 原字节")
+    original_argv = shlex.split(context.expand(template))
+    require(not any(value.startswith("--with-ensurepip") or value.startswith("--without-ensurepip") for value in original_argv),
+            "CP39 原 configure 已含未知 ensurepip 参数")
+    execution_template = template + " " + candidate["candidate_configure_argument"]
+    context.environ["PYTHON_FOR_BUILD"] = candidate["candidate_PYTHON_FOR_BUILD"]
+    record = {"scope": candidate["scope"], "original_argv": original_argv,
+              "candidate_argv": shlex.split(context.expand(execution_template)),
+              "original_environment": {"PYTHON_FOR_BUILD": original},
+              "candidate_environment": {"PYTHON_FOR_BUILD": context.environ["PYTHON_FOR_BUILD"]},
+              "configure_ac": candidate["configure_ac"], "reason": candidate["reason"],
+              "configure_discovery": {"requested": candidate["configure_discovery_name"], "path": discovered,
+                  "realpath": str(Path(discovered).resolve(strict=True)), "sha256": plan["host_producers"][row["release"]]["interpreter_sha256"]},
+              "original_argv_executed": False, "original_task_body_modified": False, "original_cross_wrapper_source_modified": False}
+    return execution_template, record
+
+
+def effective_make_ensurepip(specification):
+    """原行为始终保留，只有明确 CP39 候选的实际参数采用 no。"""
+    candidate = specification.get("build_context_candidate")
+    return candidate["effective_make_ensurepip"] if candidate else specification["expected_make_ensurepip"]
+
+
+def python_context(original, tasks, row, specification, arch, workspace, plan, cython, events, output, j8):
+    """Python 原函数的窄审计 Context，逐操作绑定完整路径，不改变 Task.function/kind。"""
+    specs = {(s["kind"], s["task"], s["name"]): s for s in specification["tasks"]}
+    trusted_initializers = {original.Context.__init__.__code__, original.Context.set_names.__code__, *(a.__code__ for a in tasks.annotators)}
+    python_root = workspace / "tmp/build" / ("python" + row["python"] + ".ios-" + arch + "-py" + row["python"]) / specification["archive"]["root"]
+    descriptors = {r["path"]: r for r in [specification["template"], specification["scproxy"], *specification["patches"]]}
+
+    class PythonContext(original.Context):
+        """只为明确原函数增加身份、操作顺序、候选参数和生成材料证据。"""
+
+        def __init__(self, *args):
+            """显式接入已验证 H0 bin；原 set_names 仍按原逻辑优先放置 H1 bin。"""
+            super().__init__(*args)
+            self.environ["PATH"] = str(Path(cython["executable"]).parent) + ":" + self.environ["PATH"]
+
+        def initializing(self):
+            """只豁免固定原初始化/annotator 调用栈，body 的 env/var 均必须匹配计划。"""
+            frame = sys._getframe(1)
+            for _ in range(24):
+                if frame is None:return False
+                if frame.f_code in trusted_initializers:return True
+                frame = frame.f_back
+            return False
+
+        def set_names(self, kind, task, name):
+            """创建目录和 complete 之前拒绝未知任务、错误 Python/平台/根。"""
+            require((kind, task, name) in specs and self.root == workspace and self.tmp == workspace / "tmp"
+                    and self.platform == "ios" and self.arch == arch and self.python == row["python"], "Python Context 身份/根/ABI 不符")
+            self.audit_spec = specs[kind, task, name];self.position = 0;self.adapted = False
+            super().set_names(kind, task, name)
+            self.check_paths()
+
+        def check_paths(self):
+            """重核真实 build/install/host/sdk 路径；只准当前 Python 构建目录及 Modules。"""
+            build, install = expected_paths(workspace, row, arch, self.audit_spec)
+            require(self.build == build and self.install == install and self.root == workspace and self.tmp == workspace / "tmp"
+                    and self.platform == "ios" and self.arch == arch and self.python == row["python"]
+                    and self.cwd in (build, python_root, python_root / "Modules")
+                    and super().path("{{build}}") == build and super().path("{{install}}") == install
+                    and super().path("{{host}}") == workspace / "tmp/host"
+                    and super().path("{{cross}}") == workspace / ("tmp/cross.ios-" + arch), "Python Context 实际路径不符")
+
+        def operation(self, operation):
+            """未知原操作必须在文件写入、删除或进程启动之前拒绝。"""
+            self.check_paths();operations = self.audit_spec["operations"][arch]
+            require(self.position < len(operations) and operation == operations[self.position], "Python 出现未知操作或原顺序变化")
+            self.position += 1
+
+        def path(self, value):
+            """所有读写路径词法和解析后均须在独立配方根内。"""
+            path = super().path(value)
+            require(path.is_absolute() and ".." not in path.parts and path.is_relative_to(workspace)
+                    and path.resolve(strict=False).is_relative_to(workspace), "Python Context.path 逃逸")
+            return path
+
+        def var(self, name, value, expand=True):
+            """body 版本、sysconfig 文件名等必须与实际原分支投影逐字一致。"""
+            if hasattr(self, "audit_spec") and not self.initializing():self.operation(["var", name, value, expand])
+            super().var(name, value, expand)
+
+        def env(self, name, value):
+            """保留原 body 环境投影；CP39 仅在已锁 configure 调用处显式采用候选。"""
+            if hasattr(self, "audit_spec") and not self.initializing():self.operation(["env", name, value])
+            super().env(name, value)
+
+        def clean(self, value="{{build}}"):
+            """unpack 仅清理本次独立 Python build，不触及 C 或 H1 前缀。"""
+            self.operation(["clean", value]);require(value == "{{build}}" and self.path(value) == self.build, "Python clean 越界")
+            super().clean(value)
+
+        def chdir(self, value):
+            """仅按原函数进入原 Python 根和 Modules。"""
+            self.operation(["chdir", value]);require(self.path(value) in (python_root, python_root / "Modules"), "Python chdir 越界")
+            super().chdir(value)
+
+        def patch(self, value, p=1):
+            """每条补丁应用之前重核 J1 blob/原字节，失败由原 patch 实现抛出。"""
+            self.operation(["patch", value, p]);path = self.path("{{patches}}") / self.expand(value)
+            descriptor = descriptors.get(path.relative_to(workspace).as_posix());require(descriptor is not None and p == 1, "未知 Python patch")
+            j8.verify_bytes(raw_file(path), descriptor)
+            super().patch(value, p)
+            events.append({"operation": "patch", "task_name": self.task_name, "path": str(path), "sha256": descriptor["sha256"], "passed": True})
+
+        def generate(self, source, destination, **kwargs):
+            """原 Setup 模板完整验真后调用原 Jinja 渲染，生成文件身份单列。"""
+            self.operation(["generate", source, destination]);require(not kwargs, "未知生成参数")
+            path = self.path(source);require(path == workspace / specification["template"]["path"], "原 Setup 模板路径不符")
+            j8.verify_bytes(raw_file(path), specification["template"]);super().generate(source, destination)
+            generated = self.path(destination);body = raw_file(generated)
+            events.append({"operation": "generate", "task_name": self.task_name, "source": str(path), "source_sha256": specification["template"]["sha256"],
+                           "path": str(generated), "bytes": len(body), "sha256": sha(body)})
+
+        def copy(self, source, destination):
+            """只复制批准 H1 的真实解释器或 CP312 原 Linux sysconfig；目标 ELF 例外不能扩大。"""
+            self.operation(["copy", source, destination]);path = self.path(source);actual = path.resolve(strict=True)
+            require(actual.is_relative_to(workspace / "tmp/host"), "Python copy 来源逃逸 H1")
+            body = raw_file(actual)
+            expected = plan["host_producers"][row["release"]]["interpreter_sha256"] if destination.endswith("hostpython" + row["python"]) else specification["native_sysconfig_copy"]["sha256"]
+            require(sha(body) == expected and self.path(destination).is_relative_to(self.install), "原 H1 copy 字节/目的路径不同")
+            super().copy(source, destination)
+            require(sha(raw_file(self.path(destination))) == expected, "原 copy 目的字节不同")
+            events.append({"operation": "copy", "task_name": self.task_name, "source": str(actual), "destination": str(self.path(destination)), "bytes": len(body), "sha256": expected})
+
+        def run(self, template, verbose=False, quiet=False, **kwargs):
+            """保留原模板，实际候选 argv/env 独立留证，不静默改写原函数。"""
+            self.operation(["run", template]);require(not verbose and not quiet and not kwargs, "未知 Python run 参数")
+            if not self.adapted:
+                before, after, changes = candidate_environment(self, row, arch, plan);self.environ.update(after)
+                self.adaptation = {"original": before, "candidate": after, "changes": changes};self.adapted = True
+            argv = shlex.split(self.expand(template));require(argv and argv[0] not in ("git", "curl", "wget", "pip", "pip3"), "拒绝未知下载或 pip Task")
+            if argv[0] == "cython":
+                found = shutil.which("cython", path=self.environ["PATH"])
+                require(found == cython["executable"] and sha(raw_file(Path(found))) == cython["sha256"], "实际 PATH 选中非批准 Cython")
+            execution_template, build_candidate = cp39_configure_candidate(self, row, specification, template, plan)
+            if build_candidate is not None:argv = build_candidate["candidate_argv"]
+            event = {"operation": "run", "task_name": self.task_name, "template": template, "argv": argv, "cwd": str(self.cwd),
+                     "environment": {key: self.environ.get(key) for key in (*ENV_KEYS, "CONFIG_SITE", "PYTHON_FOR_BUILD")},
+                     "candidate_parameters": self.adaptation, "returncode": None}
+            if build_candidate is not None:
+                event["execution_template"] = execution_template
+                event["CP39_build_context_candidate"] = build_candidate
+            events.append(event)
+            with (output / "target-install-events.jsonl").open("a") as journal:journal.write(json.dumps({"phase": "start", **event}, ensure_ascii=False) + "\n")
+            try:
+                event["raw_command_log"] = captured_original_run(self, original, execution_template, output, len(events));event["returncode"] = 0
+            except BaseException as error:
+                event["returncode"] = error.code if isinstance(error, SystemExit) else type(error).__name__
+                failed_log = output / ("target-python-command-" + str(len(events)).zfill(3) + ".log")
+                if failed_log.is_file():event["raw_command_log"] = {"path": str(failed_log), "bytes": failed_log.stat().st_size, "sha256": sha(raw_file(failed_log, 1024**3))}
+                raise
+            finally:
+                with (output / "target-install-events.jsonl").open("a") as journal:journal.write(json.dumps({"phase": "exit", **event}, ensure_ascii=False) + "\n")
+
+    return PythonContext
+
+
+def assert_existing_members_unchanged(before, after):
+    """安装只能新增明确 Python 成员，既有完整 C 库/头/框架/链接/目录权限不可变。"""
+    table = {r["path"]: r for r in after}
+    require(len(table) == len(after) and all(table.get(r["path"]) == r for r in before), "原 C 前缀成员字节/权限/链接被 Python 安装改变")
+
+
+def inventory_delta(before, after):
+    """完整保留衍生 H1 前后的新增、删除和变化，不把 ensurepip 默认为无副作用。"""
+    old, new = {r["path"]: r for r in before}, {r["path"]: r for r in after}
+    return {"added": [new[k] for k in sorted(new.keys() - old.keys())], "removed": [old[k] for k in sorted(old.keys() - new.keys())],
+            "changed": [{"before": old[k], "after": new[k]} for k in sorted(old.keys() & new.keys()) if old[k] != new[k]]}
+
+
+def implicit_ensurepip_evidence(events, specification, host_prefix):
+    """CP39须在原make成功原日志中同时证明展开调用和pip真实输出，echo本身不算执行。"""
+    installs = [e for e in events if e.get("operation") == "run" and e.get("returncode") == 0
+                and "install" in e.get("argv", []) and "make" in " ".join(e.get("argv", []))]
+    require(len(installs) == 1 and "raw_command_log" in installs[0], "缺原 Python make install 完整日志")
+    record = {"expected": specification["expected_make_ensurepip"], "make_install_log": installs[0]["raw_command_log"],
+              "bundled_wheels": specification["bundled_ensurepip_wheels"], "actual_make_install_passed": True,
+              "implicit_ensurepip_invocation_verified": False, "explicit_pip_Task_executed": False, "target_pip_bound": False}
+    candidate = specification.get("build_context_candidate")
+    if candidate:
+        configurations = [event for event in events if event.get("CP39_build_context_candidate") is not None]
+        require(len(configurations) == 1 and configurations[0]["returncode"] == 0
+                and configurations[0]["CP39_build_context_candidate"]["candidate_argv"].count("--with-ensurepip=no") == 1,
+                "CP39 缺真实成功的明确 no-ensurepip configure 候选")
+        raw = raw_file(Path(installs[0]["raw_command_log"]["path"]), 1024**3)
+        require(sha(raw) == installs[0]["raw_command_log"]["sha256"] and len(raw) == installs[0]["raw_command_log"]["bytes"],
+                "CP39 候选 make install 日志字节不同")
+        record.update(effective_expected="no", original_expected="upgrade", original_implicit_ensurepip_behavior_preserved_in_history=True,
+                      candidate_configuration=configurations[0]["CP39_build_context_candidate"],
+                      disabled_by_explicit_configure_candidate=True,
+                      execution_prefix_scope="B 明确禁用隐含ensurepip；后续独立原pip Task尚未执行")
+    elif specification["expected_make_ensurepip"] == "upgrade":
+        log_path = Path(installs[0]["raw_command_log"]["path"]);raw = raw_file(log_path, 1024**3)
+        require(sha(raw) == installs[0]["raw_command_log"]["sha256"] and len(raw) == installs[0]["raw_command_log"]["bytes"], "原make install日志字节变化")
+        text = raw.decode(errors="replace")
+        require(re.search(re.escape(str(host_prefix / "bin/python3")) + r"\s+-m\s+ensurepip", text)
+                and ("Requirement already satisfied:" in text or "Successfully installed " in text or "Installing collected packages:" in text),
+                "CP39 隐含 ensurepip 缺实际调用/pip输出证明，不能只信make echo")
+        record.update(implicit_ensurepip_invocation_verified=True, execution_prefix_scope="原H1衍生前缀或no-op；不是显式targetpip消费", host_prefix=str(host_prefix))
+    return record
+
+
+def make_projection(python_root, context, output):
+    """以额外只读目标导出真实 GNUmake 展开值，不修改原生成 Makefile 或执行 pip。"""
+    keys = ("LIBSUBDIRS", "TESTSUBDIRS", "TEST_MODULES", "LIBDEST", "BINLIBDEST", "LIBRARY", "LDLIBRARY", "VERSION", "LDVERSION", "ABIFLAGS", "MACHDEP", "MULTIARCH",
+            "SOABI", "CC", "CFLAGS", "LDFLAGS", "LDSHARED", "CONFIG_ARGS", "PYTHON_FOR_BUILD", "ENSUREPIP", "srcdir", "prefix", "PLATDIR")
+    code = "import os,json;print(json.dumps({k:os.environ['REKO_LOCKED_'+k] for k in " + repr(keys) + "}))"
+    audit = output / "target-python-make-projection.mk"
+    text = ".PHONY: reko_locked_projection\n" + "\n".join("export REKO_LOCKED_" + key + " := $(" + key + ")" for key in keys)
+    text += "\nreko_locked_projection:\n\t@" + shlex.join([sys.executable, "-I", "-B", "-c", code]) + "\n"
+    with audit.open("x") as stream:stream.write(text)
+    result = subprocess.run(["make", "--no-print-directory", "-s", "-f", "Makefile", "-f", str(audit), "reko_locked_projection"],
+                            cwd=python_root, env=context.environ, capture_output=True, timeout=120)
+    (output / "target-python-make-projection.stdout").write_bytes(result.stdout);(output / "target-python-make-projection.stderr").write_bytes(result.stderr)
+    require(result.returncode == 0, "实际 Makefile 投影失败")
+    value = decode(result.stdout);require(isinstance(value, dict) and set(value) == set(keys), "Makefile 投影字段不符")
+    return value
+
+
+def target_macho(raw, arch):
+    """核目标 archive/object/executable/bundle 的真实薄64位 Mach-O，严格区分 arm64 两平台。"""
+    require(len(raw) >= 32, "Python Mach-O 头截断")
+    magic, cpu, subtype, kind, count, length, _, _ = struct.unpack_from("<8I", raw)
+    require(magic == 0xFEEDFACF and cpu == (0x1000007 if arch == "sim-x86_64" else 0x100000C)
+            and subtype == (3 if arch == "sim-x86_64" else 0)
+            and kind in (1, 2, 6, 8) and count <= length // 8 and 32 + length <= len(raw), "Python Mach-O 类型/CPU/表错误")
+    offset, builds = 32, []
+    for _ in range(count):
+        require(offset + 8 <= 32 + length, "Python Mach-O 命令头截断")
+        command, size = struct.unpack_from("<2I", raw, offset)
+        require(size >= 8 and size % 4 == 0 and offset + size <= 32 + length, "Python Mach-O load command 越界")
+        if command == 0x32:
+            require(size >= 24, "Python BUILD_VERSION 截断")
+            _, _, target, minimum, sdk, tools = struct.unpack_from("<6I", raw, offset)
+            require(24 + tools * 8 == size, "Python BUILD_VERSION 工具表错误")
+            builds.append({"platform": target, "minimum": minimum, "sdk": sdk})
+        offset += size
+    require(offset == 32 + length and len(builds) == 1, "Python Mach-O 缺唯一真实 BUILD_VERSION")
+    identity = builds[0]
+    require(identity["platform"] == (2 if arch == "arm64" else 7) and identity["minimum"] == (0xE0000 if arch == "sim-arm64" else 0xD0000)
+            and identity["sdk"] in ((0, 0xE0000) if kind == 1 else (0xE0000,)), "Python Mach-O 平台/min/SDK 不符")
+    return {"cpu_type": cpu, "cpu_subtype": subtype, "file_type": kind, **identity}
+
+
+def stdlib_expected_sources(python_root, projection, version):
+    """按原 libinstall 规则列完整安装源文件，不以任意抽样代替 stdlib 验收。"""
+    source = python_root / "Lib";found = {}
+    for path in source.glob("*.py"):found[path.name] = path
+    if version == "2.7.18":
+        for pattern in ("*.doc", "*.egg-info"):
+            for path in source.glob(pattern):
+                if path.is_file():found[path.name] = path
+    directories = projection["LIBSUBDIRS"].split()
+    if projection["TEST_MODULES"] == "yes":directories += projection["TESTSUBDIRS"].split()
+    for directory in directories:
+        require(directory and not directory.startswith("/") and all(p not in ("", ".", "..") for p in directory.split("/")), "原 libinstall 目录越界")
+        parent = source / directory
+        if not parent.is_dir():continue
+        for path in parent.iterdir():
+            if path.name.startswith(".") or not path.is_file() or path.is_symlink():continue
+            if any(fnmatch.fnmatch(path.name, pattern) for pattern in ("*CVS", "*.py[co]", "*.orig", "*~")):continue
+            if version == "3.9.10" and fnmatch.fnmatch(path.name, "*wininst-*.exe"):continue
+            found[path.relative_to(source).as_posix()] = path
+    found["LICENSE.txt"] = python_root / "LICENSE"
+    if "distutils/tests" in directories:found["distutils/tests/xxmodule.c"] = python_root / "Modules/xxmodule.c"
+    require(found and "os.py" in found and "sysconfig.py" in found and "ssl.py" in found, "完整 stdlib 安装源集合缺失")
+    return found
+
+
+def verify_sysconfig_data(raw, projection):
+    """只解析原生成字典，不执行目标Python代码；target配置不能被host Linux配置冒充。"""
+    tree = ast.parse(raw)
+    require(len(tree.body) == 1 and isinstance(tree.body[0], ast.Assign) and len(tree.body[0].targets) == 1
+            and isinstance(tree.body[0].targets[0], ast.Name) and tree.body[0].targets[0].id == "build_time_vars", "sysconfig 不是单一原生成字典")
+    require(isinstance(tree.body[0].value, ast.Dict), "sysconfig 不是原字典字面量")
+    keys = [ast.literal_eval(key) for key in tree.body[0].value.keys]
+    require(all(isinstance(key, str) for key in keys) and len(set(keys)) == len(keys), "sysconfig 字段重复/类型错误")
+    values = ast.literal_eval(tree.body[0].value)
+    require(isinstance(values, dict) and values.get("MACHDEP") == projection["MACHDEP"]
+            and values.get("MULTIARCH", "") == projection["MULTIARCH"] and values.get("prefix") == projection["prefix"]
+            and values.get("CC") == projection["CC"], "target sysconfig 使用错误host/平台/前缀/编译器配置")
+    return {key: values.get(key) for key in ("MACHDEP", "MULTIARCH", "prefix", "CC", "CFLAGS", "LDFLAGS", "SOABI", "LDLIBRARY", "SIZEOF_VOID_P")}
+
+
+def validate_target_symbols(raw, row):
+    """真实 nm 定义集合必须包含Python入口与所有关键静态模块，不能仅验任意Mach-O壳。"""
+    names = {line.split()[-1] for line in raw.decode().splitlines() if len(line.split()) >= 2 and line.split()[-1].startswith("_")
+             and len(line.split()[-2]) == 1 and line.split()[-2].isalpha() and line.split()[-2].upper() != "U"}
+    modules = ("_ssl", "_hashlib", "_ctypes", "_scproxy", "zlib", "bz2") if row["python"] == "2" else ("_ssl", "_hashlib", "_ctypes", "_scproxy", "zlib", "_bz2", "_lzma")
+    required = {"_Py_Initialize", "_PyRun_SimpleStringFlags", "_PyImport_AppendInittab"}
+    required |= {("_init" if row["python"] == "2" else "_PyInit_") + module for module in modules}
+    require(required <= names, "target libpython 缺原Python API/静态模块定义：" + ",".join(sorted(required - names)))
+    return {"all_defined_names": sorted(names), "required_names": sorted(required), "nm_stdout_sha256": sha(raw), "required_static_module_symbols_verified": True}
+
+
+def verify_build_python(projection, context, row, plan, host_prefix):
+    """核真实展开的原 cross wrapper；CP39 候选只允许原 configure 自行生成精确四变量。"""
+    requested = projection["PYTHON_FOR_BUILD"];words = shlex.split(requested)
+    require(words, "PYTHON_FOR_BUILD 为空")
+    executable = words[-1];found = shutil.which(executable, path=context.environ["PATH"])
+    require(found is not None and Path(found).resolve(strict=True).is_relative_to(host_prefix)
+            and sha(raw_file(Path(found).resolve(strict=True))) == plan["host_producers"][row["release"]]["interpreter_sha256"],
+            "PYTHON_FOR_BUILD 未使用批准 H1 解释器")
+    details = {}
+    if row["release"] == "8.3.7":
+        specification = next(item for item in plan["target_install"]["routes"] if item["release"] == row["release"])
+        candidate = specification.get("build_context_candidate")
+        require(candidate is not None and len(words) == 5 and words[-1] == candidate["configure_discovery_name"],
+                "CP39 实际 Makefile 未采用原 configure cross wrapper")
+        assignments = [word.partition("=") for word in words[:-1]]
+        require(all(separator and name in ("_PYTHON_PROJECT_BASE", "_PYTHON_HOST_PLATFORM", "PYTHONPATH", "_PYTHON_SYSCONFIGDATA_NAME")
+                    for name, separator, value in assignments) and len({name for name, _, _ in assignments}) == 4,
+                "CP39 cross wrapper 变量缺失/重复/未知")
+        environment = {name: value for name, _, value in assignments}
+        platform = "darwin-x86_64" if context.arch == "sim-x86_64" else "darwin-arm"
+        build_dir = raw_file(context.cwd / "pybuilddir.txt", 4096).decode().strip()
+        require(build_dir == "build/lib." + platform + "-3.9" and projection["srcdir"] in (".", str(context.cwd)),
+                "CP39 实际 pybuilddir/srcdir 不是目标平台")
+        expected = {"_PYTHON_PROJECT_BASE": str(context.cwd), "_PYTHON_HOST_PLATFORM": platform,
+                    "PYTHONPATH": str(context.cwd / build_dir) + ":" + projection["srcdir"] + "/Lib",
+                    "_PYTHON_SYSCONFIGDATA_NAME": "_sysconfigdata_" + projection["ABIFLAGS"] + "_" + projection["MACHDEP"] + "_" + projection["MULTIARCH"]}
+        require(environment == expected and projection["MACHDEP"] == "darwin" and projection["ENSUREPIP"] == "no"
+                and shlex.split(projection["CONFIG_ARGS"]).count("--with-ensurepip=no") == 1,
+                "CP39 实际 cross wrapper/sysconfig/ENSUREPIP 不符合明确候选")
+        makefile = raw_file(context.cwd / "Makefile")
+        require(makefile.decode().count(candidate["original_install_ensurepip_fragment"]) == 1,
+                "CP39 实际 Makefile 未保留原 ensurepip 条件片段")
+        require(found == str(host_prefix / "bin" / candidate["configure_discovery_name"]), "CP39 Makefile PATH 换用其他 H1 名称")
+        details = {"CP39_original_configure_cross_wrapper_enabled": True, "original_requested": str(host_prefix / "bin/python3"),
+                   "effective_requested": requested, "cross_environment": environment, "implicit_ensurepip_disabled": True,
+                   "actual_makefile_sha256": sha(makefile), "original_install_ensurepip_fragment_verified": True}
+    else:
+        keys = {word.split("=", 1)[0] for word in words[:-1] if "=" in word}
+        expected = {"_PYTHON_PROJECT_BASE", "_PYTHON_HOST_PLATFORM", "PYTHONPATH"}
+        if row["python"] == "3":expected.add("_PYTHON_SYSCONFIGDATA_NAME")
+        require(expected <= keys, "原build Python cross环境未按原configure生成")
+    return {"original_requested": requested, "resolved_interpreter": str(Path(found).resolve(strict=True)),
+            "sha256": plan["host_producers"][row["release"]]["interpreter_sha256"], "CP39_wrapper_added": False, **details}
+
+
+def verify_target_prefix(args, plan, row, specification, python_root, projection, c_inventory, inventory, native):
+    """完整验 target stdlib/sysconfig/headers/libpython；仅原 H1 hostpython 是 native ELF 例外。"""
+    prefix = args.workspace / ("tmp/install.ios-" + args.arch)
+    records = inventory_tree(prefix, inventory);assert_existing_members_unchanged(c_inventory, records)
+    stdlib = prefix / "lib" / ("python" + ".".join(row["version"].split(".")[:2]))
+    require(projection["prefix"] == str(prefix) and projection["LIBDEST"] == str(stdlib) and projection["srcdir"] in (".", str(python_root)), "生成 Makefile 安装根/srcdir 不符")
+    require(projection["VERSION"] == ".".join(row["version"].split(".")[:2]) and projection["ABIFLAGS"] == "", "实际 Python 版本/ABI 标记不符")
+    require(projection["ENSUREPIP"] == effective_make_ensurepip(specification), "实际 make install 隐含 ensurepip 不符合原/明确候选")
+    expected_sources = stdlib_expected_sources(python_root, projection, row["version"]);stdlib_records = []
+    for name, source in sorted(expected_sources.items()):
+        actual = stdlib / name;raw = raw_file(source)
+        require(raw_file(actual) == raw, "target stdlib 源码缺失或不同：" + name)
+        stdlib_records.append({"path": actual.relative_to(prefix).as_posix(), "source": str(source), "bytes": len(raw), "sha256": sha(raw)})
+    config_name = "_sysconfigdata.py" if row["python"] == "2" else "_sysconfigdata_" + "_" + projection["MACHDEP"] + "_" + projection["MULTIARCH"] + ".py"
+    build_dir_name = raw_file(python_root / "pybuilddir.txt", 4096).decode().strip()
+    require(build_dir_name and not Path(build_dir_name).is_absolute() and ".." not in Path(build_dir_name).parts, "pybuilddir 路径错误")
+    target_config = python_root / build_dir_name / config_name;target_config_raw = raw_file(target_config)
+    require(raw_file(stdlib / config_name) == target_config_raw, "target sysconfig 原生成模块缺失/不同")
+    target_variables = verify_sysconfig_data(target_config_raw, projection)
+    header = prefix / "include" / ("python" + ".".join(row["version"].split(".")[:2]))
+    require(raw_file(header / "Python.h") == raw_file(python_root / "Include/Python.h")
+            and raw_file(header / "pyconfig.h") == raw_file(python_root / "pyconfig.h"), "原 Python headers/pyconfig 安装不同")
+    config = raw_file(python_root / "pyconfig.h").decode()
+    require(re.search(r"^#define SIZEOF_VOID_P 8$", config, re.M) and re.search(r"^#define SIZEOF_LONG 8$", config, re.M)
+            and not re.search(r"^#define WORDS_BIGENDIAN(?:\s+1)?$", config, re.M), "target pyconfig 64位/字节序错误")
+    library_name = "libpython" + ".".join(row["version"].split(".")[:2]) + ".a"
+    library = prefix / "lib" / library_name;library_raw = raw_file(library, 1024**3)
+    require(projection["LIBRARY"] == library_name and library_raw == raw_file(python_root / library_name, 1024**3), "真正 target libpython 未按原 build/install 产生")
+    bridge = "bin/hostpython" + row["python"];bridge_sha = plan["host_producers"][row["release"]]["interpreter_sha256"]
+    binaries, archives, bridges = [], [], []
+    for record in records:
+        if record["type"] != "file" or record["path"].startswith("MetalANGLE.framework/"):continue
+        path = prefix / record["path"]
+        with path.open("rb") as stream:magic = stream.read(8)
+        if magic.startswith(b"\x7fELF"):
+            require(record["path"] == bridge and record["sha256"] == bridge_sha and path.stat().st_mode & 0o111, "target 前缀出现非批准 H1 native ELF")
+            bridges.append({**record, "elf": native.elf_identity(raw_file(path))})
+        elif magic == b"!<arch>\n":
+            objects = [{"name": name, "bytes": len(body), "sha256": sha(body), **target_macho(body, args.arch)} for name, body in ar_members(raw_file(path, 1024**3))]
+            require(all(obj["file_type"] == 1 for obj in objects), "Python archive 混入非 object")
+            if record["path"] not in {r["path"] for r in c_inventory}:require(path.name == library_name and record["sha256"] == sha(library_raw), "target 出现未知/错误 libpython archive")
+            archives.append({"path": record["path"], "bytes": record["bytes"], "sha256": record["sha256"], "objects": objects})
+        elif magic[:4] == b"\xcf\xfa\xed\xfe":binaries.append({**record, **target_macho(raw_file(path), args.arch)})
+        elif path.suffix in (".so", ".dylib", ".a", ".o"):require(False, "目标 native 文件未验证：" + record["path"])
+    require(len(bridges) == 1 and any(a["path"] == "lib/" + library_name for a in archives), "缺真实 libpython 或唯一 H1 bridge")
+    if specification["native_sysconfig_copy"] is not None:
+        descriptor = specification["native_sysconfig_copy"];path = prefix / descriptor["path"]
+        require(sha(raw_file(path)) == descriptor["sha256"], "CP312 原 Linux sysconfig copy 不同")
+    if specification.get("build_context_candidate"):
+        require(not any(record["path"].startswith("lib/python3.9/site-packages/")
+                        and record["path"] != "lib/python3.9/site-packages/README.txt" for record in records),
+                "CP39 B 已出现 pip/第三方目标包，明确 no-ensurepip 候选未保持独立阶段")
+    return {"inventory": records, "stdlib": stdlib_records, "target_sysconfig": {"path": str(stdlib / config_name), "sha256": sha(target_config_raw), "source": str(target_config),
+            "target_variables": target_variables},
+            "archives": archives, "binaries": binaries, "native_bridge": bridges[0], "target_stdlib_source_count": len(stdlib_records), "old_C_members_unchanged": True}
+
+
+def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c_receipt):
+    """同一真实 worker 中 C 成功后执行原四任务，所有实际产物通过才创建 target 成功收据。"""
+    inventory, j8, native, _, _, _ = loaded
+    require(c_receipt.get("C_prerequisites_verified") is True and c_receipt.get("original_C_tasks_verified") is True
+            and c_receipt.get("release") == args.release and c_receipt.get("arch") == args.arch
+            and c_receipt.get("task") == "R00-02J9A" and c_receipt.get("scope") == SCOPE and c_receipt.get("recipe") == row["recipe"]
+            and c_receipt.get("execution_source_sha256") == sha(raw_file(Path(__file__).absolute()))
+            and c_receipt.get("plan_sha256") == PLAN_SHA256 and c_receipt.get("kernel_network_isolation_verified") is True,
+            "target-install 缺同worker真实 C 前置收据")
+    require(decode(raw_file(args.output / "c-prefix-receipt.json")) == c_receipt, "C 收据原始字节/传递对象不一致")
+    specification = next(r for r in plan["target_install"]["routes"] if r["release"] == args.release)
+    route, recipe = route_binding(plan, row, j8);j8.verify_repository(recipe, args.workspace, allow_tmp=True)
+    for descriptor in (specification["whole_task_source"], specification["template"], specification["scproxy"], *specification["patches"]):
+        j8.verify_bytes(raw_file(args.workspace / descriptor["path"]), descriptor)
+    members = native.archive_members(args.workspace / specification["archive"]["path"], specification["archive"])
+    prefix = args.workspace / ("tmp/install.ios-" + args.arch)
+    c_inventory = checked_json(args.output / "c-prefix-inventory.json", c_receipt["inventory_sha256"])
+    require(inventory_tree(prefix, inventory) == c_inventory, "C 完整库存未与真实成功原件相符")
+    selected = selected_python_tasks(tasks, route, specification, args.workspace, j8)
+    build, _ = expected_paths(args.workspace, row, args.arch, selected[0][1]);require(not build.exists(), "禁止旧 Python build/complete")
+    for _, spec in selected:
+        marker = args.workspace / "tmp/complete" / (spec["task"] + "-" + build.name)
+        require(not marker.exists() and marker.name not in tasks.ran_tasks, "禁止伪 Python complete/ran_tasks")
+    cython = verify_cython(frontend, specification, args.output)
+    host_prefix = args.workspace / "tmp/host";host_before = native.host_inventory(host_prefix)
+    write_new(args.output / "target-host-before.json", host_before)
+    events, receipts = [], [];method = tasks.Task.run;functions = [t.function for t in tasks.tasks];annotators = list(tasks.annotators)
+    Context = python_context(original, tasks, row, specification, args.arch, args.workspace, plan, cython, events, args.output, j8)
+    python_root = build / specification["archive"]["root"]
+    try:
+        for task, spec in selected:
+            require(tasks.Task.run is method and tasks.annotators == annotators and task.function is functions[spec["index"]], "原 Python body/Task.run 被改写")
+            context = Context("ios", args.arch, row["python"], args.workspace, argparse.Namespace(nostrip=False, sdl=False, experimental=False));task.run(context)
+            require(context.position == len(spec["operations"][args.arch]) and context.task_name in tasks.ran_tasks, "Python 原 Task 操作不完整")
+            raw_file(args.workspace / "tmp/complete" / context.task_name, 128)
+            if task.task == "unpack":native.verify_extracted(build, members)
+            if task.task == "patch_ios":
+                write_new(args.output / "target-source-after-patches.json", inventory_tree(python_root, inventory))
+                generated = raw_file(python_root / "Modules/_scproxy.c")
+                require(len(generated) > 1000 and b"Cython" in generated[:1000], "原 Cython 未生成真实 _scproxy.c")
+                write_new(args.output / "target-scproxy-generation.json", {"source": specification["scproxy"], "Cython": cython, "generated_bytes": len(generated), "generated_sha256": sha(generated)})
+            receipts.append({"index": spec["index"], "name": task.name, "task": task.task, "kind": task.kind, "function_sha256": spec["function_sha256"],
+                             "task_name": context.task_name, "operations": context.position, "original_Task_run_executed": True})
+        require(raw_file(python_root / "config.site", 4096).decode() == specification["config_site"], "原 config.site 实际字节不同")
+        for bundled in specification["bundled_ensurepip_wheels"]:
+            raw = raw_file(build / bundled["path"])
+            require(len(raw) == bundled["bytes"] and sha(raw) == bundled["sha256"], "原ensurepip bundled wheel在构建中改变")
+        generated_c = decode(raw_file(args.output / "target-scproxy-generation.json"))
+        require(sha(raw_file(python_root / "Modules/_scproxy.c")) == generated_c["generated_sha256"], "原_scproxy生成C在make阶段改变")
+        for event in events:
+            if event["operation"] == "generate":require(sha(raw_file(Path(event["path"]))) == event["sha256"], "原Setup渲染被make阶段改变")
+        projection = make_projection(python_root, context, args.output);write_new(args.output / "target-make-projection.json", projection)
+        build_python = verify_build_python(projection, context, row, plan, host_prefix)
+        ensurepip = implicit_ensurepip_evidence(events, specification, host_prefix)
+        write_new(args.output / "target-implicit-ensurepip.json", ensurepip)
+        products = verify_target_prefix(args, plan, row, specification, python_root, projection, c_inventory, inventory, native)
+        major = "18" if row["release"] in ("8.5.3", "8.4.1") else "15"
+        library = python_root / ("libpython" + ".".join(row["version"].split(".")[:2]) + ".a")
+        nm_output = native.command(["/usr/bin/llvm-nm-" + major, "-g", "--defined-only", library])
+        (args.output / "target-libpython-nm.stdout").write_bytes(nm_output)
+        symbols = validate_target_symbols(nm_output, row);write_new(args.output / "target-libpython-symbols.json", symbols)
+        require(tasks.Task.run is method and tasks.annotators == annotators and all(t.function is functions[i] for i, t in enumerate(tasks.tasks)), "Python 阶段污染原注册表")
+        j8.verify_repository(recipe, args.workspace, allow_tmp=True)
+    finally:
+        write_new(args.output / "target-python-commands.json", events)
+        host_after = native.host_inventory(host_prefix);write_new(args.output / "target-host-after.json", host_after)
+        write_new(args.output / "target-host-delta.json", inventory_delta(host_before, host_after))
+    if specification.get("build_context_candidate"):
+        require(host_before == host_after, "CP39 明确 no-ensurepip 候选改变了完整 H1 衍生前缀")
+    for name, value in (("target-prefix-inventory.json", products["inventory"]), ("target-stdlib-sources.json", products["stdlib"]),
+                        ("target-native-products.json", {k: products[k] for k in ("archives", "binaries", "native_bridge", "target_sysconfig")})):
+        write_new(args.output / name, value)
+    c_reference = {"path": str(args.output / "c-prefix-receipt.json"), "sha256": sha(raw_file(args.output / "c-prefix-receipt.json"))}
+    target = {"schema_version": 1, "task": "R00-02J9B", "scope": TARGET_SCOPE, "release": args.release, "arch": args.arch,
+              "plan_sha256": PLAN_SHA256, "execution_source_sha256": sha(raw_file(Path(__file__).absolute())), "C_receipt": c_reference,
+              "Cython": cython, "tasks": receipts, "make_projection": projection, "build_python": build_python, "config_site": specification["config_site"],
+              "original_CP39_cross_wrapper_modified": False, "CP39_build_context_candidate_used": specification.get("build_context_candidate") is not None,
+              "implicit_install_ensurepip": {**ensurepip,
+              "host_before_sha256": sha(raw_file(args.output / "target-host-before.json")),
+              "host_after_sha256": sha(raw_file(args.output / "target-host-after.json")), "host_delta_sha256": sha(raw_file(args.output / "target-host-delta.json")),
+              "explicit_pip_Task_executed": False, "target_pip_bound": False}, "old_C_members_unchanged": products["old_C_members_unchanged"],
+              "target_stdlib_source_count": products["target_stdlib_source_count"], "inventory_sha256": sha(raw_file(args.output / "target-prefix-inventory.json")),
+              "stdlib_sources_sha256": sha(raw_file(args.output / "target-stdlib-sources.json")), "native_products_sha256": sha(raw_file(args.output / "target-native-products.json")),
+              "static_module_symbols_sha256": sha(raw_file(args.output / "target-libpython-symbols.json")),
+              **FALSE_BOUNDARIES, "target_python_install_verified": True}
+    write_new(args.output / "target-install-receipt.json", target)
+    return {"target_python_install_verified": True, "target_receipt": {"path": str(args.output / "target-install-receipt.json"),
+                                                                       "sha256": sha(raw_file(args.output / "target-install-receipt.json"))}}
+
+
 def worker(args, plan, row, loaded):
     """仅由父管道启动真实新网络命名空间，执行前重核全部输入和宿主前端。"""
     require(stat.S_ISFIFO(os.fstat(args.worker_fd).st_mode), "worker 必须由父管道启动")
@@ -810,7 +1406,7 @@ def worker(args, plan, row, loaded):
     protocol = decode(raw)
     expected = {"parent_pid": os.getppid(), "parent_network_namespace": os.readlink("/proc/" + str(os.getppid()) + "/ns/net"),
                 "plan_sha256": PLAN_SHA256, "tool_sha256": sha(raw_file(Path(__file__).absolute())),
-                "release": args.release, "arch": args.arch, "workspace": str(args.workspace), "output": str(args.output)}
+                "release": args.release, "arch": args.arch, "workspace": str(args.workspace), "output": str(args.output), "phase": args.phase}
     require(protocol == expected and os.readlink("/proc/self/ns/net") != protocol["parent_network_namespace"], "缺真实新增内核网络隔离")
     inventory, j8, native, validator, common, preflight = loaded
     route, recipe = route_binding(plan, row, j8)
@@ -833,14 +1429,18 @@ def worker(args, plan, row, loaded):
                "kernel_network_isolation_verified": True, "original_C_tasks_verified": True, "C_prerequisites_verified": True,
                **products, **FALSE_BOUNDARIES}
     write_new(args.output / "c-prefix-receipt.json", receipt)
-    return {"C_prerequisites_verified": True, "receipt": {"path": str(args.output / "c-prefix-receipt.json"),
-                                                          "sha256": sha(raw_file(args.output / "c-prefix-receipt.json"))}}
+    result = {"C_prerequisites_verified": True, "receipt": {"path": str(args.output / "c-prefix-receipt.json"),
+                                                           "sha256": sha(raw_file(args.output / "c-prefix-receipt.json"))}}
+    if args.phase == "target-install":
+        result.update(execute_target_install(args, plan, row, loaded, original, tasks, frontend, receipt))
+    return result
 
 
 def parser():
     """明确区分仅完整配方 staging 和真实 Linux C 任务执行。"""
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("command", choices=("stage", "run"))
+    result.add_argument("--phase", choices=("c-prerequisites", "target-install"), default="c-prerequisites")
     result.add_argument("--plan", type=Path, default=DEFAULT_PLAN)
     result.add_argument("--root", type=Path, default=ROOT)
     result.add_argument("--release", choices=RELEASES, required=True)
@@ -859,7 +1459,8 @@ def main(argv=None):
     """Linux 缺输入失败、Mac 如实 not_run；仅完整实物 C 验证成功才写前缀收据。"""
     args = parser().parse_args(argv)
     report = {"schema_version": 1, "task": "R00-02J9A", "scope": SCOPE, "release": args.release, "arch": args.arch,
-              "command": args.command, "result": "failed", "errors": [], "C_prerequisites_verified": False, **FALSE_BOUNDARIES}
+              "command": args.command, "phase": args.phase, "result": "failed", "errors": [], "C_prerequisites_verified": False, **FALSE_BOUNDARIES}
+    if args.phase == "target-install":report.update(task="R00-02J9B", scope=TARGET_SCOPE)
     created, code = False, 1
     try:
         for name in ("plan", "root", "workspace", "output", "recipe_repository", "sdk", "clang_runtime", "host_prefix", "host_receipt", "host_inventory", "frontend_report", "source_cache", "tool_cache", "ccache_dir"):
@@ -880,7 +1481,7 @@ def main(argv=None):
             require(not any(p == protected or p.is_relative_to(protected) or protected.is_relative_to(p)
                             for p in (args.workspace, args.output, *([args.ccache_dir] if args.ccache_dir else []))), "禁止改写原配方树")
         if args.command == "stage":
-            require(args.worker_fd is None, "stage 不支持 worker")
+            require(args.worker_fd is None and args.phase == "c-prerequisites", "stage 只消费原C完整配方，不执行target-install")
             repository = args.recipe_repository or args.root / row["recipe"]["path"]
             guarded(repository)
             require(not any(p == repository or p.is_relative_to(repository) or repository.is_relative_to(p) for p in (args.workspace, args.output)), "不得写入显式原 Git 配方")
@@ -894,7 +1495,7 @@ def main(argv=None):
             require(all(getattr(args, name) is not None for name in required)
                     and args.sdk_version == "14.0" and args.deployment_target == "14.0", "真实 run 缺少明确 SDK14/App14、H1 全前缀或 H0 前端输入")
             if args.worker_fd is not None:
-                report.update(worker(args, plan, row, loaded), result="original_ios_C_prerequisites_verified");code = 0
+                report.update(worker(args, plan, row, loaded), result="original_target_python_install_verified" if args.phase == "target-install" else "original_ios_C_prerequisites_verified");code = 0
             else:
                 j8.verify_repository(recipe, args.workspace)
                 native.frontend_receipt(args, native.load_plan(), next(r for r in native.load_plan()["routes"] if r["release"] == args.release))
@@ -907,7 +1508,7 @@ def main(argv=None):
                 try:
                     protocol = {"parent_pid": os.getpid(), "parent_network_namespace": os.readlink("/proc/self/ns/net"),
                                 "plan_sha256": PLAN_SHA256, "tool_sha256": sha(raw_file(Path(__file__).absolute())),
-                                "release": args.release, "arch": args.arch, "workspace": str(args.workspace), "output": str(args.output)}
+                                "release": args.release, "arch": args.arch, "workspace": str(args.workspace), "output": str(args.output), "phase": args.phase}
                     os.write(write_fd, json.dumps(protocol).encode());os.close(write_fd);write_fd = None
                     command = [sys.executable, "-s", "-B", str(Path(__file__).absolute()), *(argv if argv is not None else sys.argv[1:]), "--worker-fd", str(read_fd)]
                     with (args.output / "target-build.log").open("xb") as stream:
@@ -917,8 +1518,13 @@ def main(argv=None):
                     os.close(read_fd)
                     if write_fd is not None:os.close(write_fd)
                 child = decode(raw_file(args.output / "worker-report.json"))
-                require(child.get("C_prerequisites_verified") is True and child.get("result") == "original_ios_C_prerequisites_verified", "worker 无完整 C 成功证明")
-                report.update(result=child["result"], C_prerequisites_verified=True, receipt=child["receipt"]);code = 0
+                expected_result = "original_target_python_install_verified" if args.phase == "target-install" else "original_ios_C_prerequisites_verified"
+                require(child.get("C_prerequisites_verified") is True and child.get("result") == expected_result, "worker 无所选阶段完整成功证明")
+                report.update(result=child["result"], C_prerequisites_verified=True, receipt=child["receipt"])
+                if args.phase == "target-install":
+                    require(child.get("target_python_install_verified") is True and child.get("target_pip_bound") is False, "worker 未证明原安装/错误宣称pip绑定")
+                    report.update(target_python_install_verified=True, target_receipt=child["target_receipt"])
+                code = 0
     except BaseException as error:
         if isinstance(error, KeyboardInterrupt):raise
         report["errors"].append({"type": type(error).__name__, "message": str(error)[:4000]})
