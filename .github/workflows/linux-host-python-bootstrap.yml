@@ -59,9 +59,9 @@ jobs:
           if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyHostBootstrapCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_host_python_bootstrap.py': '4d9264e61045fad3876d47924cab3ba2413358225116d51868ff4bcaa1d5ea13',
-              'tools/linux-host-python-bootstrap-ci-plan.json': '283dea4493b909d0c88164946433939543d88476362f65b5a23af33650b4ff6c',
-              'tools/run_locked_host_python_tasks.py': '4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0',
+              'tools/ci_linux_host_python_bootstrap.py': '154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63',
+              'tools/linux-host-python-bootstrap-ci-plan.json': '4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537',
+              'tools/run_locked_host_python_tasks.py': '6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612',
               'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
               'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
               'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
