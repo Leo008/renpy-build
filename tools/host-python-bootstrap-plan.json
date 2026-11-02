@@ -1,0 +1,290 @@
+{
+  "schema_version": 1,
+  "scope": "four_approved_routes_original_hostpython_tasks_and_explicit_legacy_native_ssl_candidate",
+  "dependencies": {
+    "run_locked_source_tasks.py": "7b355837494c22ee642f014652ce0b1adc328dd47928126880df320f960a5b45",
+    "inventory_source_inputs.py": "2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824",
+    "replay_python_inputs.py": "fb463fc09b482142e4ea2080c554351429a18081468f6ac502fd6f90e788e7f2",
+    "build_python_wheels.py": "829712b376ce71ccd39f36299ba2f5e09eb92ba7c21a21f9134ec11e2f2391a6",
+    "lock_python_inputs.py": "eece439195f241cd7a3533e26404f68e4a294636c3a8366d9dde9bc27403468d"
+  },
+  "locks": {
+    "source-inputs.lock.json": "eb8352943bc3e6952f053273e27a3f913dafda9e193de36bcceb083367b81a37",
+    "source-task-binding-plan.json": "32abe3927eef6d0b887e95b6de83bed38b510644c300a88b314bfeb517a791a5",
+    "python-inputs.lock.json": "4a9a85b719dd1ef3fb5ded2fcd383f5c9bd8925c0e537bd8f5db0a1132602935",
+    "python-wheel-build-plan.json": "9b231a3a1460180ed1de53474669e0eba786df3a4ff70da981b87eece89cdea4",
+    "python-replay-plan.json": "89763ed8ba512a39dd2c63c4e3d871354de300064638ea3b5272294e6428fef4",
+    "apt-inputs.lock.json": "2a69077d989f78713a42ee474574baae741bdc45fd443f314bda7c73124a6685",
+    "environment-preflight.lock.json": "e52c45aebed4359adce14a4f89084dde9cdd3573eeab96717a4fbff23854a56f"
+  },
+  "routes": [
+    {
+      "release": "8.5.3",
+      "python": "3",
+      "version": "3.12.8",
+      "ubuntu": "24.04",
+      "frontend_scope": "8.5.3-host-ci-success",
+      "frontend_minor": "3.12",
+      "recipe": {
+        "role": "ci_execution",
+        "path": "ThirdParty/renpy/renpy-build",
+        "commit": "26c57088f758e948d4e7420c4cb64c5c937420f5",
+        "tree": "4224c9b9477c6c3a463e4b1b1aa5c7425ef054f9"
+      },
+      "python_archive": {
+        "path": "source/Python-3.12.8.tar.xz",
+        "size": 20489808,
+        "sha256": "c909157bb25ec114e5869124cc2a9c4a4d4c1e957ca4ff553f1edc692101154e",
+        "blob_oid": "0700443a8935fe1ea0060b90ba4b5874e8cc2a1b",
+        "root": "Python-3.12.8"
+      },
+      "setup_template": {
+        "path": "source/Python-3.12.8-Setup.stdlib",
+        "size": 5580,
+        "sha256": "0ee35b56d35835899c689a6ca9345d8920c256faa14d9e8dd2a39d2d924655d9",
+        "blob_oid": "3f30ac93988e6ea463563658f1bbf4daeff3e635"
+      },
+      "tasks": [
+        {
+          "name": "hostpython3",
+          "registry_kind": "host",
+          "execution_kind": "host",
+          "steps": [
+            {
+              "index": 44,
+              "task": "unpack_hostpython",
+              "function_sha256": "4b9cf5f5e77f426c570ee9c9ca7ae6c2041ed9511eac8776e31e104da2872448",
+              "commands": [
+                "tar xaf {{source}}/Python-{{version}}.tar.xz"
+              ]
+            },
+            {
+              "index": 45,
+              "task": "build_host",
+              "function_sha256": "d1ce7bbe430b8dda8ba950661ec03e9b7b597b41211ddc81a9fc5773e824efea",
+              "commands": [
+                "{{configure}} --prefix=\"{{ host }}\" ",
+                "{{ make }} install",
+                "install -d {{ host }}/lib/python3.12/config-3.12-x86_64-linux-gnu/Tools/",
+                "cp -a Tools/scripts {{ host }}/lib/python3.12/config-3.12-x86_64-linux-gnu/Tools/scripts"
+              ]
+            }
+          ]
+        }
+      ],
+      "legacy_ssl_candidate": null
+    },
+    {
+      "release": "8.4.1",
+      "python": "3",
+      "version": "3.12.8",
+      "ubuntu": "24.04",
+      "frontend_scope": "8.4.1-host-recipe",
+      "frontend_minor": "3.12",
+      "recipe": {
+        "role": "official",
+        "path": "ThirdParty/renpy/sources/renpy-build-8.4.1",
+        "commit": "bd462127ad439c2857e59a3e5406ca13b4514f1c",
+        "tree": "8fc5c90f7b5dd344dad2485779f7f978f3d82451"
+      },
+      "python_archive": {
+        "path": "source/Python-3.12.8.tar.xz",
+        "size": 20489808,
+        "sha256": "c909157bb25ec114e5869124cc2a9c4a4d4c1e957ca4ff553f1edc692101154e",
+        "blob_oid": "0700443a8935fe1ea0060b90ba4b5874e8cc2a1b",
+        "root": "Python-3.12.8"
+      },
+      "setup_template": {
+        "path": "source/Python-3.12.8-Setup.stdlib",
+        "size": 5580,
+        "sha256": "0ee35b56d35835899c689a6ca9345d8920c256faa14d9e8dd2a39d2d924655d9",
+        "blob_oid": "3f30ac93988e6ea463563658f1bbf4daeff3e635"
+      },
+      "tasks": [
+        {
+          "name": "hostpython3",
+          "registry_kind": "host",
+          "execution_kind": "host",
+          "steps": [
+            {
+              "index": 44,
+              "task": "unpack_hostpython",
+              "function_sha256": "4b9cf5f5e77f426c570ee9c9ca7ae6c2041ed9511eac8776e31e104da2872448",
+              "commands": [
+                "tar xaf {{source}}/Python-{{version}}.tar.xz"
+              ]
+            },
+            {
+              "index": 45,
+              "task": "build_host",
+              "function_sha256": "d1ce7bbe430b8dda8ba950661ec03e9b7b597b41211ddc81a9fc5773e824efea",
+              "commands": [
+                "{{configure}} --prefix=\"{{ host }}\" ",
+                "{{ make }} install",
+                "install -d {{ host }}/lib/python3.12/config-3.12-x86_64-linux-gnu/Tools/",
+                "cp -a Tools/scripts {{ host }}/lib/python3.12/config-3.12-x86_64-linux-gnu/Tools/scripts"
+              ]
+            }
+          ]
+        }
+      ],
+      "legacy_ssl_candidate": null
+    },
+    {
+      "release": "8.3.7",
+      "python": "3",
+      "version": "3.9.10",
+      "ubuntu": "22.04",
+      "frontend_scope": "8.3.7-host-recipe",
+      "frontend_minor": "3.10",
+      "recipe": {
+        "role": "official",
+        "path": "ThirdParty/renpy/sources/renpy-build-8.3.7",
+        "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+        "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+      },
+      "python_archive": {
+        "path": "source/Python-3.9.10.tgz",
+        "size": 25800844,
+        "sha256": "1aa9c0702edbae8f6a2c95f70a49da8420aaa76b7889d3419c186bfc8c0e571e",
+        "blob_oid": "d8050468685512e878b9fb37af7d8f2d43c640b9",
+        "root": "Python-3.9.10"
+      },
+      "setup_template": {
+        "path": "source/Python-3.9.10-Setup.local",
+        "size": 4885,
+        "sha256": "6fa97d55b47c7cde17c51e8d0b8850ed7c97c56bc12bba3f1d042ad8516c64c5",
+        "blob_oid": "5055b86d6189c4b12c3b24ec803d02e66f94e1a2"
+      },
+      "tasks": [
+        {
+          "name": "hostpython3",
+          "registry_kind": "host",
+          "execution_kind": "host",
+          "steps": [
+            {
+              "index": 45,
+              "task": "unpack_hostpython",
+              "function_sha256": "dd5b479fc3e20a5b46a7d214382bfc3ccfa11b12b0a8aabadb1a07c24955cdc7",
+              "commands": [
+                "tar xzf {{source}}/Python-{{version}}.tgz"
+              ]
+            },
+            {
+              "index": 46,
+              "task": "build_host",
+              "function_sha256": "b3c6d36836eaa5a593ea652580bb20068f288a7fd89969ec867832cf855a4556",
+              "commands": [
+                "{{configure}} --prefix=\"{{ host }}\" ",
+                "{{ make }} install",
+                "install -d {{ host }}/lib/python3.9/config-3.9-x86_64-linux-gnu/Tools/",
+                "cp -a Tools/scripts {{ host }}/lib/python3.9/config-3.9-x86_64-linux-gnu/Tools/scripts"
+              ]
+            }
+          ]
+        }
+      ],
+      "legacy_ssl_candidate": null
+    },
+    {
+      "release": "7.8.7",
+      "python": "2",
+      "version": "2.7.18",
+      "ubuntu": "22.04",
+      "frontend_scope": "7.8.7-host-recipe",
+      "frontend_minor": "3.10",
+      "recipe": {
+        "role": "official",
+        "path": "ThirdParty/renpy/sources/renpy-build-7.8.7",
+        "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+        "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+      },
+      "python_archive": {
+        "path": "source/Python-2.7.18.tgz",
+        "size": 17539408,
+        "sha256": "da3080e3b488f648a3d7a4560ddee895284c3380b11d6de75edb986526b9a814",
+        "blob_oid": "38df2ad0733e7580488e50c016610412c40a84da",
+        "root": "Python-2.7.18"
+      },
+      "setup_template": {
+        "path": "source/Python-2.7.18-Setup.local",
+        "size": 2270,
+        "sha256": "421fd1c47d1372105657832a7ad213eb3df37e68f2542cc8d429f45077bcf5a5",
+        "blob_oid": "4d6862e96673c9ca6171dde939dc5b8bfcb876ff"
+      },
+      "tasks": [
+        {
+          "name": "hostpython2",
+          "registry_kind": "host",
+          "execution_kind": "host",
+          "steps": [
+            {
+              "index": 49,
+              "task": "unpack_hostpython",
+              "function_sha256": "1b6b4c2d5c12b9dca67170d22a570ef028b823f3911b2e8c4249a2192d58a65a",
+              "commands": [
+                "tar xzf {{source}}/Python-{{version}}.tgz"
+              ]
+            },
+            {
+              "index": 50,
+              "task": "build_host",
+              "function_sha256": "d4590e57932eb7bba403ad2e680f244b1923a5ad27087821f4d6f30d780649d1",
+              "commands": [
+                "{{configure}} --prefix=\"{{ host }}\" --enable-ipv6",
+                "{{ make }} install"
+              ]
+            }
+          ]
+        }
+      ],
+      "legacy_ssl_candidate": {
+        "scope": "explicit_native_openssl_1_1_1s_host_candidate_not_original_registered_host_task",
+        "version": "1.1.1s",
+        "archive": {
+          "path": "source/openssl-1.1.1s.tar.gz",
+          "size": 9868981,
+          "sha256": "c5ac01e760ee6ff0dab61d6b2bbd30146724d063eb322180c6f18a6f74e4b6aa",
+          "blob_oid": "9f41c5015c35fc27eaf315abd9471adc62198e22",
+          "root": "openssl-1.1.1s"
+        },
+        "tasks": [
+          {
+            "name": "openssl_host_bootstrap",
+            "registry_kind": "arch",
+            "execution_kind": "host",
+            "steps": [
+              {
+                "index": 29,
+                "task": "unpack",
+                "function_sha256": "5ef8ebd106ffa18347c4eae89a96ea810fc9c0edc5606b63e9c4960bbf02bdd1",
+                "commands": [
+                  "tar xzf {{source}}/openssl-{{version}}.tar.gz"
+                ]
+              },
+              {
+                "index": 30,
+                "task": "build",
+                "function_sha256": "37d938ca90be53609bf74fef56c2ebcb079584a3ac9b50894557314ea606a43f",
+                "commands": [
+                  "./Configure cc no-shared no-asm no-engine threads -lpthread --prefix=\"{{ install }}\" ",
+                  "{{ make }}",
+                  "make install_sw"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": [
+    "本工具仅native host bootstrap，不要求实际RenPy/pygame/Git引擎、J7版本overlay或Apple SDK。",
+    "stage读取J1冻结原Git对象；run使用J2C已验Linux host前端和完整wheel/安装RECORD。",
+    "每路线恰好两项原hostpython Task.run；不执行原main/stop/target pip或其他registry任务。",
+    "7.8.7的openssl_host_bootstrap为明确native候选，原openssl registry kind=arch、原函数与原registry保持。",
+    "真实native命令在unshare新网络命名空间执行；Mac不会被计为Linux构建通过。",
+    "完整host输出原字节/模式/链接、ELF及实际版本/stdlib/SSL/动态依赖验收后才发收据；路径绑定不可任意搬移。",
+    "fixture或静态调查不能关闭Linux实跑、J2C九scope、目标Python安装、target pip、完整源码CI和运行时会话验收。"
+  ]
+}
