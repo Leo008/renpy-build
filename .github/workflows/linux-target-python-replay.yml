@@ -1,9 +1,6 @@
 name: RenPy fixed Linux exact target Python input replay
 
 'on':
-  push:
-    branches: [codex/ios-locked-inputs-20261102]
-    paths: [.github/workflows/linux-target-python-replay.yml]
   workflow_dispatch:
     inputs:
       ubuntu_group:
@@ -172,23 +169,25 @@ jobs:
           import re
           import shutil
           import subprocess
-          result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
-          for name in result.stdout.decode().splitlines():
-              if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}', name):
-                  state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
-                  host = state['HostConfig']
-                  if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
-                      raise SystemExit('[RenPyTargetReplayCI] 容器清理边界不符')
-                  subprocess.run(['docker', 'rm', '--force', name], check=True)
-          for path in Path(os.environ['RUNNER_TEMP']).glob('reko-h2-inputs-*'):
-              if path.is_symlink() or not path.is_dir():
-                  raise SystemExit('[RenPyTargetReplayCI] 临时材料清理路径异常')
-              shutil.rmtree(path)
-          archive = Path(os.environ['RUNNER_TEMP']) / 'reko-h2-H1-artifact.zip'
-          if archive.exists():
-              if archive.is_symlink() or not archive.is_file():
-                  raise SystemExit('[RenPyTargetReplayCI] 原H1输入ZIP清理路径异常')
-              archive.unlink()
+          try:
+              result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+              for name in result.stdout.decode().splitlines():
+                  if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}', name):
+                      state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                      host = state['HostConfig']
+                      if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
+                          raise SystemExit('[RenPyTargetReplayCI] 容器清理边界不符')
+                      subprocess.run(['docker', 'rm', '--force', name], check=True)
+          finally:
+              for path in Path(os.environ['RUNNER_TEMP']).glob('reko-h2-inputs-*'):
+                  if path.is_symlink() or not path.is_dir():
+                      raise SystemExit('[RenPyTargetReplayCI] 临时材料清理路径异常')
+                  shutil.rmtree(path)
+              archive = Path(os.environ['RUNNER_TEMP']) / 'reko-h2-H1-artifact.zip'
+              if archive.exists():
+                  if archive.is_symlink() or not archive.is_file():
+                      raise SystemExit('[RenPyTargetReplayCI] 原H1输入ZIP清理路径异常')
+                  archive.unlink()
           PYCODE
       - name: 仅保存target原报告与公开命令日志
         if: always()
