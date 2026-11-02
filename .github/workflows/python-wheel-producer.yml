@@ -29,7 +29,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
-      REKO_PRODUCER_SHA256: '039ef1afcea2efa6ec1f0cbc0e775bb01491e10596369c61386099e87e095efe'
+      REKO_PRODUCER_SHA256: '0ea0fe3ad88a80e73f7986602b69ab4a79fe290c10bcca13c8bca192fbedd3d8'
       REKO_PREFLIGHT_SHA256: 'c4584adae0e197c3c934bba0e5d00f08307788ef819707e640e3d12513f74839'
       REKO_COLLECTOR_SHA256: 'f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac'
       REKO_APT_MANIFEST_SHA256: 'd722e3aa9db55925062e70a35486e1e0b1405c064a6dc5a8b7a289900d5c6851'
@@ -58,7 +58,7 @@ jobs:
               'tools/ci_environment.py': os.environ['REKO_PREFLIGHT_SHA256'],
               'tools/reko/materialize_apt_inputs.py': os.environ['REKO_COLLECTOR_SHA256'],
               'scripts/renpy/lock_python_inputs.py': 'eece439195f241cd7a3533e26404f68e4a294636c3a8366d9dde9bc27403468d',
-              'scripts/renpy/build_python_wheels.py': '285930d03f1996baa73666a14683c17517e512c5b7645894516bff848c29da8c',
+              'scripts/renpy/build_python_wheels.py': '829712b376ce71ccd39f36299ba2f5e09eb92ba7c21a21f9134ec11e2f2391a6',
               'scripts/renpy/python-inputs.lock.json': '4a9a85b719dd1ef3fb5ded2fcd383f5c9bd8925c0e537bd8f5db0a1132602935',
               'scripts/renpy/python-wheel-build-plan.json': '9b231a3a1460180ed1de53474669e0eba786df3a4ff70da981b87eece89cdea4',
           }

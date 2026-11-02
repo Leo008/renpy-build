@@ -196,6 +196,34 @@ def verify_tool(path, tool):
     return info
 
 
+def verify_loaded_tools(installed, family, plan, tool_cache, environment, site):
+    """核对精确版本、环境内原路径、site内真实文件及原wheel字节，允许合法local目录别名。"""
+    expected_tools = {plan["tools"][sha]["name"]: plan["tools"][sha] for sha in family["tools"]
+                      if plan["tools"][sha]["name"] in ("setuptools", "wheel")}
+    require(set(installed) == set(expected_tools) == {"setuptools", "wheel"}, "实际构建模块集合不完整")
+    environment = environment.absolute()
+    real_environment, real_site = environment.resolve(strict=True), site.resolve(strict=True)
+    require(real_site.is_dir() and real_site.is_relative_to(real_environment), "构建模块site真实路径越界")
+    result = {}
+    for module, actual in installed.items():
+        expected = expected_tools[module]
+        origin = Path(actual["file"])
+        require(origin.is_absolute() and ".." not in origin.parts and origin.is_relative_to(environment)
+                and actual["version"] == expected["version"], "实际构建模块被环境版本替换或原路径越界")
+        resolved = origin.resolve(strict=True)
+        member = module + "/__init__.py"
+        require(resolved.is_file() and resolved.is_relative_to(real_site)
+                and resolved.relative_to(real_site).as_posix() == member, "实际构建模块真实路径越界或成员身份不符")
+        wheel = inputs.artifact_path(tool_cache, expected)
+        verify_tool(wheel, expected)
+        content = resolved.read_bytes()
+        with zipfile.ZipFile(wheel) as archive:
+            require(content == archive.read(member), "实际构建模块字节不等于已锁工具wheel成员")
+        result[module] = {"reported_file": str(origin), "resolved_file": str(resolved), "wheel_member": member,
+                          "tool_sha256": expected["sha256"], "sha256": inputs.digest(content), "size": len(content)}
+    return result
+
+
 def clean_environment(work, python):
     """切断用户 Python/配置继承；无索引变量是额外约束，网络证明由内核隔离提供。"""
     home, temporary = work / "home", work / "tmp"
@@ -409,9 +437,7 @@ def build_job(job, plan, manifest, source_cache, tool_cache, parser, python_iden
         extract_wheel(inputs.artifact_path(tool_cache, plan["tools"][sha]), site)
     check_code = "import json,os,setuptools,wheel;print(json.dumps({x.__name__:{'file':x.__file__,'version':x.__version__} for x in (setuptools,wheel)}))"
     installed = json.loads(runner.run([str(env_python), "-E", "-s", "-c", check_code]))
-    for module, actual in installed.items():
-        expected = next(plan["tools"][sha] for sha in family["tools"] if plan["tools"][sha]["name"] == module)
-        require(Path(actual["file"]).is_relative_to(site) and actual["version"] == expected["version"], "实际构建模块被环境版本替换")
+    loaded_tool_files = verify_loaded_tools(installed, family, plan, tool_cache, environment, site)
     staging = work / "source"
     staging.mkdir()
     source_root = extract_source(original, staging, source_info["archive_root"])
@@ -428,6 +454,7 @@ def build_job(job, plan, manifest, source_cache, tool_cache, parser, python_iden
         verify_tool(inputs.artifact_path(tool_cache, plan["tools"][sha]), plan["tools"][sha])
     return {"status": "builder_content_verified", "source_artifact": artifact, "source_recipe": source,
             "interpreter": {**python_identity, "runtime": identity}, "environment": details, "loaded_tools": installed,
+            "loaded_tool_files": loaded_tool_files,
             "tool_inputs": {sha: plan["tools"][sha] for sha in tool_ids}, "commands": runner.commands,
             "output": product, "output_path": str(files[0]), "actual_target_interpreter_verified": False,
             "target_import_verified": False, "offline_consumer_verified": False, "ios_runtime_verified": False}
