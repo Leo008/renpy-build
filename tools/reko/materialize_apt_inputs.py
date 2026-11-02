@@ -33,6 +33,15 @@ UNVERIFIED = ["packages_installed", "offline_build_environment_verified", "sourc
 SCOPE = "apt_candidate_package_materialization"
 DOWNLOAD_ATTEMPTS = 4
 DOWNLOAD_RETRY_HTTP = {429, 500, 502, 503, 504}
+# 仅用户批准且已完整核对签名索引身份的两份旧deb备份，禁止扩展为任意第三方镜像。
+DEB_BACKUPS = {
+    "pool/main/libx/libxml2/libxml2_2.9.13+dfsg-1ubuntu0.13_amd64.deb": {
+        "url": "https://reflection.grit.ucsb.edu/debian/ubuntu/pool/main/libx/libxml2/libxml2_2.9.13+dfsg-1ubuntu0.13_amd64.deb",
+        "sha256": "825df4a2c852b4cec058ed3e95648f5c7b41f923af85e15d464ec80c14302edc", "bytes": 763892},
+    "pool/main/t/tzdata/tzdata_2026c-0ubuntu0.24.04.1_all.deb": {
+        "url": "https://mirror-prg.webglobe.com/ubuntu/pool/main/t/tzdata/tzdata_2026c-0ubuntu0.24.04.1_all.deb",
+        "sha256": "ef12c9ef81905b5ac558504b2f8c20da9be5f28861020b3fb5e8b15fb3fae2f6", "bytes": 279816},
+}
 
 
 class AptInputError(ValueError):
@@ -188,8 +197,8 @@ def validate_url(url):
     relative(urllib.parse.unquote(parsed.path.removeprefix("/")))
 
 
-def transport_urls(url, mirror_pool=False):
-    """仅为固定snapshot中的同一规范deb派生官方pool镜像，索引始终只有原来源。"""
+def transport_urls(url, mirror_pool=False, expected_sha=None, expected_size=None):
+    """派生同一规范deb运输计划；两份明确备份还须匹配固定SHA/大小，索引不扩源。"""
     validate_url(url)
     if not mirror_pool:
         return [url]
@@ -200,8 +209,14 @@ def transport_urls(url, mirror_pool=False):
     filename = relative(urllib.parse.unquote(match[2]))
     encoded = urllib.parse.quote(filename, safe="/+._~-")
     require(url == "https://snapshot.ubuntu.com/ubuntu/" + match[1] + "/" + encoded, "deb池URL不是规范固定Filename")
-    return ["https://archive.ubuntu.com/ubuntu/" + encoded,
-            "https://security.ubuntu.com/ubuntu/" + encoded, url]
+    plan = ["https://archive.ubuntu.com/ubuntu/" + encoded,
+            "https://security.ubuntu.com/ubuntu/" + encoded]
+    if filename in DEB_BACKUPS:
+        backup = DEB_BACKUPS[filename]
+        require(expected_sha == backup["sha256"] and type(expected_size) is int
+                and expected_size == backup["bytes"], "固定备份Filename对应的SHA/大小不符")
+        plan.append(backup["url"])
+    return [*plan, url]
 
 
 def retryable_download_error(error):
@@ -251,7 +266,7 @@ def reuse_cached_download(cache, target, path, expected_sha, expected_size, url,
 
 def download(url, path, expected_sha, expected_size, evidence_root, cache=None, mirror_pool=False):
     """按固定源或deb官方镜像计划运输，只有缺文件/暂态耗尽允许切端点，身份错误即停。"""
-    plan = transport_urls(url, mirror_pool)
+    plan = transport_urls(url, mirror_pool, expected_sha, expected_size)
     valid_sha(expected_sha)
     require(type(expected_size) is int and expected_size > 0, "下载大小错误")
     path = guarded(path)
@@ -584,7 +599,7 @@ def collect(lock_path, lock_sha, ubuntu, output, cache=None):
             actual = list(package_stanzas(control_path))
             require(len(actual) == 1 and all(actual[0].get(k) == control[k] for k in ("Package", "Version", "Architecture")), "实际deb控制身份不符")
             packages.append({**request, "source_url": url, "suite": item["suite"], "component": item["component"],
-                             "transport_urls": transport_urls(url, True),
+                             "transport_urls": transport_urls(url, True, control["SHA256"], int(control["Size"])),
                              "origins": item["origins"],
                              "control": control, "deb": file_record(output, path), "control_label": command["label"]})
         execute([*apt, "--yes", "--download-only", "--no-install-recommends", "install", *profile["direct_requirements"]], "apt-download-only")
@@ -698,7 +713,7 @@ def verify_bundle(root, expected_manifest_sha):
         path = check_file(root, package["deb"])
         require(digest(path) == control["SHA256"] and path.stat().st_size == int(control["Size"]), "deb与签名Packages不符")
         expected_url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(package["filename"], safe="/+._~-")
-        require(package["source_url"] == expected_url and package.get("transport_urls") == transport_urls(expected_url, True), "分发来源或运输计划越界")
+        require(package["source_url"] == expected_url and package.get("transport_urls") == transport_urls(expected_url, True, control["SHA256"], int(control["Size"])), "分发来源或运输计划越界")
         command, _ = command_by_label(root, manifest, package["control_label"])
         actual_control = list(package_stanzas(check_file(root, command["stdout"])))
         require("dpkg-deb" in command["argv"] and len(actual_control) == 1
