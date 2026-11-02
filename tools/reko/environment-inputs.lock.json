@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "scope": "environment_candidate_metadata_only",
+  "snapshot_id": "20261008T100000Z",
+  "metadata_verified": true,
+  "signature_verified": false,
+  "install_verified": false,
+  "historical_replay": false,
+  "complete_closure": false,
+  "layers_downloaded": false,
+  "packages_materialized": false,
+  "environment_executed": false,
+  "rootfs_verified": false,
+  "not_covered": [
+    "openpgp_signature_verification",
+    "oci_layer_materialization",
+    "rootfs_inspection",
+    "apt_packages_and_debs",
+    "environment_execution",
+    "historical_ci_vm_replay"
+  ],
+  "oci_candidates": [
+    {
+      "ubuntu": "24.04",
+      "codename": "noble",
+      "tag": "noble-20260930.1",
+      "platform": {
+        "os": "linux",
+        "architecture": "amd64"
+      },
+      "config_created": "2026-10-02T08:10:55.064306818Z",
+      "identity_basis": "official OCI version annotations/labels; rootfs not inspected",
+      "files": [
+        {
+          "path": "ubuntu-noble-20260930.1-index.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/manifests/sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac",
+          "sha256": "68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac",
+          "bytes": 6688
+        },
+        {
+          "path": "ubuntu-noble-20260930.1-amd64-manifest.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/manifests/sha256:a2d43bffc46670d7108bb3c0468c67c5557c4c92e83e1e34cbff1322ad1b94dc",
+          "sha256": "a2d43bffc46670d7108bb3c0468c67c5557c4c92e83e1e34cbff1322ad1b94dc",
+          "bytes": 424
+        },
+        {
+          "path": "ubuntu-noble-20260930.1-amd64-config.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/blobs/sha256:6277ab668b2ad3c3ab851d370faa1690d324b30db29d342527f61fed28f20f36",
+          "sha256": "6277ab668b2ad3c3ab851d370faa1690d324b30db29d342527f61fed28f20f36",
+          "bytes": 2052
+        }
+      ],
+      "layer_descriptors": [
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "size": 29765758,
+          "digest": "sha256:f2b4ef06ff01a67d4bed7657a4ae379a7d07934b7c3e743454a22a0d5275fb2b"
+        }
+      ],
+      "rootfs_diff_ids": [
+        "sha256:32ab39660fd51c6dc3aae486b42d42bbe8fe4c1db78eaf57bb9c21198de48a16"
+      ]
+    },
+    {
+      "ubuntu": "22.04",
+      "codename": "jammy",
+      "tag": "jammy-20260930",
+      "platform": {
+        "os": "linux",
+        "architecture": "amd64"
+      },
+      "config_created": "2026-10-02T10:21:06.943369844Z",
+      "identity_basis": "official OCI version annotations/labels; rootfs not inspected",
+      "files": [
+        {
+          "path": "ubuntu-jammy-20260930-index.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/manifests/sha256:0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956",
+          "sha256": "0a9887931b0e38af2e3487ed39e29436b0535c4f3f52e57745baaf79d1898956",
+          "bytes": 6688
+        },
+        {
+          "path": "ubuntu-jammy-20260930-amd64-manifest.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/manifests/sha256:98510ac07bb4545e389be502a8918b385c018bfe4ceeb5ac7e0375c782268b04",
+          "sha256": "98510ac07bb4545e389be502a8918b385c018bfe4ceeb5ac7e0375c782268b04",
+          "bytes": 424
+        },
+        {
+          "path": "ubuntu-jammy-20260930-amd64-config.json",
+          "source_url": "https://registry-1.docker.io/v2/library/ubuntu/blobs/sha256:cee13550f97b8a595506e8e4ca74263ba44924248779a4ba4f942e197652acff",
+          "sha256": "cee13550f97b8a595506e8e4ca74263ba44924248779a4ba4f942e197652acff",
+          "bytes": 2052
+        }
+      ],
+      "layer_descriptors": [
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "size": 29752476,
+          "digest": "sha256:cf1a5487baaf7d71eb78fd0888933c6cdecb40e59edb896511aa0ef4a896031e"
+        }
+      ],
+      "rootfs_diff_ids": [
+        "sha256:129f77d88403f1d66805466da50673bab10cf6052bdf1fe422b0341b51a55da2"
+      ]
+    }
+  ],
+  "apt_snapshots": [
+    {
+      "suite": "noble",
+      "codename": "noble",
+      "ubuntu": "24.04",
+      "release_date": "Thu, 25 Apr 2024 15:10:33 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "2a6a199e1031a5c279cb346646d594993f35b1c03dd4a82aaa0323980dd92451",
+          "bytes": 1401160
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "ba9057fa1b91438cc8a1d26808d00c85389fe101d0c1496254df97236405599a",
+          "bytes": 15037908
+        }
+      ],
+      "file": {
+        "path": "noble-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/noble/InRelease",
+        "sha256": "cdb2f31d809f589719a53c6ad15f255b27569c4059542ada282aaa21b8e164b0",
+        "bytes": 255850
+      }
+    },
+    {
+      "suite": "noble-updates",
+      "codename": "noble",
+      "ubuntu": "24.04",
+      "release_date": "Thu, 08 Oct 2026  5:10:46 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "3ec3c18993414db1a8146c7c5bf35cf36f18b739de946dcf1d3c292045bf5118",
+          "bytes": 1374836
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "c5717072edff98ed519e2029151446517fe5e612cf2ac4fff1a5dafcc9a88965",
+          "bytes": 1701904
+        }
+      ],
+      "file": {
+        "path": "noble-updates-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/noble-updates/InRelease",
+        "sha256": "23d0cc537f13aead7bab160048cfb90251b69b96336530af194f49385f3f7b98",
+        "bytes": 126125
+      }
+    },
+    {
+      "suite": "noble-security",
+      "codename": "noble",
+      "ubuntu": "24.04",
+      "release_date": "Thu, 08 Oct 2026  5:09:54 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "37cfbdde1663a6f9c22113c1eaf37a106c2991deedbaf09655757ae57e183575",
+          "bytes": 1073784
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "def7eb1b6cf61e2b02b7bc7e3e2faffbddac98eed6a42d0ce05a6116914ae6f7",
+          "bytes": 1218324
+        }
+      ],
+      "file": {
+        "path": "noble-security-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/noble-security/InRelease",
+        "sha256": "8398a7b7719c777fded0b28706174ca75af6755d04fc5ab38773bfb29901c5bf",
+        "bytes": 126127
+      }
+    },
+    {
+      "suite": "jammy",
+      "codename": "jammy",
+      "ubuntu": "22.04",
+      "release_date": "Thu, 21 Apr 2022 17:16:08 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "37cb57f1554cbfa71c5a29ee9ffee18a9a8c1782bb0568e0874b7ff4ce8f9c11",
+          "bytes": 1394768
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "d29cb24c93fec5f43255706bce7eb46d4779952039d8c68ac1bb14a6f3655ce2",
+          "bytes": 14090084
+        }
+      ],
+      "file": {
+        "path": "jammy-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/jammy/InRelease",
+        "sha256": "c14060cd8c6d625874dfcb9523a35a395bf4865c28b6b6a82569ef326fe92dc6",
+        "bytes": 270087
+      }
+    },
+    {
+      "suite": "jammy-updates",
+      "codename": "jammy",
+      "ubuntu": "22.04",
+      "release_date": "Thu, 08 Oct 2026  5:16:24 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "c07644da7257e7670836ae3f4d8f8c08e0dbb44e09225faa09e28f54a53c3591",
+          "bytes": 3907544
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "34a926e752faf1fb65651ff382736626352897aa23fadd41bfbb69cfdaa2ceab",
+          "bytes": 1285804
+        }
+      ],
+      "file": {
+        "path": "jammy-updates-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/jammy-updates/InRelease",
+        "sha256": "66087c0b78b1b45ce6595d31d3ec2a0a59745cb20da26f6142af1a8c7bb031e2",
+        "bytes": 128049
+      }
+    },
+    {
+      "suite": "jammy-security",
+      "codename": "jammy",
+      "ubuntu": "22.04",
+      "release_date": "Thu, 08 Oct 2026  5:12:33 UTC",
+      "amd64_index_descriptors": [
+        {
+          "path": "main/binary-amd64/Packages.xz",
+          "sha256": "1d3da64b9e2f641535a971d81fffa004505c9888c2597cdcfbb6cebc28d85063",
+          "bytes": 3632996
+        },
+        {
+          "path": "universe/binary-amd64/Packages.xz",
+          "sha256": "8ff54b694d74e7eab79c0207bb2d288306cd27b76cdfb62c7b30319c61d9fe03",
+          "bytes": 1052864
+        }
+      ],
+      "file": {
+        "path": "jammy-security-20261008T100000Z.InRelease",
+        "source_url": "https://snapshot.ubuntu.com/ubuntu/20261008T100000Z/dists/jammy-security/InRelease",
+        "sha256": "b79768a8a69fc246f83748d3b5b7e221fc226f60fc7a54b8682ea480677878e1",
+        "bytes": 128927
+      }
+    }
+  ]
+}

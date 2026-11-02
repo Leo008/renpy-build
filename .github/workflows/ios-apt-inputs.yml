@@ -1,0 +1,94 @@
+name: RenPy fixed APT inputs
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths:
+      - .github/workflows/ios-apt-inputs.yml
+      - tools/reko/materialize_apt_inputs.py
+      - tools/reko/environment-inputs.lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: renpy-apt-inputs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Ubuntu ${{ matrix.ubuntu }} fixed APT inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '22.04']
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
+      REKO_APT_COLLECTOR_SHA256: '77a2f30ffe8d455e0a4f4e910c4db71a0440f86db42887329a18180f48cd54d2'
+      REKO_APT_ENVIRONMENT_SHA256: '674cbd94766fb3ca9da3a1d1a2ada05b942645257dafccec73aaf0b4fee1c6cc'
+    steps:
+      - name: 检出独立候选输入工具
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: tools/reko
+      - name: 核对部署原件身份
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib
+          import os
+          from pathlib import Path
+          files = {
+              'tools/reko/materialize_apt_inputs.py': 'REKO_APT_COLLECTOR_SHA256',
+              'tools/reko/environment-inputs.lock.json': 'REKO_APT_ENVIRONMENT_SHA256',
+          }
+          for filename, variable in files.items():
+              actual = hashlib.sha256(Path(filename).read_bytes()).hexdigest()
+              if actual != os.environ[variable]:
+                  raise SystemExit('[RenPyAPTInputs] 部署原件身份不符：' + filename)
+              print('[RenPyAPTInputs] 部署原件通过：' + filename, flush=True)
+          PYCODE
+      - name: 固定镜像内验签与APT求解
+        shell: bash
+        run: |
+          # host负责固定HTTPS运输；容器内部全程禁网，不传入任何凭据。
+          python3 tools/reko/materialize_apt_inputs.py collect \
+            --environment-lock tools/reko/environment-inputs.lock.json \
+            --environment-lock-sha256 "$REKO_APT_ENVIRONMENT_SHA256" \
+            --ubuntu "$REKO_APT_UBUNTU" \
+            --output "tmp/apt-inputs-$REKO_APT_UBUNTU"
+      - name: 复核完整采集原件
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          bundle = Path('tmp/apt-inputs-' + os.environ['REKO_APT_UBUNTU'])
+          manifest = bundle / 'manifest.json'
+          digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+          subprocess.run([
+              sys.executable, 'tools/reko/materialize_apt_inputs.py', 'verify',
+              '--bundle', str(bundle), '--manifest-sha256', digest,
+              '--report', str(bundle.parent / (bundle.name + '-verify.json')),
+          ], check=True)
+          print('[RenPyAPTInputs] manifest_sha256=' + digest, flush=True)
+          PYCODE
+      - name: 保存签名/索引/分发及失败证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/apt-inputs-${{ matrix.ubuntu }}*
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
