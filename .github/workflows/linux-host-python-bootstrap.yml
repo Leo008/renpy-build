@@ -1,18 +1,14 @@
 name: RenPy fixed Linux four route native host bootstrap
 
 'on':
-  push:
-    branches: [codex/ios-locked-inputs-20261102]
-    paths:
-      - .github/workflows/linux-host-python-bootstrap.yml
-      - tools/ci_linux_host_python_bootstrap.py
-      - tools/linux-host-python-bootstrap-ci-plan.json
-      - tools/run_locked_host_python_tasks.py
-      - tools/ci_linux_host_replay.py
-      - tools/run_linux_python_replay.py
-      - tools/python-linux-host-replay-plan.json
-      - CI_LINUX_HOST_PYTHON_BOOTSTRAP.md
   workflow_dispatch:
+    inputs:
+      ubuntu_group:
+        description: 仅选择仍需构建的固定Ubuntu组
+        required: true
+        type: choice
+        default: all
+        options: [all, '22.04', '24.04']
 
 permissions:
   contents: read
@@ -30,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ['22.04', '24.04']
+        ubuntu: ${{ fromJSON((inputs.ubuntu_group || 'all') == 'all' && '["22.04","24.04"]' || (inputs.ubuntu_group == '22.04' && '["22.04"]' || '["24.04"]')) }}
     env:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
@@ -44,6 +40,7 @@ jobs:
             tools/ci_linux_host_python_bootstrap.py
             tools/linux-host-python-bootstrap-ci-plan.json
             tools/run_locked_host_python_tasks.py
+            tools/host-python-bootstrap-plan.json
             tools/ci_linux_host_replay.py
             tools/run_linux_python_replay.py
             tools/python-linux-host-replay-plan.json
@@ -59,9 +56,10 @@ jobs:
           if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyHostBootstrapCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_host_python_bootstrap.py': '154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63',
-              'tools/linux-host-python-bootstrap-ci-plan.json': '4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537',
-              'tools/run_locked_host_python_tasks.py': '6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612',
+              'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7',
+              'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2',
+              'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c',
+              'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32',
               'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
               'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
               'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
@@ -70,7 +68,7 @@ jobs:
               path = Path(name)
               if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                   raise SystemExit('[RenPyHostBootstrapCI] 部署原字节不符：' + name)
-          print('[RenPyHostBootstrapCI] 六原件SHA一致；实际host Python=' + platform.python_version(), flush=True)
+          print('[RenPyHostBootstrapCI] 七原件SHA一致；实际host Python=' + platform.python_version(), flush=True)
           PYCODE
       - name: 取得固定完整APT分发
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
