@@ -367,6 +367,7 @@ jobs:
           import hashlib
           import json
           import os
+          import re
           from pathlib import Path
           import stat
           evidence = Path(os.environ['RUNNER_TEMP']) / 'reko-j4c-evidence'
@@ -402,26 +403,42 @@ jobs:
                         'raw_sdk_compile_diagnostics_published': False, 'published_logs': []}
               destination = evidence / 'public-command-logs'
               destination.mkdir()
+              def checked_log(index, row, kind):
+                  """核对固定日志路径及完整原字节，公开与受限诊断使用相同身份门禁。"""
+                  record = row[kind]
+                  expected = f"commands/{index:03d}-{row['label']}.{kind}"
+                  if record['path'] != expected:
+                      raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径身份错误')
+                  original = evidence / 'preflight' / expected
+                  if any(path.is_symlink() for path in (original, *original.parents)):
+                      raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径含链接')
+                  info = original.lstat()
+                  if not stat.S_ISREG(info.st_mode):
+                      raise SystemExit('[RenPyEnvironmentCI] 原命令日志不是普通文件')
+                  data = original.read_bytes()
+                  if len(data) != record['bytes'] or hashlib.sha256(data).hexdigest() != record['sha256']:
+                      raise SystemExit('[RenPyEnvironmentCI] 原命令日志字节身份错误')
+                  return original.name, data
+              link_errors = []
               for index, row in enumerate(rows):
+                  if row['label'] in {name + '-sdk-link' for name in ('arm64', 'sim-arm64', 'sim-x86_64')} and row['returncode'] != 0:
+                      _, data = checked_log(index, row, 'stderr')
+                      # 仅工具自身的单行标题；绝不发布header路径诊断/源码行/续行。
+                      headings = [line for line in data.decode(errors='replace').splitlines()
+                          if re.fullmatch(r'(?:ld64\.lld(?:-[0-9]+)?|ld\.lld(?:-[0-9]+)?|clang(?:\+\+)?(?:-[0-9]+)?): (?:fatal error|error|warning): [^\r\n]{1,1200}', line)]
+                      link_errors.append({'label': row['label'], 'original_stderr': row['stderr'], 'tool_error_headings': headings})
                   if row['label'] not in allowed:
                       continue
                   for kind in ('stdout', 'stderr'):
-                      record = row[kind]
-                      expected = f"commands/{index:03d}-{row['label']}.{kind}"
-                      if record['path'] != expected:
-                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径身份错误')
-                      original = evidence / 'preflight' / expected
-                      if any(path.is_symlink() for path in (original, *original.parents)):
-                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径含链接')
-                      info = original.lstat()
-                      if not stat.S_ISREG(info.st_mode):
-                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志不是普通文件')
-                      data = original.read_bytes()
-                      if len(data) != record['bytes'] or hashlib.sha256(data).hexdigest() != record['sha256']:
-                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志字节身份错误')
-                      with (destination / original.name).open('xb') as stream:
+                      name, data = checked_log(index, row, kind)
+                      with (destination / name).open('xb') as stream:
                           stream.write(data)
-                      public['published_logs'].append(record)
+                      public['published_logs'].append(row[kind])
+              with (evidence / 'link-error-summary.json').open('x') as stream:
+                  json.dump({'raw_sdk_diagnostics_published': False, 'link_errors': link_errors}, stream, ensure_ascii=False, indent=2)
+                  stream.write('\n')
+              for row in link_errors:
+                  print('[RenPyEnvironmentCI] 安全链接错误摘要：' + json.dumps(row, ensure_ascii=False), flush=True)
               target = evidence / 'public-command-status.json'
               with target.open('x') as stream:
                   json.dump(public, stream, ensure_ascii=False, indent=2)
@@ -465,6 +482,7 @@ jobs:
             ${{ runner.temp }}/reko-j4c-evidence/preflight/preflight-report.json
             ${{ runner.temp }}/reko-j4c-evidence/preflight/apt-byte-verification.json
             ${{ runner.temp }}/reko-j4c-evidence/public-command-status.json
+            ${{ runner.temp }}/reko-j4c-evidence/link-error-summary.json
             ${{ runner.temp }}/reko-j4c-evidence/public-command-logs/
             ${{ runner.temp }}/reko-j4c-evidence/preflight/generated/
             ${{ runner.temp }}/reko-j4c-evidence/preflight/probes/
