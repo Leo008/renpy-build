@@ -22,7 +22,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNTIME_PINS = {
-    "lock_python_inputs.py": "eece439195f241cd7a3533e26404f68e4a294636c3a8366d9dde9bc27403468d",
+    "lock_python_inputs.py": "690ba4f9401987f5a2c459605195904a2fad03e239a48181e1e44e0ad50b6779",
     "build_python_wheels.py": "829712b376ce71ccd39f36299ba2f5e09eb92ba7c21a21f9134ec11e2f2391a6",
     "python-inputs.lock.json": "4a9a85b719dd1ef3fb5ded2fcd383f5c9bd8925c0e537bd8f5db0a1132602935",
     "python-wheel-build-plan.json": "9b231a3a1460180ed1de53474669e0eba786df3a4ff70da981b87eece89cdea4",

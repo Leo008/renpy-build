@@ -169,11 +169,13 @@ def read_wheel(path, filename=None):
             if name == record:
                 require(row[1:] == ["", ""], "RECORD 自身不得伪造 hash/size")
                 continue
-            require(row[1].startswith("sha256=") and re.fullmatch(r"[A-Za-z0-9_-]+", row[1][7:]) is not None,
-                    "RECORD 必须使用实际 SHA256：" + name)
-            encoded = row[1][7:]
-            actual = base64.b64decode(encoded + "=" * (-len(encoded) % 4), altchars=b"-_", validate=True)
-            require(actual == hashlib.sha256(files[name]).digest() and row[2] == str(len(files[name])),
+            algorithm, separator, encoded = row[1].partition("=")
+            # 已锁CP27内置hashlib的name为SHA256；只接纳它和既有sha256，不扩大算法/标签集合。
+            require(algorithm in ("sha256", "SHA256") and separator == "="
+                    and re.fullmatch(r"[A-Za-z0-9_-]{43}", encoded) is not None, "RECORD 必须使用实际 SHA256：" + name)
+            # 比较完整32字节摘要的规范无填充编码，同时拒绝不规范尾pad-bit和实际内容/大小篡改。
+            expected = base64.urlsafe_b64encode(hashlib.sha256(files[name]).digest()).decode("ascii").rstrip("=")
+            require(encoded == expected and row[2] == str(len(files[name])),
                     "RECORD hash/size 不符：" + name)
         require(seen == set(files), "RECORD 未完整覆盖 wheel")
         wheel = email.parser.BytesParser().parsebytes(files[prefix + "/WHEEL"])
