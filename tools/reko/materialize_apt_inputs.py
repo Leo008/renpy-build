@@ -4,7 +4,8 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
+import errno
 import hashlib
 import json
 import lzma
@@ -14,9 +15,12 @@ import platform
 import re
 import shlex
 import shutil
+import socket
 import stat
 import subprocess
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
@@ -27,6 +31,8 @@ PROFILES = {"24.04": {"codename": "noble", "extra": "clang-18 lld-18 llvm-18 llv
             "22.04": {"codename": "jammy", "extra": "clang-15 lld-15 llvm-15 python2-dev".split()}}
 UNVERIFIED = ["packages_installed", "offline_build_environment_verified", "source_build_executed", "complete_closure"]
 SCOPE = "apt_candidate_package_materialization"
+DOWNLOAD_ATTEMPTS = 4
+DOWNLOAD_RETRY_HTTP = {429, 500, 502, 503, 504}
 
 
 class AptInputError(ValueError):
@@ -177,25 +183,74 @@ def validate_url(url):
     relative(urllib.parse.unquote(parsed.path.removeprefix("/")))
 
 
-def download(url, path, expected_sha, expected_size):
-    """host负责TLS运输，独占临时文件通过固定SHA/大小后发布。"""
+def retryable_download_error(error):
+    """仅将明确暂态HTTP、网络超时和连接错误列为可重试，身份错误不降级。"""
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in DOWNLOAD_RETRY_HTTP
+    cause = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(cause, socket.gaierror):
+        return cause.errno == socket.EAI_AGAIN
+    return isinstance(cause, (TimeoutError, ConnectionError)) or (
+        isinstance(cause, OSError) and cause.errno in {
+            errno.ETIMEDOUT, errno.ECONNRESET, errno.ECONNABORTED, errno.ECONNREFUSED,
+            errno.ENETDOWN, errno.ENETUNREACH, errno.EHOSTUNREACH})
+
+
+def download_attempt(url, path, temporary, expected_sha, expected_size, opener):
+    """一次TLS运输使用全新临时文件，只有完整固定字节校验通过才独占发布。"""
+    with opener.open(urllib.request.Request(url, headers={"User-Agent": "Reko-fixed-apt-inputs"}), timeout=120) as source, temporary.open("xb") as output:
+        while block := source.read(1024 * 1024):
+            require(output.tell() + len(block) <= expected_size, "下载超过固定大小")
+            output.write(block)
+    require(temporary.stat().st_size == expected_size and digest(temporary) == expected_sha, "下载SHA/大小不符")
+    os.link(temporary, path)
+
+
+def download(url, path, expected_sha, expected_size, evidence_root):
+    """固定源有界重试暂态运输故障，逐次保留证据，身份/路径错误立即失败。"""
     validate_url(url)
     valid_sha(expected_sha)
     require(type(expected_size) is int and expected_size > 0, "下载大小错误")
     path = guarded(path)
     require(not path.exists() and not path.is_symlink(), "拒绝覆盖已有下载")
+    evidence_root = guarded(evidence_root)
+    target = relative(path.relative_to(evidence_root).as_posix())
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".part-" + uuid.uuid4().hex)
+    log_dir = evidence_root / "downloads" / uuid.uuid4().hex
     opener = urllib.request.build_opener(SnapshotOnlyRedirect())
-    try:
-        with opener.open(urllib.request.Request(url, headers={"User-Agent": "Reko-fixed-apt-inputs"}), timeout=120) as source, temporary.open("xb") as output:
-            while block := source.read(1024 * 1024):
-                require(output.tell() + len(block) <= expected_size, "下载超过固定大小")
-                output.write(block)
-        require(temporary.stat().st_size == expected_size and digest(temporary) == expected_sha, "下载SHA/大小不符")
-        os.link(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        row = {"url": url, "target": target, "expected_sha256": expected_sha,
+               "expected_bytes": expected_size, "attempt": attempt, "max_attempts": DOWNLOAD_ATTEMPTS,
+               "started_at_utc": datetime.now(timezone.utc).isoformat()}
+        write_json(log_dir / ("%02d-started.json" % attempt), {**row, "result": "started"})
+        print(f"[RenPyAptInputs] 下载 {attempt}/{DOWNLOAD_ATTEMPTS}：{url}", flush=True)
+        temporary = path.with_name(path.name + ".part-" + uuid.uuid4().hex)
+        try:
+            download_attempt(url, path, temporary, expected_sha, expected_size, opener)
+        except Exception as error:
+            retryable = retryable_download_error(error)
+            retry = retryable and attempt < DOWNLOAD_ATTEMPTS
+            delay = 2 ** (attempt - 1) if retry else 0
+            result_path = log_dir / ("%02d-result.json" % attempt)
+            write_json(result_path, {**row, "result": "failed", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
+                                    "error_type": type(error).__name__,
+                                    "error": str(error), "http_status": getattr(error, "code", None),
+                                    "received_bytes": temporary.stat().st_size if temporary.exists() else 0,
+                                    "retryable": retryable, "retry_planned": retry, "retry_delay_seconds": delay})
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
+            print(f"[RenPyAptInputs] 下载失败 {attempt}/{DOWNLOAD_ATTEMPTS}：{error}；"
+                  + (f"{delay}秒后重试" if retry else "停止"), flush=True)
+            if not retry:
+                raise AptInputError("固定源下载失败：" + url + "；" + str(error) + "；详见" + str(result_path)) from error
+        else:
+            write_json(log_dir / ("%02d-result.json" % attempt), {**row, "result": "verified", "finished_at_utc": datetime.now(timezone.utc).isoformat(),
+                                                               "actual_bytes": expected_size, "actual_sha256": expected_sha})
+            print(f"[RenPyAptInputs] 下载校验通过：{target}（{expected_size}字节）", flush=True)
+            return
+        finally:
+            temporary.unlink(missing_ok=True)
+        time.sleep(delay)
 
 
 def release_fields(data):
@@ -374,8 +429,11 @@ Acquire::IndexTargets::deb::Packages {
 
 def check_apt_index_order(data):
     """检查容器合并后的压缩优先级，拒绝Docker预置gzip先于已物化xz。"""
-    order = re.findall(r'^Acquire::CompressionTypes::Order:: "([^"\n]*)";$', data.decode("utf-8"), re.MULTILINE)
-    require(order == ["xz"], "APT有效压缩优先级不是独占xz：" + repr(order))
+    text = data.decode("utf-8")
+    order = re.findall(r'^Acquire::CompressionTypes::Order:: "([^"\n]*)";$', text, re.MULTILINE)
+    parents = [line for line in text.splitlines() if line.startswith("Acquire::CompressionTypes::Order ")]
+    require(order == ["xz"] and parents in ([], ['Acquire::CompressionTypes::Order "";']),
+            "APT有效压缩优先级不是独占xz：" + repr(parents + order))
 
 
 def collect(lock_path, lock_sha, ubuntu, output):
@@ -419,7 +477,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
         for row in profile["snapshots"]:
             suite, source = row["suite"], row["file"]
             path = repo / "dists" / suite / "InRelease"
-            download(source["source_url"], path, source["sha256"], source["bytes"])
+            download(source["source_url"], path, source["sha256"], source["bytes"], output)
             execute(["mkdir", "-p", "/reko/repo/dists/" + suite], "prepare-" + suite)
             copy_to(path, "/reko/repo/dists/" + suite + "/InRelease", "copy-" + suite)
             stdout, command = execute(["gpgv", "--status-fd=1", "--keyring", "/usr/share/keyrings/ubuntu-archive-keyring.gpg", "/reko/repo/dists/" + suite + "/InRelease"], "gpgv-" + suite)
@@ -434,7 +492,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
                 require({"sha256": descriptor["sha256"], "bytes": descriptor["bytes"]} == compressed_pin, "A锁索引与实际已签Release不符")
                 compressed = path.parent / (relative_index + ".xz")
                 url = source["source_url"].removesuffix("InRelease") + relative_index + ".xz"
-                download(url, compressed, compressed_pin["sha256"], compressed_pin["bytes"])
+                download(url, compressed, compressed_pin["sha256"], compressed_pin["bytes"], output)
                 plain = path.parent / relative_index
                 with lzma.open(compressed, "rb") as stream, plain.open("xb") as target:
                     shutil.copyfileobj(stream, target)
@@ -462,7 +520,7 @@ def collect(lock_path, lock_sha, ubuntu, output):
             control = item["control"]
             path = repo / request["filename"]
             url = "https://snapshot.ubuntu.com/ubuntu/" + profile["snapshot"] + "/" + urllib.parse.quote(request["filename"], safe="/+._~-")
-            download(url, path, control["SHA256"], int(control["Size"]))
+            download(url, path, control["SHA256"], int(control["Size"]), output)
             execute(["mkdir", "-p", "/reko/repo/" + str(PurePosixPath(request["filename"]).parent)], "deb-directory-%04d" % index)
             copy_to(path, "/reko/repo/" + request["filename"], "copy-deb-%04d" % index)
             raw_control, command = execute(["dpkg-deb", "--field", "/reko/repo/" + request["filename"]], "deb-control-%04d" % index)
