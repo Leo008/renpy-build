@@ -1,8 +1,8 @@
-# 原始 iOS C 前置任务 CI
+# 原始 iOS C 前置与目标 Python 安装 CI
 
-此工作流只执行 R00-02J9 的原始 SDK、toolchain、mockrt、MetalANGLE 安装与静态 C 前置任务。首轮手动调度 Ubuntu 22.04，覆盖 8.3.7 和 7.8.7 的三个架构。24.04 能力绑定各自原 producer，可随后单独调度。成功也不代表 target Python install、pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
+此工作流通过显式 phase 选择 R00-02J9 的原始 C 前置任务或目标 Python 安装。默认 c-prerequisites 保持原 C 路线；历史运行 41471558503 和现代运行 41470949898 的四版×三个架构已由主项目独立验收。target-install 当前只允许 Ubuntu22.04 的 7.8.7 或 8.3.7／sim-arm64，必须明确单版和架构；首轮试跑选择 7.8.7。B 每次在同一个全新 C1 worker 中重新实际执行原 C 与原 Python Task，不导入外部 C 前缀或预填完成状态。B 候选尚待真实 CI 验证；任何工具回归均不代表目标安装、pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
 
-编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
+编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。C 默认 profile 使用上述增量03。B 独立 profile 的七件来自提交 `63dde6de0a13918b50328ae696a4c881f733c5cc`，总原字节436888；归档 `j9-target-python-runtime-addon-20261103-04.tar.gz` 为95387字节，SHA256 `1bdda8d22ab4630586a6c6866638557b71d3e371d8d136993c1224939123a565`。两份原件固定各自的 worker/plan 身份，不能互换。B 完整43件元数据根的18来源、9个scope和3份CPython原tar已通过fresh校验，归档发布状态以主项目证据为准。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
 
 SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后核明文大小/SHA及既有 SHA 秘密。AES256CBC/PBKDF2-SHA256/200000/salt8 的密码只通过宿主 stdin，不放 argv 或子进程环境。SDK 与 H0 密码不会发送到构建容器。所有实际 C 任务在固定 C1 同一容器内执行，容器无网络、无宿主挂载、非 privileged；保留原 unshare 的受控 capability 设置。
 
@@ -25,3 +25,11 @@ SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后
 现代旧候选的实际driver也编码SDK13，增量03独立加入LLVM18精确ccache clang-18平台候选，LLVM15原分支/理由保持原文；四版原bzip2 archive/补丁/Makefile身份相同，LDFLAGS?=候选扩至现代。默认每cell缓存与显式共享缓存的24原Context组合、四版make-n及21回归已核；新现代C结果须另行实跑，不重标增量02历史组。
 
 增量03发布原件asset702183169，独立API为73548字节/SHA256 1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f，与本地归档相同。
+
+调度输入为 ubuntu_group、phase、release 和 target_arch；C 可选组内 all 版本及 all 三架构，B 拒绝 all、现代组或其它架构。矩阵每作业只对应一个架构，最多三个并行，组内不取消已有运行。artifact名称含phase、Ubuntu组、架构、run、attempt；不同实际运行分别验收，不按名称或工具测试补齐成功。
+
+目标安装继续执行原 unpack、patch_posix、patch_ios、build_ios/common_post。CP39 只在已锁定 configure 调用处清空原 PYTHON_FOR_BUILD、追加 --with-ensurepip=no，使上游 configure 自行生成原交叉编译包装器；原 Task 函数和包装器源码不改，实际argv/env、Makefile、target sysconfig、原host完整库存不变和无提前pip均须逐项核对。原默认upgrade的历史值与实际no分开保留，不将禁用隐式ensurepip视作显式pip任务通过。
+
+B 成功导出采用仅path/linkpath的严格PAX格式保存完整前缀、stdlib和有限构建证明，支持原stdlib长路径；回传后独立重算全库存、原C子集、stdlib来源、Makefile/pyconfig/sysconfig、libpython所有Mach-O对象、静态模块符号和唯一原H1 hostpython ELF，不在宿主执行回传二进制。原C的USTAR导出协议保持原字节。
+
+B 失败或SIGTERM取消只生成明确标注diagnostic_only的有限私有快照，缺失成员如实登记，链接仅登记而不跟随。CLI中断桥给既有finally提供保全机会；SIGKILL或GitHub宽限不足仍可能截断诊断，不能保证完整或伪报成功。SDK、完整host树和凭据不进入该快照；既有CMS白名单、认证封装与清理规则继续适用。
