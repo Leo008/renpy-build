@@ -1,0 +1,198 @@
+name: RenPy fixed Linux exact target Python input replay
+
+'on':
+  workflow_dispatch:
+    inputs:
+      ubuntu_group:
+        description: 固定Ubuntu组；只选择实际依赖已具备的作用域
+        required: true
+        type: choice
+        default: all
+        options: [all, '22.04', '24.04']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-linux-target-replay-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    name: Fixed Ubuntu ${{ matrix.ubuntu }} exact target scopes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ${{ fromJSON(inputs.ubuntu_group == 'all' && '["22.04","24.04"]' || (inputs.ubuntu_group == '22.04' && '["22.04"]' || '["24.04"]')) }}
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      H1_ARTIFACT_ID: ${{ matrix.ubuntu == '22.04' && '13140657277' || '13139309222' }}
+      H1_ARTIFACT_BYTES: ${{ matrix.ubuntu == '22.04' && '63429871' || '127832210' }}
+      H1_ARTIFACT_SHA256: ${{ matrix.ubuntu == '22.04' && '084ebc94eb7e7beeda9e9f627886567f7ac569ebe1281a4b7713a5b6fccc3bb9' || '9ba657645c1076623ba4d3315390ae060f9d1b4344517d6692d701db825fe0da' }}
+    steps:
+      - name: 检出固定target编排与已审核校验器
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools/ci_linux_target_python_replay.py
+            tools/linux-target-python-replay-ci-plan.json
+            tools/inventory_source_inputs.py
+            tools/ci_linux_host_python_bootstrap.py
+            tools/linux-host-python-bootstrap-ci-plan.json
+            tools/run_locked_host_python_tasks.py
+            tools/ci_linux_host_replay.py
+            tools/run_linux_python_replay.py
+            tools/python-linux-host-replay-plan.json
+          sparse-checkout-cone-mode: false
+      - name: 核验全部部署原件身份
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import hashlib
+          from pathlib import Path
+          import platform
+          import sys
+          if sys.version_info[:2] != (3, 10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
+              raise SystemExit('[RenPyTargetReplayCI] 缺少Linux amd64 Python3.10宿主编排环境')
+          expected = {
+              'tools/ci_linux_target_python_replay.py': '73bb4c1dd3ed065fcd189b538d4459d38c00b23033dcb545028775cb70c75ec9',
+              'tools/linux-target-python-replay-ci-plan.json': 'd24928eea6d61fd88372821542244c5c5063d60382319928cdcb2670f49016d8',
+              'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824',
+              'tools/ci_linux_host_python_bootstrap.py': '154730d391213bde92b075bc36eef66da66a03a7bccafa8752f560ce9511ff63',
+              'tools/linux-host-python-bootstrap-ci-plan.json': '4bd0e932e20ac640cc1845da7022ac3c5aadbf0da24fddce45cd4b52f512d537',
+              'tools/run_locked_host_python_tasks.py': '6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612',
+              'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011',
+              'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc',
+              'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d',
+          }
+          for name, digest in expected.items():
+              path = Path(name)
+              if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                  raise SystemExit('[RenPyTargetReplayCI] 部署原字节不符：' + name)
+          print('[RenPyTargetReplayCI] 九原件SHA一致；实际host Python=' + platform.python_version(), flush=True)
+          PYCODE
+      - name: 取得固定完整APT分发
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41419224335-1
+          path: ${{ runner.temp }}/reko-h2-apt-inputs
+      - name: 取得原H1 ZIP并校验独立API摘要
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import hashlib
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          cli = shutil.which('gh')
+          if not cli:
+              raise SystemExit('[RenPyTargetReplayCI] 缺少宿主GitHub传输工具')
+          artifact = os.environ['H1_ARTIFACT_ID']
+          expected = int(os.environ['H1_ARTIFACT_BYTES'])
+          digest = os.environ['H1_ARTIFACT_SHA256']
+          if not re.fullmatch('[0-9]+', artifact) or expected <= 0 or not re.fullmatch('[a-f0-9]{64}', digest):
+              raise SystemExit('[RenPyTargetReplayCI] H1独立原ZIP身份非法')
+          command = [cli, 'api']
+          help_result = subprocess.run(command + ['--help'], capture_output=True, timeout=30)
+          if b'--allow-escape-sequences' in help_result.stdout + help_result.stderr:
+              command.append('--allow-escape-sequences')
+          command.append('repos/Leo008/renpy-build/actions/artifacts/' + artifact + '/zip')
+          destination = Path(os.environ['RUNNER_TEMP']) / 'reko-h2-H1-artifact.zip'
+          with destination.open('xb') as output:
+              result = subprocess.run(command, stdout=output, stderr=subprocess.PIPE, timeout=600)
+          if result.returncode:
+              raise SystemExit('[RenPyTargetReplayCI] 原H1 ZIP运输失败；不输出临时签名地址')
+          sha = hashlib.sha256()
+          with destination.open('rb') as stream:
+              for block in iter(lambda: stream.read(1048576), b''):
+                  sha.update(block)
+          if destination.stat().st_size != expected or sha.hexdigest() != digest:
+              raise SystemExit('[RenPyTargetReplayCI] 原H1 ZIP完整字节与独立API摘要不同')
+          print('[RenPyTargetReplayCI] 原H1 ZIP外部大小/SHA通过；不重打包', flush=True)
+          PYCODE
+      - name: 恢复真实完整host分发并禁网重放target scope
+        shell: bash
+        env:
+          REKO_H0_INPUTS_PASSWORD: ${{ secrets.REKO_H0_INPUTS_PASSWORD }}
+          REKO_H2_INPUTS_PASSWORD: ${{ secrets.REKO_H2_INPUTS_PASSWORD }}
+        run: |
+          /usr/bin/python3.10 -B tools/ci_linux_target_python_replay.py \
+            --ubuntu '${{ matrix.ubuntu }}' \
+            --bundle "$RUNNER_TEMP/reko-h2-apt-inputs/apt-inputs-${{ matrix.ubuntu }}" \
+            --h1-artifact "$RUNNER_TEMP/reko-h2-H1-artifact.zip" \
+            --h1-artifact-sha256 "$H1_ARTIFACT_SHA256" \
+            --h1-artifact-bytes "$H1_ARTIFACT_BYTES" \
+            --output "$RUNNER_TEMP/reko-h2-evidence"
+      - name: 显示真实失败阶段
+        if: failure()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          base = Path(os.environ['RUNNER_TEMP']) / 'reko-h2-evidence'
+          report = base / 'linux-target-python-replay-report.json'
+          if report.is_file():
+              data = json.loads(report.read_bytes())
+              public = {k:v for k,v in data.items() if k in ('result', 'errors', 'routes', 'passed_target_scopes', 'scopes') or type(v) is bool}
+              print('[RenPyTargetReplayCI] ' + json.dumps(public, ensure_ascii=False), flush=True)
+          commands = base / 'container/commands.json'
+          if commands.is_file():
+              for row in json.loads(commands.read_bytes())['commands']:
+                  if row['returncode'] != 0 and not row.get('expected_failure') and not row.get('expected_partial_result'):
+                      print('[RenPyTargetReplayCI] 失败命令：' + row['label'], flush=True)
+                      for channel in ('stdout', 'stderr'):
+                          path = base / 'container' / row[channel]['path']
+                          print(channel + ':\n' + path.read_bytes()[-12000:].decode(errors='replace'), flush=True)
+          PYCODE
+      - name: 兜底清理本轮受控容器和私有临时目录
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import subprocess
+          result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+          for name in result.stdout.decode().splitlines():
+              if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}', name):
+                  state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                  host = state['HostConfig']
+                  if host['NetworkMode'] != 'none' or state.get('Mounts') or host.get('Privileged') is not False:
+                      raise SystemExit('[RenPyTargetReplayCI] 容器清理边界不符')
+                  subprocess.run(['docker', 'rm', '--force', name], check=True)
+          for path in Path(os.environ['RUNNER_TEMP']).glob('reko-h2-inputs-*'):
+              if path.is_symlink() or not path.is_dir():
+                  raise SystemExit('[RenPyTargetReplayCI] 临时材料清理路径异常')
+              shutil.rmtree(path)
+          archive = Path(os.environ['RUNNER_TEMP']) / 'reko-h2-H1-artifact.zip'
+          if archive.exists():
+              if archive.is_symlink() or not archive.is_file():
+                  raise SystemExit('[RenPyTargetReplayCI] 原H1输入ZIP清理路径异常')
+              archive.unlink()
+          PYCODE
+      - name: 仅保存target原报告与公开命令日志
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-linux-target-replay-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-h2-evidence/
+          if-no-files-found: warn
+          compression-level: 6
+          retention-days: 30

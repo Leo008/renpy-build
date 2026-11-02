@@ -1,0 +1,11 @@
+# 固定精确版本 Linux target 分发重放
+
+只验证三现代及两历史target-version scope的纯内容/构建支持包；不称iOS ABI、target make install/pip、完整引擎或Reko会话通过。先使用H1实际完整host分发恢复原prefix，再核全部成员/ELF、精确Python/SSL/stdlib及动态依赖；原ldd诊断含ASLR地址，逐库比较完整path/SHA/ELF/static和重复数量，原两次stdout分列保存。
+
+只支持workflow_dispatch，ubuntu_group选all/22.04/24.04，代理根据依赖自动调用；不因无关源提交重复编译。原H1 artifact来自41441641090，22组id13140657277/63429871B/SHA084ebc94eb7e7beeda9e9f627886567f7ac569ebe1281a4b7713a5b6fccc3bb9，24组id13139309222/127832210B/SHA9ba657645c1076623ba4d3315390ae060f9d1b4344517d6692d701db825fe0da。API原ZIP不重打包，完整外部SHA/大小必须交CLI；仅独立route完整export被使用，aggregate失败不会吞掉有效route，缺/坏route如实not_run/failed。
+
+九个已部署原件SHA在执行前重核。H0原103及H2增量32原件+manifest为固定密/明文摘要，两任务密钥只宿主读取后pop并stdin给OpenSSL；下载H1时的GitHub token只该宿主传输步骤使用，不给replay或Docker。无SDK、无新包版本回退，33普通成员及原9scope/18证据/两producer/六产物均保留。派生完整root重新用新690ba/d955源码在fresh进程核闭包，源103、原receipt及生产路径身份不变。
+
+固定C1 OCI child、完整APT缓存重新验签/no-download安装，network none/无挂载/nonprivileged；还原的原生解释器只在该容器运行。每target实际unshare对照、完整RECORD、语法/模块来源、CA资源、requests准备和RSA/ECDSA验证后才登记offline_replayed。原replay保留9行、每组exit2；wrapper仅本组全部目标scope通过时返回0。独立有效子范围可以先验收，未完成组仍非0，J2C_complete始终false，完整九scope由后续验收锁汇总。
+
+artifact仅runner.temp/reko-h2-evidence下原报告/命令通道及稳定库身份核对证据；不复制host tar、解包输入、venv、密文、原H1 ZIP或任何secret。临时0700输入和受控容器finally/always清理，失败保留实际输出和未执行状态。CLI为options-only，不带run前缀。
