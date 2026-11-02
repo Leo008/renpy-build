@@ -37,6 +37,49 @@ print(json.dumps({'version':platform.python_version(),'implementation':platform.
  'executable':sys.executable,'prefix':sys.prefix,'base_prefix':getattr(sys,'base_prefix',getattr(sys,'real_prefix',sys.prefix)),
  'platform':sys.platform,'machine':platform.machine()}))
 """
+PY2_ENVIRONMENT_PROBE = """import json,os,sys,site,pkgutil,sysconfig
+from distutils import sysconfig as distutils_sysconfig
+sites=[]
+for path in (distutils_sysconfig.get_python_lib(prefix=sys.prefix),distutils_sysconfig.get_python_lib(plat_specific=1,prefix=sys.exec_prefix)):
+ if path not in sites:sites.append(path)
+configured=[]
+for name in ('purelib','platlib'):
+ path=sysconfig.get_path(name,scheme='posix_prefix',vars={'base':sys.prefix,'platbase':sys.exec_prefix})
+ if path not in configured:configured.append(path)
+print(json.dumps({'prefix':sys.prefix,'exec_prefix':sys.exec_prefix,'sites':sites,'sysconfig_sites':configured,
+ 'layout':'virtualenv16_distutils_sysconfig','path':sys.path,'normalized_sys_path':[os.path.realpath(p or os.curdir) for p in sys.path],
+ 'user':site.ENABLE_USER_SITE,'user_site':site.USER_SITE,'no_user_site':sys.flags.no_user_site==1,
+ 'pip':pkgutil.find_loader('pip') is not None}))
+"""
+
+
+def environment_probe(python_major):
+    """明确区分已锁Py2 virtualenv布局与Py3原site接口，不猜测缺失API的默认结果。"""
+    require(python_major in (2, 3), "未支持的环境探针主版本")
+    if python_major == 2:
+        return PY2_ENVIRONMENT_PROBE
+    return "import json,sys,site;print(json.dumps({'prefix':sys.prefix,'sites':site.getsitepackages(),'user':site.ENABLE_USER_SITE,'pip':__import__('pkgutil').find_loader('pip') is not None}))"
+
+
+def verify_environment(details, environment, python_major):
+    """保留原隔离门禁；Py2额外核真实路径、双布局接口与用户site，允许复用系统标准库。"""
+    require(Path(details["prefix"]).resolve() == environment.resolve() and not details["user"] and not details["pip"], "独立环境继承外部 site 或 pip")
+    sites = [Path(p) for p in details["sites"] if Path(p).is_relative_to(environment)]
+    require(sites and all(Path(p).is_relative_to(environment) for p in details["sites"]), "环境 site-packages 越界")
+    if python_major == 2:
+        require(details["layout"] == "virtualenv16_distutils_sysconfig" and details["user"] is False
+                and details["no_user_site"] is True, "Py2用户site未明确禁用")
+        configured = {Path(p).resolve() for p in details["sysconfig_sites"]}
+        selected = {p.resolve() for p in sites}
+        require(configured == selected, "Py2 distutils/sysconfig安装布局不一致")
+        require(details["path"] and details["normalized_sys_path"]
+                and all(Path(p).is_absolute() for p in details["normalized_sys_path"]), "Py2实际sys.path证据不完整")
+        actual = {Path(p).resolve() for p in details["normalized_sys_path"]}
+        require(selected <= actual, "Py2安装site目录不在实际sys.path")
+        markers = {"site-packages", "dist-packages", "site-python", "dist-python"}
+        require(all(p.is_relative_to(environment.resolve()) for p in actual if markers.intersection(p.parts)), "Py2实际sys.path继承外部site目录")
+        require(details["user_site"] is None or Path(details["user_site"]).resolve() not in actual, "Py2实际sys.path包含用户site")
+    return sites[0]
 
 
 def log(message):
@@ -358,12 +401,9 @@ def build_job(job, plan, manifest, source_cache, tool_cache, parser, python_iden
         extract_wheel(inputs.artifact_path(tool_cache, plan["tools"][family["bootstrap"]]), bootstrap)
         runner.run([python, "-E", "-s", str(bootstrap / "virtualenv.py"), "--no-pip", "--no-setuptools", "--no-wheel", str(environment)])
     env_python = environment / "bin/python"
-    site_code = "import json,sys,site;print(json.dumps({'prefix':sys.prefix,'sites':site.getsitepackages(),'user':site.ENABLE_USER_SITE,'pip':__import__('pkgutil').find_loader('pip') is not None}))"
+    site_code = environment_probe(family["python_major"])
     details = json.loads(runner.run([str(env_python), "-E", "-s", "-c", site_code]))
-    require(Path(details["prefix"]).resolve() == environment.resolve() and not details["user"] and not details["pip"], "独立环境继承外部 site 或 pip")
-    sites = [Path(p) for p in details["sites"] if Path(p).is_relative_to(environment)]
-    require(sites and all(Path(p).is_relative_to(environment) for p in details["sites"]), "环境 site-packages 越界")
-    site = sites[0]
+    site = verify_environment(details, environment, family["python_major"])
     site.mkdir(parents=True, exist_ok=True)
     for sha in family["tools"]:
         extract_wheel(inputs.artifact_path(tool_cache, plan["tools"][sha]), site)
