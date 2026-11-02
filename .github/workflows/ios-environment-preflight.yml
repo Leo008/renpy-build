@@ -1,0 +1,474 @@
+name: RenPy fixed environment preflight
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths:
+      - .github/workflows/ios-environment-preflight.yml
+      - tools/ci_environment.py
+      - CI_ENVIRONMENT.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-environment-preflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Ubuntu ${{ matrix.ubuntu }} offline environment and SDK14
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ubuntu: '24.04'
+            manifest_sha256: '5b95f5dbd2490bc262a0d3150211bcc09178b3c452967829590b235314550d6d'
+          - ubuntu: '22.04'
+            manifest_sha256: 'd722e3aa9db55925062e70a35486e1e0b1405c064a6dc5a8b7a289900d5c6851'
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      REKO_APT_UBUNTU: ${{ matrix.ubuntu }}
+      REKO_APT_MANIFEST_SHA256: ${{ matrix.manifest_sha256 }}
+      REKO_APT_COLLECTOR_SHA256: 'f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac'
+      REKO_PREFLIGHT_SHA256: '0d20cb8d8f01f2c0efc3b232f092256ff863952efe89d48500c8e91bcb74f939'
+    steps:
+      - name: 检出独立预检工具和原resource归档
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools
+            prebuilt/clang_rt.tar.gz
+          sparse-checkout-cone-mode: false
+      - name: 核对预检及collector部署原件
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib
+          import os
+          from pathlib import Path
+          for filename, expected in (
+              ('tools/ci_environment.py', os.environ['REKO_PREFLIGHT_SHA256']),
+              ('tools/reko/materialize_apt_inputs.py', os.environ['REKO_APT_COLLECTOR_SHA256']),
+              ('prebuilt/clang_rt.tar.gz', 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c'),
+          ):
+              if hashlib.sha256(Path(filename).read_bytes()).hexdigest() != expected:
+                  raise SystemExit('[RenPyEnvironmentCI] 部署原件身份错误：' + filename)
+              print('[RenPyEnvironmentCI] 部署原件通过：' + filename, flush=True)
+          PYCODE
+      - name: 取得完整固定APT采集原件
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-${{ matrix.ubuntu }}-41419224335-1
+          path: ${{ runner.temp }}/reko-j4c-apt-inputs
+      - name: 按独立manifest身份复核全部APT字节
+        shell: bash
+        run: |
+          python3 tools/reko/materialize_apt_inputs.py verify \
+            --bundle "$RUNNER_TEMP/reko-j4c-apt-inputs/apt-inputs-$REKO_APT_UBUNTU" \
+            --manifest-sha256 "$REKO_APT_MANIFEST_SHA256" \
+            --report "$RUNNER_TEMP/reko-j4c-evidence/apt-host-verification.json"
+      - name: 取得并双重核验原始 SDK14（仅宿主）
+        shell: bash
+        env:
+          IOS_DEVICE_SDK_URL: ${{ secrets.IOS_DEVICE_SDK_URL }}
+          IOS_DEVICE_SDK_SHA256: ${{ secrets.IOS_DEVICE_SDK_SHA256 }}
+          IOS_SIMULATOR_SDK_URL: ${{ secrets.IOS_SIMULATOR_SDK_URL }}
+          IOS_SIMULATOR_SDK_SHA256: ${{ secrets.IOS_SIMULATOR_SDK_SHA256 }}
+          CI_INPUTS_PASSWORD: ${{ secrets.CI_INPUTS_PASSWORD }}
+          SDK_PRIVATE_DIR: ${{ runner.temp }}/reko-j4c-sdk-inputs
+          SDK_TRANSPORT_REPORT: ${{ runner.temp }}/reko-j4c-evidence/sdk-transport.json
+        run: |
+          python3 - <<'PY'
+          """仅宿主运输两份已批准 SDK14 原包；自包含，可原样嵌入 Actions Python 块。"""
+    
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import stat
+          import subprocess
+          import tempfile
+          import time
+          import urllib.parse
+          import urllib.request
+    
+    
+          INPUTS = (
+              {"role": "device_sdk", "prefix": "IOS_DEVICE_SDK", "filename": "iPhoneOS14.0.sdk.tar.gz",
+               "bytes": 27728304, "sha256": "2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287"},
+              {"role": "simulator_sdk", "prefix": "IOS_SIMULATOR_SDK", "filename": "iPhoneSimulator14.0.sdk.tar.gz",
+               "bytes": 21472366, "sha256": "4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5"},
+          )
+    
+    
+          class TransportError(Exception):
+              """只携带固定角色与脱敏原因码，禁止保留 URL、密码或原始网络异常文本。"""
+    
+              def __init__(self, role, code):
+                  """记录安全的固定枚举，不拼接输入值。"""
+                  self.role, self.code = role, code
+                  super().__init__(role + ":" + code)
+    
+    
+          def require(condition, role, code):
+              """契约不满足立即失败，日志只包含已定义原因。"""
+              if not condition:
+                  raise TransportError(role, code)
+    
+    
+          def guarded(value):
+              """拒绝任一层路径链接、父目录跳转及空目录参数。"""
+              require(isinstance(value, str) and bool(value), "transport", "missing_output_path")
+              path = Path(value).absolute()
+              require(".." not in path.parts and not any(p.is_symlink() for p in (path, *path.parents)),
+                      "transport", "unsafe_output_path")
+              return path
+    
+    
+          def approved_bytes(path, identity, secret_sha):
+              """流式双核验 secret SHA 与 C0 原包 SHA/大小，不沿链接读取缓存。"""
+              guarded(str(path))
+              try:
+                  with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK), "rb") as stream:
+                      info = os.fstat(stream.fileno())
+                      require(stat.S_ISREG(info.st_mode) and info.st_size == identity["bytes"], identity["role"], "plain_size_or_type_mismatch")
+                      digest = hashlib.sha256()
+                      count = 0
+                      while block := stream.read(1024 * 1024):
+                          count += len(block)
+                          require(count <= identity["bytes"], identity["role"], "plain_size_or_type_mismatch")
+                          digest.update(block)
+                      actual = digest.hexdigest()
+                      require(count == identity["bytes"] and actual == identity["sha256"] and actual == secret_sha,
+                              identity["role"], "plain_sha256_mismatch")
+              except TransportError:
+                  raise
+              except Exception:
+                  raise TransportError(identity["role"], "plain_verification_failed") from None
+    
+    
+          def validate_https(url, role):
+              """只接收 HTTPS URL；查询 token 可用但永不写入命令、日志或报告。"""
+              try:
+                  parsed = urllib.parse.urlsplit(url)
+                  require(parsed.scheme == "https" and bool(parsed.hostname) and parsed.username is None
+                          and parsed.password is None and not parsed.fragment, role, "invalid_https_url")
+              except TransportError:
+                  raise
+              except Exception:
+                  raise TransportError(role, "invalid_https_url") from None
+    
+    
+          class HttpsRedirects(urllib.request.HTTPRedirectHandler):
+              """在请求重定向目标前阻止 HTTP 降级，异常对外只返回固定错误码。"""
+    
+              def redirect_request(self, request, fp, code, message, headers, newurl):
+                  """校验下一跳再交给标准重定向实现，不输出带凭据的目标。"""
+                  validate_https(newurl, "transport")
+                  return super().redirect_request(request, fp, code, message, headers, newurl)
+    
+    
+          def download_ciphertext(url, path, identity):
+              """下载固定 8-byte salt AES-CBC 协议的有界密文，拒绝过大、短包和错误头。"""
+              role = identity["role"]
+              expected = 16 + (identity["bytes"] // 16 + 1) * 16
+              deadline, count, header = time.monotonic() + 300, 0, b""
+              try:
+                  opener = urllib.request.build_opener(HttpsRedirects())
+                  request = urllib.request.Request(url, headers={"User-Agent": "Reko-SDK-Transport/1", "Accept-Encoding": "identity"})
+                  with opener.open(request, timeout=60) as response, path.open("wb") as stream:
+                      validate_https(response.url, role)
+                      require(response.headers.get("Content-Encoding", "identity").lower() == "identity", role, "unexpected_content_encoding")
+                      length = response.headers.get("Content-Length")
+                      require(length is None or length == str(expected), role, "ciphertext_length_mismatch")
+                      while True:
+                          require(time.monotonic() <= deadline, role, "download_deadline_exceeded")
+                          block = response.read(256 * 1024)
+                          if not block:
+                              break
+                          count += len(block)
+                          require(count <= expected, role, "ciphertext_length_mismatch")
+                          if len(header) < 8:
+                              header = (header + block)[:8]
+                          stream.write(block)
+                  require(count == expected and header == b"Salted__", role, "ciphertext_format_mismatch")
+              except TransportError:
+                  raise
+              except Exception:
+                  raise TransportError(role, "download_failed") from None
+    
+    
+          def decrypt(ciphertext, plaintext, identity, password):
+              """复用原 ci_ios.py 的 AES/PBKDF2 参数，仅向 OpenSSL 子进程传密码环境变量。"""
+              role = identity["role"]
+              executable = shutil.which("openssl")
+              require(executable is not None, role, "openssl_missing")
+              environment = {"CI_INPUTS_PASSWORD": password, "LANG": "C", "LC_ALL": "C"}
+              try:
+                  help_result = subprocess.run([executable, "enc", "-help"], capture_output=True, timeout=30, env=environment)
+                  help_text = help_result.stdout + help_result.stderr
+                  command = [executable, "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-iter", "200000", "-md", "sha256",
+                             "-pass", "env:CI_INPUTS_PASSWORD", "-in", str(ciphertext), "-out", str(plaintext)]
+                  if b"-saltlen" in help_text:
+                      command += ["-saltlen", "8"]
+                  result = subprocess.run(command, capture_output=True, timeout=120, env=environment)
+                  require(result.returncode == 0, role, "decrypt_failed")
+              except TransportError:
+                  raise
+              except Exception:
+                  raise TransportError(role, "decrypt_failed") from None
+    
+    
+          def materialize(cache, identity, secret_sha, url, password):
+              """先解密和完整校验，再独占发布原包；失败不覆盖缓存、不遗留本轮临时明文。"""
+              temporary = []
+              try:
+                  for suffix in (".encrypted", ".decrypted"):
+                      fd, name = tempfile.mkstemp(prefix=".sdk-input-", suffix=suffix, dir=cache)
+                      os.close(fd)
+                      temporary.append(Path(name))
+                  encrypted, plaintext = temporary
+                  download_ciphertext(url, encrypted, identity)
+                  decrypt(encrypted, plaintext, identity, password)
+                  approved_bytes(plaintext, identity, secret_sha)
+                  target = guarded(str(cache / identity["filename"]))
+                  os.link(plaintext, target)
+              except TransportError:
+                  raise
+              except Exception:
+                  raise TransportError(identity["role"], "exclusive_publish_failed") from None
+              finally:
+                  for path in temporary:
+                      path.unlink(missing_ok=True)
+    
+    
+          def write_report(path, report):
+              """仅写可公开身份和脱敏状态，报告目录与 SDK 私有目录强制分离。"""
+              guarded(str(path))
+              path.parent.mkdir(parents=True, exist_ok=True)
+              with path.open("x", encoding="utf-8") as stream:
+                  json.dump(report, stream, ensure_ascii=False, indent=2)
+                  stream.write("\n")
+    
+    
+          def main():
+              """验证缓存或取得缺失的两份授权原包；不运行 Docker，不读取任何 APT 身份。"""
+              report = {"schema_version": 1, "scope": "host_authorized_sdk_transport_only", "result": "failed", "inputs": [],
+                        "container_executed": False, "sdk_extracted": False, "source_build_executed": False,
+                        "complete_input_closure": False, "errors": []}
+              report_path = None
+              try:
+                  cache = guarded(os.environ.get("SDK_PRIVATE_DIR"))
+                  candidate_report = guarded(os.environ.get("SDK_TRANSPORT_REPORT"))
+                  require(not cache.is_relative_to(candidate_report.parent) and not candidate_report.is_relative_to(cache),
+                          "transport", "report_and_private_inputs_overlap")
+                  checkout = os.environ.get("GITHUB_WORKSPACE")
+                  require(not checkout or not cache.is_relative_to(guarded(checkout)), "transport", "private_inputs_inside_checkout")
+                  require(not candidate_report.exists(), "transport", "report_already_exists")
+                  report_path = candidate_report
+                  cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+                  info = cache.stat()
+                  require(stat.S_ISDIR(info.st_mode) and info.st_uid == os.geteuid() and not info.st_mode & 0o077,
+                          "transport", "private_cache_permissions")
+                  missing = []
+                  for identity in INPUTS:
+                      role, prefix = identity["role"], identity["prefix"]
+                      expected = os.environ.get(prefix + "_SHA256", "").strip().lower()
+                      require(re.fullmatch(r"[0-9a-f]{64}", expected) is not None and expected == identity["sha256"],
+                              role, "secret_sha_does_not_match_approved_input")
+                      target = guarded(str(cache / identity["filename"]))
+                      if target.exists():
+                          approved_bytes(target, identity, expected)
+                          status = "verified_original_cache"
+                      else:
+                          missing.append((identity, expected))
+                          status = "pending_transport"
+                      report["inputs"].append({"role": role, "filename": identity["filename"], "bytes": identity["bytes"],
+                                               "sha256": identity["sha256"], "status": status})
+                  password = os.environ.get("CI_INPUTS_PASSWORD", "")
+                  require(not missing or bool(password), "transport", "password_missing")
+                  for identity, _ in missing:
+                      validate_https(os.environ.get(identity["prefix"] + "_URL", ""), identity["role"])
+                  for identity, expected in missing:
+                      materialize(cache, identity, expected, os.environ[identity["prefix"] + "_URL"], password)
+                      next(row for row in report["inputs"] if row["role"] == identity["role"])["status"] = "transported_and_dual_verified"
+                      print("[RenPySDKTransport] 已取得并双重核验 " + identity["filename"], flush=True)
+                  report["result"] = "passed"
+              except TransportError as error:
+                  report["errors"].append({"role": error.role, "code": error.code})
+              except KeyboardInterrupt:
+                  report["errors"].append({"role": "transport", "code": "cancelled"})
+              except Exception:
+                  report["errors"].append({"role": "transport", "code": "unexpected_transport_failure"})
+              try:
+                  if report_path is not None:
+                      write_report(report_path, report)
+              except Exception:
+                  print("[RenPySDKTransport] 失败：report_write_failed", flush=True)
+                  return 1
+              print("[RenPySDKTransport] " + report["result"] + " " + ",".join(row["role"] + ":" + row["code"] for row in report["errors"]), flush=True)
+              return 0 if report["result"] == "passed" else 1
+    
+    
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+      - name: 禁网安装并执行完整交叉工具预检
+        shell: bash
+        run: |
+          python3 tools/ci_environment.py run \
+            --bundle "$RUNNER_TEMP/reko-j4c-apt-inputs/apt-inputs-$REKO_APT_UBUNTU" \
+            --manifest-sha256 "$REKO_APT_MANIFEST_SHA256" \
+            --collector tools/reko/materialize_apt_inputs.py \
+            --collector-sha256 "$REKO_APT_COLLECTOR_SHA256" \
+            --device-sdk "$RUNNER_TEMP/reko-j4c-sdk-inputs/iPhoneOS14.0.sdk.tar.gz" \
+            --simulator-sdk "$RUNNER_TEMP/reko-j4c-sdk-inputs/iPhoneSimulator14.0.sdk.tar.gz" \
+            --clang-runtime prebuilt/clang_rt.tar.gz \
+            --output "$RUNNER_TEMP/reko-j4c-evidence/preflight"
+      - name: 显示失败阶段和对应命令诊断
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'reko-j4c-evidence'
+          for filename in ('sdk-transport.json', 'apt-host-verification.json', 'preflight/preflight-report.json'):
+              path = evidence / filename
+              if path.is_file():
+                  report = json.loads(path.read_bytes())
+                  print('[RenPyEnvironmentCI] ' + filename + ': ' + json.dumps(
+                      {k:v for k,v in report.items() if k in ('result', 'errors') or type(v) is bool}, ensure_ascii=False), flush=True)
+          commands = evidence / 'preflight/commands.json'
+          if commands.is_file():
+              for row in json.loads(commands.read_bytes())['commands']:
+                  if row['returncode'] != 0 and not row.get('expected_failure'):
+                      print('[RenPyEnvironmentCI] 失败命令：' + row['label'], flush=True)
+                      print(json.dumps({k: row[k] for k in ('returncode', 'stdout', 'stderr')}, ensure_ascii=False), flush=True)
+          PYCODE
+      - name: 登记公开命令状态并保留受限原日志身份
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import stat
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'reko-j4c-evidence'
+          source = evidence / 'preflight/commands.json'
+          # 精确枚举固定C0产生的公共命令；未知或SDK源码诊断只保留原日志身份。
+          allowed = set("pull-fixed-image image-inspect container-start container-inspect shared-host-kernel docker-version base-packages base-status base-os prepare-directories copy-repository copy-sources.list copy-apt.conf copy-preferences actual-keyring effective-apt-config apt-update-offline apt-simulate-offline copy-populate-cache.sh execute-populate-cache.sh apt-install-offline apt-check dpkg-audit installed-packages installed-status available-locales effective-locale clang-resource-dir copy-device_sdk copy-simulator_sdk copy-clang_runtime extract-device_sdk extract-simulator_sdk prepare-resource-overlay extract-resource-overlay copy-probe-sources compile-native-c run-native-c simulator-universal-create simulator-universal-archs reject-invalid-archive reject-wrong-architecture preserve-own-probe-products container-cleanup".split())
+          major = '18' if os.environ['REKO_APT_UBUNTU'] == '24.04' else '15'
+          codename = 'noble' if major == '18' else 'jammy'
+          for suffix in ('', '-updates', '-security'):
+              allowed.add('gpgv-' + codename + suffix)
+          for name in ('apt-inputs', 'apt-cache', 'sdk-runtime-archives', 'resource-overlay'):
+              allowed.update(('copy-checksums-' + name, 'check-bytes-' + name))
+          for name in ['clang-' + major, 'clang++-' + major, 'ld64.lld-' + major, 'llvm-ar-' + major,
+                       'llvm-nm-' + major, 'llvm-readobj-' + major, 'llvm-lipo-15']:
+              allowed.update(prefix + name for prefix in ('version-', 'path-', 'hash-'))
+          for name in ('arm64', 'sim-arm64', 'sim-x86_64'):
+              allowed.update(name + '-' + suffix for suffix in ('basic-compile', 'basic-object', 'sdk-object', 'cxx-object',
+                  'availability-reference', 'link-driver', 'linked-bytes', 'linked-undefined', 'llvm-macho-check',
+                  'archive', 'single-slice-wrapper', 'thin-arch'))
+              label = name + '-archive-check'
+              allowed.add(label + '-members')
+              for member in (name + '-sdk.o', name + '-cxx.o'):
+                  allowed.update((label + '-' + member, label + '-original-' + member))
+          for architecture, name in (('arm64', 'sim-arm64'), ('x86_64', 'sim-x86_64')):
+              allowed.add('simulator-extract-' + architecture)
+              label = 'simulator-reextracted-' + architecture
+              allowed.add(label + '-members')
+              for member in (name + '-sdk.o', name + '-cxx.o'):
+                  allowed.update((label + '-' + member, label + '-original-' + member))
+          if source.is_file():
+              rows = json.loads(source.read_bytes())['commands']
+              public = {'scope': 'command_status_and_selected_public_logs', 'commands': rows,
+                        'raw_sdk_compile_diagnostics_published': False, 'published_logs': []}
+              destination = evidence / 'public-command-logs'
+              destination.mkdir()
+              for index, row in enumerate(rows):
+                  if row['label'] not in allowed:
+                      continue
+                  for kind in ('stdout', 'stderr'):
+                      record = row[kind]
+                      expected = f"commands/{index:03d}-{row['label']}.{kind}"
+                      if record['path'] != expected:
+                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径身份错误')
+                      original = evidence / 'preflight' / expected
+                      if any(path.is_symlink() for path in (original, *original.parents)):
+                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志路径含链接')
+                      info = original.lstat()
+                      if not stat.S_ISREG(info.st_mode):
+                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志不是普通文件')
+                      data = original.read_bytes()
+                      if len(data) != record['bytes'] or hashlib.sha256(data).hexdigest() != record['sha256']:
+                          raise SystemExit('[RenPyEnvironmentCI] 原命令日志字节身份错误')
+                      with (destination / original.name).open('xb') as stream:
+                          stream.write(data)
+                      public['published_logs'].append(record)
+              target = evidence / 'public-command-status.json'
+              with target.open('x') as stream:
+                  json.dump(public, stream, ensure_ascii=False, indent=2)
+                  stream.write('\n')
+          PYCODE
+      - name: 兜底清理本轮容器与宿主SDK私有材料
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          import os
+          from pathlib import Path
+          import shutil
+          import re
+          import subprocess
+          try:
+              result = subprocess.run(['docker', 'ps', '--all', '--format', '{{.Names}}'], capture_output=True, check=True)
+              for name in result.stdout.decode().splitlines():
+                  if re.fullmatch(r'reko-preflight-[0-9a-f]{32}', name):
+                      state = json.loads(subprocess.run(['docker', 'inspect', name], capture_output=True, check=True).stdout)[0]
+                      if state['HostConfig']['NetworkMode'] != 'none' or state.get('Mounts'):
+                          raise SystemExit('[RenPyEnvironmentCI] 拒绝清理不符合本轮隔离契约的容器')
+                      subprocess.run(['docker', 'rm', '--force', name], check=True)
+          finally:
+              private = Path(os.environ['RUNNER_TEMP']) / 'reko-j4c-sdk-inputs'
+              if private.is_symlink():
+                  private.unlink()
+              elif private.exists():
+                  shutil.rmtree(private)
+          print('[RenPyEnvironmentCI] 已清理本轮私有SDK目录', flush=True)
+          PYCODE
+      - name: 只保存预检报告命令及自制探针
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-environment-preflight-${{ matrix.ubuntu }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/reko-j4c-evidence/sdk-transport.json
+            ${{ runner.temp }}/reko-j4c-evidence/apt-host-verification.json
+            ${{ runner.temp }}/reko-j4c-evidence/preflight/preflight-report.json
+            ${{ runner.temp }}/reko-j4c-evidence/preflight/apt-byte-verification.json
+            ${{ runner.temp }}/reko-j4c-evidence/public-command-status.json
+            ${{ runner.temp }}/reko-j4c-evidence/public-command-logs/
+            ${{ runner.temp }}/reko-j4c-evidence/preflight/generated/
+            ${{ runner.temp }}/reko-j4c-evidence/preflight/probes/
+            ${{ runner.temp }}/reko-j4c-evidence/preflight/probe-products/
+          if-no-files-found: warn
+          compression-level: 6
+          retention-days: 30
