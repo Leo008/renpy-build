@@ -6,8 +6,8 @@
   "h0_tool_sha256": "7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc",
   "h0_plan_sha256": "d7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d",
   "addon_h1_tool_sha256": "3de9c6597e9028bb2e35c79e4064db46b68a60417516ca77e52728f5002f88e3",
-  "execution_h1_tool_sha256": "4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0",
-  "execution_overlay_reason": "保留CPython2.7原sys.platform=linux2并按精确版本校验；CPython3仍为linux",
+  "execution_h1_tool_sha256": "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612",
+  "execution_overlay_reason": "按精确CPython保留linux2/linux平台，并以严格多架构包身份核对完整APT环境",
   "H1_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
   "addon": {
     "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h1-public-recipe-addon-20261102-01.tar.gz",

@@ -25,8 +25,8 @@ HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-host-python-bootstrap-ci-plan.json"
 HELPER_SHA = "bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011"
 ADDON_H1_SHA = "3de9c6597e9028bb2e35c79e4064db46b68a60417516ca77e52728f5002f88e3"
-EXECUTION_H1_SHA = "4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0"
-EXECUTION_REASON = "保留CPython2.7原sys.platform=linux2并按精确版本校验；CPython3仍为linux"
+EXECUTION_H1_SHA = "6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612"
+EXECUTION_REASON = "按精确CPython保留linux2/linux平台，并以严格多架构包身份核对完整APT环境"
 H1_PLAN_SHA = "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0"
 MANIFEST = {"bytes": 1345712, "sha256": "feec48d352fcdda2668663e9d516abbf29eb4ed23e6f146392395c9980626667"}
 ADDON = {"url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h1-public-recipe-addon-20261102-01.tar.gz",
@@ -90,7 +90,7 @@ distribution=target/'host-distribution.json'
 assert sha(distribution.read_bytes())==receipt['distribution']['sha256']
 sys.path.insert(0,'/reko/h1-runtime/root/scripts/renpy')
 import run_locked_host_python_tasks as h1
-assert sha(pathlib.Path(h1.__file__).read_bytes())=='4de485aeddb1616769e1feb4474737bffecc5a8527a83a9675a40416c82ed2b0'
+assert sha(pathlib.Path(h1.__file__).read_bytes())=='6a367bbb67781258b14720c429ab55cae2f441be97cf74c01872a8e674354612'
 inventory=h1.host_inventory(prefix)
 assert inventory==json.loads(distribution.read_bytes())
 archive=target/'host-distribution.tar.gz'
@@ -279,7 +279,7 @@ def runtime_root_catalog(h0_plan, manifest, *, execution):
         overlays[row["runtime_name"]] = {"path": "scripts/renpy/" + row["runtime_name"], "bytes": row["bytes"], "sha256": row["sha256"]}
     require(len(overlays) == RUNTIME_LAYOUT["overlay_file_count"], "runtime覆盖须恰好14文件")
     if execution:
-        overlays["run_locked_host_python_tasks.py"].update(bytes=47649, sha256=EXECUTION_H1_SHA)
+        overlays["run_locked_host_python_tasks.py"].update(bytes=51630, sha256=EXECUTION_H1_SHA)
     expected.update({row["path"]: row for row in overlays.values()})
     require(len(expected) == RUNTIME_LAYOUT["derived_file_count"], "派生root完整集合须35文件")
     return sorted(expected.values(), key=lambda row: row["path"])

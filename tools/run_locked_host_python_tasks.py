@@ -258,17 +258,84 @@ def verify_extracted(build, members):
                     and bool(path.stat().st_mode & 0o111) == (item["mode"] == "100755"), "原 unpack 字节/模式错误：" + name)
 
 
+def package_key(name, architecture):
+    """两侧共用严格 package+arch 键；多架构后缀必须等于单独记录的架构。"""
+    require(isinstance(name, str) and isinstance(architecture, str)
+            and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", architecture) is not None, "dpkg 架构字段非法")
+    parts = name.split(":")
+    require(len(parts) in (1, 2) and re.fullmatch(r"[a-z0-9][a-z0-9+.-]+", parts[0]) is not None,
+            "dpkg 包名非法")
+    require(len(parts) == 1 or parts[1] == architecture, "dpkg 包名后缀与显式架构不符")
+    return parts[0], architecture
+
+
+def package_version(value):
+    """保留原版本 token，不接受空值、空白或控制字符。"""
+    require(isinstance(value, str) and value and not any(char.isspace() or ord(char) < 33 or ord(char) == 127 for char in value),
+            "dpkg 版本字段非法")
+    return value
+
+
+def approved_packages(group):
+    """分别拒绝 base/必要包的规范键重复，再按已锁必要包更新同键版本。"""
+    tables = []
+    for label in ("base_packages", "packages"):
+        require(isinstance(group[label], list) and group[label], "批准 APT 包集合为空或格式错误")
+        table = {}
+        for row in group[label]:
+            key = package_key(row["package"], row["architecture"])
+            require(key not in table, "批准 APT 包规范键重复")
+            if label == "base_packages" or "status" in row:
+                require(row.get("status") == "ii ", "批准 APT base/包不是完整 ii 状态")
+            table[key] = package_version(row["version"])
+        tables.append(table)
+    expected = dict(tables[0])
+    expected.update(tables[1])
+    return expected
+
+
 def installed_packages(stdout):
-    """解析完整 dpkg 状态，保留架构并拒绝重复/非已安装项目。"""
+    """严格解析每条完整 ii 记录，保留显式架构；不丢弃非 ii 项或静默归并重复别名。"""
     result = {}
     for line in stdout.decode().splitlines():
-        name, version, arch, status_text = line.split("\t")
-        if status_text != "ii ":
-            continue
-        name = name.split(":")[0]
-        require((name, arch) not in result, "dpkg 包重复")
-        result[name, arch] = version
+        fields = line.split("\t")
+        require(len(fields) == 4, "dpkg 包记录必须是完整四列")
+        name, version, arch, status_text = fields
+        require(status_text == "ii ", "dpkg 包不是完整 ii 状态")
+        key = package_key(name, arch)
+        require(key not in result, "dpkg 包规范键重复")
+        result[key] = package_version(version)
+    require(result, "实际 dpkg 包集合为空")
     return result
+
+
+def verify_packages(stdout, group):
+    """精确比较完整集合/版本/架构；失败仅输出固定字段、各前八项及总数的有界差异。"""
+    observed, expected = installed_packages(stdout), approved_packages(group)
+    if observed != expected:
+        missing = sorted(expected.keys() - observed.keys())
+        extra = sorted(observed.keys() - expected.keys())
+        changed = sorted(key for key in expected.keys() & observed.keys() if expected[key] != observed[key])
+        expected_arches, actual_arches = {}, {}
+        for name, arch in expected:
+            expected_arches.setdefault(name, set()).add(arch)
+        for name, arch in observed:
+            actual_arches.setdefault(name, set()).add(arch)
+        architectures = sorted(name for name in expected_arches.keys() & actual_arches.keys()
+                               if expected_arches[name] != actual_arches[name])
+        differences = {
+            "missing": {"count": len(missing), "items": [{"package": name[:128], "architecture": arch[:64], "expected_version": expected[name, arch][:128]}
+                                                          for name, arch in missing[:8]]},
+            "extra": {"count": len(extra), "items": [{"package": name[:128], "architecture": arch[:64], "actual_version": observed[name, arch][:128]}
+                                                      for name, arch in extra[:8]]},
+            "versions": {"count": len(changed), "items": [{"package": name[:128], "architecture": arch[:64], "expected": expected[name, arch][:128],
+                                                           "actual": observed[name, arch][:128]} for name, arch in changed[:8]]},
+            "architectures": {"count": len(architectures), "items": [{"package": name[:128], "expected_count": len(expected_arches[name]),
+                "actual_count": len(actual_arches[name]), "expected": [arch[:64] for arch in sorted(expected_arches[name])[:8]],
+                "actual": [arch[:64] for arch in sorted(actual_arches[name])[:8]]} for name in architectures[:8]]},
+        }
+        raise ValueError("实际 dpkg 完整集合/版本与批准 APT 候选不同；差异=" + json.dumps(differences, ensure_ascii=False, separators=(",", ":")))
+    return observed
 
 
 def native_environment(plan, row, output):
@@ -277,10 +344,8 @@ def native_environment(plan, row, output):
     require(os_release.get("ID", "").strip('"') == "ubuntu" and os_release.get("VERSION_ID", "").strip('"') == row["ubuntu"], "不是批准的 Ubuntu 路线")
     apt = checked_json(HERE / "apt-inputs.lock.json", plan["locks"]["apt-inputs.lock.json"])
     group = next(value for value in apt["groups"] if value["ubuntu"] == row["ubuntu"])
-    expected = {(value["package"], value["architecture"]): value["version"] for value in group["base_packages"]}
-    expected.update({(value["package"], value["architecture"]): value["version"] for value in group["packages"]})
-    observed = installed_packages(command(["/usr/bin/dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${Architecture}\t${db:Status-Abbrev}\n"]))
-    require(observed == expected, "实际 dpkg 完整集合/版本与批准 APT 候选不同")
+    observed = verify_packages(command(["/usr/bin/dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${Architecture}\t${db:Status-Abbrev}\n"]), group)
+    print("[RenPyHostPython] 实际 installed 包数=" + str(len(observed)), flush=True)
     environment = checked_json(HERE / "environment-preflight.lock.json", plan["locks"]["environment-preflight.lock.json"])
     native = next(value for value in environment["groups"] if value["ubuntu"] == row["ubuntu"])
     tools = {}
