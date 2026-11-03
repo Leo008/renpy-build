@@ -47,7 +47,7 @@ jobs:
       UBUNTU_GROUP: ${{ inputs.ubuntu_group }}
       TARGET_RELEASE: ${{ inputs.release }}
       TARGET_ARCH: ${{ inputs.target_arch }}
-      REKO_SOURCE_COMMIT: 54d9e0069816adb920650b38fa8c0e370c9b4ca6
+      REKO_SOURCE_COMMIT: f74701d858c9f6812dfed8fdacc2d958777427fb
       RUNTIME_NAME: j11-image-c-runtime-addon-20261103-01.tar.gz
       RUNTIME_BYTES: '138791'
       RUNTIME_SHA256: 443c275ebafcc71edd5684d23a5b04b95c6840e22ab1098a1f2d100a89aa4d28
@@ -104,7 +104,7 @@ jobs:
         import hashlib,json,os,platform,shutil,sys
         from pathlib import Path
         if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPyImageCI] 需要Linux amd64 Python3.10')
-        expected={'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_image_c_tasks.py': '25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab', 'tools/linux-image-c-ci-plan.json': '396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014'}
+        expected={'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_image_c_tasks.py': 'b595c0d7513ce156430fa1258327e43ee30b53efe07a6e8dbb0f61a39bc0f6a6', 'tools/linux-image-c-ci-plan.json': '396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014'}
         for name,sha in expected.items():
             p=Path(name)
             if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPyImageCI] 固定原件不同：'+name)
@@ -312,7 +312,7 @@ jobs:
         if any(report.get(k,False) is not False for k in false):raise RuntimeError('控制器越过C/image有限范围')
         image=report.get('image',{});host=image.get('host_verification',{})
         verified=(type(status.get('returncode')) is int and status['returncode']==0 and status.get('actual_controller_invoked') is True
-                  and deployment.get('checked_original_count')==17 and deployment.get('controller_sha256')=='25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab'
+                  and deployment.get('checked_original_count')==17 and deployment.get('controller_sha256')=='b595c0d7513ce156430fa1258327e43ee30b53efe07a6e8dbb0f61a39bc0f6a6'
                   and report.get('task')=='R00-02J11I1D' and report.get('release')==os.environ['TARGET_RELEASE'] and report.get('arch')==os.environ['TARGET_ARCH']
                   and report.get('ubuntu')==os.environ['UBUNTU_GROUP'] and result=='single_tuple_actual_C_and_original_image_tasks_verified'
                   and all(report.get(k) is True for k in ('current_C_dependency_verified','image_C_verified','same_open_C1_chain_verified','container_closed','private_inputs_removed'))
@@ -322,7 +322,7 @@ jobs:
         summary={'task':'R00-02J11I1D','source_commit':os.environ['REKO_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
                  'ubuntu':os.environ['UBUNTU_GROUP'],'release':os.environ['TARGET_RELEASE'],'arch':os.environ['TARGET_ARCH'],'result':result,'actual_same_C1_C_and_image_verified':verified,
                  'ROOT_independent_acceptance_completed':False,'manual_device_acceptance':'deferred','runtime_asset_id':705289369,'runtime_bytes':138791,'runtime_sha256':os.environ['RUNTIME_SHA256'],
-                 'controller_sha256_expected':'25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab','plan_sha256_expected':'396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014',
+                 'controller_sha256_expected':'b595c0d7513ce156430fa1258327e43ee30b53efe07a6e8dbb0f61a39bc0f6a6','plan_sha256_expected':'396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014',
                  'driver_started':status.get('actual_controller_invoked') is True,'new_archive_count':host.get('new_archive_count') if verified else None,
                  'new_object_count':host.get('new_object_count') if verified else None,'peak_measured':False,'plaintext_uploaded':False,**dict.fromkeys(false,False)}
         (public/'public-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
@@ -403,7 +403,7 @@ jobs:
         import hashlib,json,os,re,shutil,stat,subprocess
         from pathlib import Path
         base=Path(os.environ['RUNNER_TEMP']);evidence=base/'reko-j11-evidence';private=evidence/'private-diagnostics';public=base/'reko-j11-public'
-        expected_tool={'bytes':47766,'sha256':'25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab'}
+        expected_tool={'bytes':48876,'sha256':'b595c0d7513ce156430fa1258327e43ee30b53efe07a6e8dbb0f61a39bc0f6a6'}
         closed=False;inputs_removed=False;errors=[]
         def read(path,maximum=1024**2):
             """只读取本job私有根内有界普通原件。"""

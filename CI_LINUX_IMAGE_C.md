@@ -1,10 +1,10 @@
 # 单 tuple 原 C → image 源码 CI
 
-本工作流部署已提交的 I1D 工具，执行单作用域源码 CI。控制器来自 Reko 提交 `54d9e0069816adb920650b38fa8c0e370c9b4ca6`，两件部署原件分别为：
+本工作流部署已提交的 I1D 工具，执行单作用域源码 CI。控制器来自 Reko 提交 `f74701d858c9f6812dfed8fdacc2d958777427fb`，两件部署原件分别为：
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
-| `tools/ci_linux_image_c_tasks.py` | 47766 | `25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab` |
+| `tools/ci_linux_image_c_tasks.py` | 48876 | `b595c0d7513ce156430fa1258327e43ee30b53efe07a6e8dbb0f61a39bc0f6a6` |
 | `tools/linux-image-c-ci-plan.json` | 6989 | `396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014` |
 
 首次调度保持默认 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。每次只有一个明确 tuple，不提供 `all` 或 matrix；其他版本仍须符合原 D 的 Ubuntu 组。并发组和产物名称都包含版本、架构。工作流仅接受 `workflow_dispatch`；首次注册所需临时 push 入口已移除，执行时明确指定版本和架构。
@@ -27,3 +27,6 @@ job 时限为 360 分钟。第一步读取本次 attempt 中唯一当前 job 的
 公开目录只允许有限摘要、CMS 自检、完整身份清单和认证密文。私有控制器报告、完整生成归档、日志和输入身份证据先保留原字节，再沿既有 AES-256-GCM／RSA3072 OAEP-SHA256 CMS 封套上传。CI 只有原公开接收证书；无真实接收私钥。封套有界且不截断成员，失败不回退明文上传。`always` 收尾仅按本 job 所有权中的精确 C1 id/image 和临时根 inode 清理，名称为空仍查原 id，同名替换拒绝；证据仅在完整密文身份复核后回收。
 
 工具与工作流部署不计为 image 编译验收；实际结果须另经原件认证及 ROOT 完整静态读验。公开摘要始终将 ROOT 独立验收、shared provider、G1/G2、Cubism、完整引擎和 iOS 会话保留为未通过；人工和真机验收保留 `deferred`。
+
+
+首轮41626879702已完成原C依赖与宿主读验，进入image前因控制父目录不存在失败，原诊断保留。控制器现先核现有完整祖先链，再以不沿链接的目录fd建立缺失父目录，叶保持排他创建；拒绝链接、非目录与既有叶，不覆盖旧输入。新source经45项回归与独审通过，原计划、九文本与其他步骤不改；同一8.5.3/sim-arm64单作用域重试，真实image结果另验。
