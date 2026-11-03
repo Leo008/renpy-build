@@ -47,3 +47,7 @@ CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa1404965883
 第二次真实先导 `41603656124` 固定 `d63bd30f4c2354dcfd2fd06de2a14f4bbd4a448c` 与08，目录碰撞已跨过，原ensurepip真实rc0并安装pip19.2.3/setuptools41.2.0；随后精确入口脚本校验拒绝，scope安装尚未开始。原ZIP80394161B/SHA `30df103c5466b15ef111221dcb148571d662bf67e050b2f21293f57ec10f4543`及412认证成员/独审保留，不接受任何pip scope。
 
 09精确修复固定pip19的实际maker.script_template覆盖、CP27原ensurepip CLI默认generic脚本，以及CP27 marshal.load只接受真实文件的静态确定性错误；不放宽脚本/RECORD/pyc尾字节或B/C门禁。完整32项Mac夹具/固定源码和微型探针回归无skip，16项导出回归、9项编排回归及实际四成员解回通过，所有新临时树finally清理。CP27 marshal修复依据原39508B源码965b463，不声称曾在08实跑到该错误；新Linux先导及完整scope仍须真实执行并独立验收，先导通过后才展开矩阵。
+
+并发组继续按分支与Ubuntu组串行，显式 `queue: max` 与 `cancel-in-progress: false` 保留最多100个等待run；不会因新同组调度替换早先pending。官方规则见 https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax 。先前默认single导致41616058130（CP27/arm64）及41616073657（8.5.3/ci-success三架构）在开始前被后续pending替换取消；原API/调度记录保留，不计构建失败或通过。只重新调度这四个未执行作用域，已运行/等待的8.3.7、8.5.3 recipe、CP27 x86与8.4.1及已验CP27 sim-arm64均不重派。
+
+本机actionlint1.7.12尚不认识官方已提供的concurrency.queue，原始unknown-key失败留存；仅移除该新增一行后其余字节精确等974f356并通过该linter，17原件SHA不变。queue/max与false组合按官方语法核，随后以GitHub实际接收调度作为新字段的服务端校验，不把此工具版本限制记为构建失败。

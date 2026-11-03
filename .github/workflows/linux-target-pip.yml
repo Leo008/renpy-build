@@ -35,6 +35,7 @@ permissions:
 concurrency:
   group: renpy-linux-target-pip-${{ github.ref }}-${{ inputs.ubuntu_group }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   target-pip:
