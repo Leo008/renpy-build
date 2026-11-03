@@ -1,22 +1,22 @@
 # 单 tuple 原 C → image → font 源码 CI
 
-本工作流部署 Reko 已提交的 I3 控制器，提交为 `7370e88d36fddb188c79875ba5e0cc19e19ba13a`。两件部署原件保持原字节：
+本工作流部署 Reko 已提交的 I3 控制器，提交为 `581c7e12e9e8a54dfa2da2613ed991e14e9be588`。两件部署原件保持原字节：
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
-| `tools/ci_linux_image_font_c_tasks.py` | 62146 | `17884420d85bac47de701a632d31b632374801fc135a3b48376c9fa1c565a992` |
-| `tools/linux-image-font-c-ci-plan.json` | 9633 | `5a613ff8ab868b8f44d9d23ff9e2cfc604dcd816c78bba4420260c202be9335c` |
+| `tools/ci_linux_image_font_c_tasks.py` | 62146 | `6a533d142604b5cf1ec10ad9cea9ce29284b90653a5ce34a242d35bf852ce4cf` |
+| `tools/linux-image-font-c-ci-plan.json` | 9633 | `648c1fdd16dda722d88d66116daa7d14a4f3c0388b8272be5e89306ea17de884` |
 
-原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 为 `14af937c6287761880e1903f3d694c0a40f91652` 原文，计划仍为 `f2a4376288b7ef07e52a31ec80966d0a892be21c` 原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
+原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 为 `39c350d384da7176bf8245975036f6bcfcfcd1cc` 原文，计划仍为 `f2a4376288b7ef07e52a31ec80966d0a892be21c` 原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
 
 实际 font CI 的前置条件是对应 tuple 的 image 原件已完成 ROOT 和独立验收。部署、微测试及 Actions success 均不代替这项验收；主代理必须先核对应门禁再调度本工作流。首次调度仅为 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。入口仅 `workflow_dispatch`，每次一个明确 tuple，没有 `all` 或 matrix；其他 tuple 必须匹配原 D Ubuntu 组及其前置验收。并发组和产物名包含版本、架构，新工作流使用独立临时命名空间。
 
-十一文本输入已真实发布至 Release `406525604`、asset `705890011`：
+十一文本输入已真实发布至 Release `406525604`、asset `706098386`：
 
-- 名称：`j11-image-font-c-runtime-addon-20261103-02.tar.gz`
-- 字节：`167193`；SHA-256：`a95510fe5d86dce6e2ce1089109a7d2905a9c64db17bedf80fa7f8cc1efbef98`
-- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261103-02.tar.gz)
-- 11 个平铺普通 `0644` 成员、原文共 `870128` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
+- 名称：`j11-image-font-c-runtime-addon-20261103-03.tar.gz`
+- 字节：`169358`；SHA-256：`856fc824fddcd7fca2487f3da12b7476f2811fd240799eaba14feb43cdacb511`
+- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261103-03.tar.gz)
+- 11 个平铺普通 `0644` 成员、原文共 `882540` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
 
 C03 仍是 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`，73548 字节、SHA-256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`；H1 仍按原 D 固定 profile 选原 ZIP。APT、SDK14、H0 密文、recipe CAS 和 clang runtime 使用既有固定原件；H0/CAS 缓存只供控制器复用，不设再次下载 fallback。需要既有 `CI_INPUTS_PASSWORD`、两件 SDK SHA 与 `REKO_H0_INPUTS_PASSWORD`，秘密只经宿主 stdin/FIFO/内存，不进入日志或 C1 命令环境。不执行 H2 密码、新 J2、B 或 pip 流程，也不发布任何私有编译输入。
 
@@ -36,4 +36,6 @@ I3 每个返回树先核逻辑 1 GiB、32768 成员及分配量，复制后宿�
 
 工作流405746285已通过分支注册，临时push入口已移除，job仅允许workflow_dispatch。注册run41645605249实际completed/skipped，未执行字体编译；实际调度仍须对应image原件先完成ROOT及独审接受。
 
-2026-11-03：首字体先导41648269103保留失败。原C/image、FriBidi与首FT安装rc0后，系统包资格检查拒绝；具体owner未被旧日志记录。14af937仅修Multi-Arch包名/架构规范与诊断，原APT清单与Task不变，40项回归和独审通过；7370e88监督绑定35项通过。本轮02仅换这件已提交worker，随后唯一同tuple重试；部署不计字体构建通过。
+历史02（2026-11-03）：首字体先导41648269103保留失败。原C/image、FriBidi与首FT安装rc0后，系统包资格检查拒绝；具体owner未被旧日志记录。14af937仅修Multi-Arch包名/架构规范与诊断，原APT清单与Task不变，40项回归和独审通过；7370e88监督绑定35项通过。本轮02仅换这件已提交worker，随后唯一同tuple重试；部署不计字体构建通过。
+
+本轮03（2026-11-03）：第二先导41654292030保留失败，原C/image/Fribidi/首FT命令rc0，实际31个man3安装路径未列入旧模型。39c350d仅补原安装规则支持的208文件/6目录及未知路径诊断，47项回归与cc619fbd独审通过；581c7e1监督绑定35项通过。03只替换这件已提交worker，其他10文本/原9不变；原HB预生成HTML与CMake安装仅按源码合同建模，不称已实跑通过。下一仅重试相同8.5.3/sim-arm64，部署/输入发布不计font通过。
