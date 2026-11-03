@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J11I1D",
+  "scope": "single_tuple_same_C1_actual_C_to_original_eight_image_static_tasks_only",
+  "D": {
+    "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+    "wrapper": {
+      "bytes": 100023,
+      "sha256": "49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5"
+    },
+    "plan": {
+      "bytes": 23677,
+      "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+    }
+  },
+  "current_consumer_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+  "text_runtime_catalog": [
+    {
+      "path": "run_locked_target_python_tasks.py",
+      "source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
+      "bytes": 134942,
+      "sha256": "2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a"
+    },
+    {
+      "path": "target-python-prefix-plan.json",
+      "source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
+      "bytes": 190076,
+      "sha256": "13f0fa3051364aaebca1ee2d43b93e5928688df18da266e40094a9ebd7644d5e"
+    },
+    {
+      "path": "c-prerequisites-results.lock.json",
+      "source_commit": "9d7c6d426c214fbb092d8f0dc8bfd12d47638529",
+      "bytes": 139080,
+      "sha256": "92bc838c52309b4df1c013501e2d774572aa73b1b9504d9318d5be7123eae774"
+    },
+    {
+      "path": "run_locked_image_c_tasks.py",
+      "source_commit": "d2e4bb47a025ef2c4fd09d5f397e46021c29835a",
+      "bytes": 52260,
+      "sha256": "83c2fba541f22efe110457bb0efe50e251275aadc8d05801a669551e650dbb48"
+    },
+    {
+      "path": "image-c-task-plan.json",
+      "source_commit": "2bb8e5ca00d1b243dc2741ebcc8bb731911aff79",
+      "bytes": 57764,
+      "sha256": "6f0757f9b1f8a6459c68f0f515ce5ad97e6ff73adaa73941207c0da2479a6c4b"
+    },
+    {
+      "path": "run_locked_current_image_c_tasks.py",
+      "source_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+      "bytes": 37528,
+      "sha256": "a99b0918f11aedb76edac4a622f0184a2ff446179bd2df0b1263eb5f9dfdec0d"
+    },
+    {
+      "path": "current-image-c-task-plan.json",
+      "source_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+      "bytes": 6669,
+      "sha256": "9e576f7d79f6e25edaed29ebe68bfb7caf60dc58df06549081f59b1aabe98572"
+    },
+    {
+      "path": "run_linux_target_python_prefix.py",
+      "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+      "bytes": 100023,
+      "sha256": "49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5"
+    },
+    {
+      "path": "linux-target-python-prefix-ci-plan.json",
+      "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+      "bytes": 23677,
+      "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+    }
+  ],
+  "C_runtime_addon": {
+    "name": "j9-c-prefix-runtime-addon-20261102-03.tar.gz",
+    "id": 702183169,
+    "bytes": 73548,
+    "sha256": "1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f",
+    "source_commit": "07f817962ea074057230c92103ede806db41604c"
+  },
+  "groups": {
+    "22.04": [
+      "8.3.7",
+      "7.8.7"
+    ],
+    "24.04": [
+      "8.5.3",
+      "8.4.1"
+    ]
+  },
+  "limits": {
+    "total_work_seconds": 18000,
+    "child_shutdown_seconds": 30,
+    "container_cleanup_seconds": 120,
+    "controller_finalization_seconds": 180,
+    "CMS_upload_reserved_seconds": 3000,
+    "job_seconds": 21600,
+    "host_log_bytes": 33554432,
+    "return_logical_bytes": 536870912,
+    "return_members": 32768,
+    "remote_entry_free_bytes": 15032385536,
+    "remote_work_delta_bytes": 12884901888,
+    "remote_reserve_bytes": 2147483648,
+    "watch_interval_seconds": 2,
+    "metadata_bytes": 33554432,
+    "text_bytes": 1048576
+  },
+  "space_estimate": {
+    "scope": "remote_single_tuple_only; local16/4/25GiB rule unchanged",
+    "estimated_work_GiB": 12,
+    "margin_GiB": 2,
+    "entry_free_GiB": 14,
+    "measured_peak": false,
+    "breakdown_GiB": {
+      "APT_image_bundle_installed": 2,
+      "H0_cipher_plain_payload_frontend_build_cache": 3,
+      "H1_zip_expansion": 1,
+      "J1_producer_consumer_roots_and_C1_copies": 1,
+      "C_and_image_build_trees": 3,
+      "C_image_archives_diagnostics_logs_ccache": 2
+    },
+    "protection": "Entry free + parent free-delta watcher + result pre-copy logical/member preflight. Watcher samples; numbers before/after are not a measured peak."
+  },
+  "contract": {
+    "phase": "c-prerequisites",
+    "cell_count": 1,
+    "old_D_main_called": false,
+    "D_aggregate_success_synthesized": false,
+    "H0_and_CAS_transport": "Required original local verified ciphertext/CAS cache; no download fallback. Original J9C preparation sequence then D.prepare_runtime/fresh_runtime_check and original D.execute_cells.",
+    "producer_root": "/reko/j9-runtime/root",
+    "consumer_root": "/reko/j11-image-runtime/root",
+    "expected_producer_members": 43,
+    "expected_consumer_members": 50,
+    "consumer_formula": "copy authenticated original43 physical files; replace2 originalC source/plan by actual newC text, add7 fixed text files; hash original43 again after.",
+    "ownership": "Raw parent ticket/password only FIFO/in-process; private owner keeps digest and exact source/id/image. Same-name replacement rejects. Empty original name still queries exact owner.id, verifies id/image, and only removes that id; absence must be proved by exact id. Pre-yield ownership still needs original C0 start+inspect bytes.",
+    "privacy": "No private compiled input is newly published. Existing SDK plaintext/private C/H1 products remain local/C1; all returned artifacts only private-diagnostics, public whitelist public-summary.json; external workflow must CMS-seal before upload.",
+    "deadline": "Workflow supplies actual job-deadline-utc from job start; supervisor uses min(18000, remaining minus cleanup/CMS/upload reserve). One work deadline includes prepare/H0/C/image/host reader. No 15000+7200 addition.",
+    "not_covered": [
+      "shared provider",
+      "G1",
+      "G2",
+      "Cubism support",
+      "full engine source",
+      "iOS session",
+      "manual/device acceptance"
+    ]
+  },
+  "C1_image_ids": {
+    "22.04": "sha256:cee13550f97b8a595506e8e4ca74263ba44924248779a4ba4f942e197652acff",
+    "24.04": "sha256:6277ab668b2ad3c3ab851d370faa1690d324b30db29d342527f61fed28f20f36"
+  },
+  "frontend_scopes": {
+    "8.5.3": "8.5.3-host-ci-success",
+    "8.4.1": "8.4.1-host-recipe",
+    "8.3.7": "8.3.7-host-recipe",
+    "7.8.7": "7.8.7-host-recipe"
+  },
+  "C1_inspect_contract": {
+    "basis": "原冻结C0 container_argv/check_container和j9f原003-producer-container-inspect.stdout实际canonical值；支持原unshare，不将SYS_ADMIN能力列为禁用。",
+    "HostConfig": {
+      "NetworkMode": "none",
+      "Privileged": false,
+      "Binds": null,
+      "CapAdd": [
+        "CAP_SYS_ADMIN"
+      ],
+      "CapDrop": null,
+      "SecurityOpt": [
+        "seccomp=unconfined"
+      ],
+      "ReadonlyRootfs": false,
+      "Devices": [],
+      "DeviceRequests": null
+    },
+    "Config.User": "0:0",
+    "Mounts": []
+  }
+}
