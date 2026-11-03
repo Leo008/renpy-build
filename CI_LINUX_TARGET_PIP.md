@@ -53,3 +53,6 @@ CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa1404965883
 本机actionlint1.7.12尚不认识官方已提供的concurrency.queue，原始unknown-key失败留存；仅移除该新增一行后其余字节精确等974f356并通过该linter，17原件SHA不变。queue/max与false组合按官方语法核，随后以GitHub实际接收调度作为新字段的服务端校验，不把此工具版本限制记为构建失败。
 
 后续混用旧single组与新max配置时，41617326405/41617338001也在无job/无artifact阶段被取消，原API保留，原因尚不提升为源码构建失败。最终改用按branch/Ubuntu/release/target_scope/target_arch区分的并发组，移除queue新字段，保留cancel-in-progress:false。不同明确作用域不再共享pending槽；同一个选择仍受独立组约束。该实际完整文件重新通过本机actionlint，17工具SHA及所有执行/权限/秘密/CMS/限额/清理正文不变，只补这四个仍未执行项，已有原run和验收scope不重派。
+
+
+2026-11-03：失败诊断工具绑定根ea802b1，成功链及09四文本输入原字节不变。失败仅额外保全固定`/reko/j9c-export/verification-report.json`（32KiB上限、严格JSON、普通文件/父链接检查）及最多256条未知成员lstat元数据，不读取未知内容；原pip/RECORD/完整导出验收门禁不改。CP39原三架构失败保留，先只补8.3.7-target-recipe/sim-arm64取回具体异常，未查明前不重跑三架构。
