@@ -500,6 +500,56 @@ def parser():
     result.add_argument("--worker-fd", type=int, help=argparse.SUPPRESS)
     return result
 
+def preserve_worker_exception(args, protocol, error, report, i0):
+    """仅已认证worker将原异常留私有有界JSON；不导出locals/env/SDK，也不覆盖父诊断。"""
+    secrets_to_remove = sorted({v for k in ("password", "ticket") if isinstance((v := protocol.get(k)), str) and v}, key=len, reverse=True)
+    def bounded(value, maximum):
+        """先剔除本轮秘密及URL凭据/查询，再按UTF8字节截断。"""
+        text = str(value)
+        for secret in secrets_to_remove: text = text.replace(secret, "[REDACTED]")
+        text = re.sub(r"(https?://)[^/@\s]+@", r"\1[REDACTED]@", text)
+        text = re.sub(r"(https?://[^\s?#]+)[?#][^\s]*", r"\1?[REDACTED]", text)
+        raw = text.encode("utf-8", "replace")
+        return raw[:maximum].decode("utf-8", "ignore"), len(raw) > maximum
+    chain, seen, current, frames_left, truncated = [], set(), error, 24, False
+    while current is not None and id(current) not in seen and len(chain) < 4:
+        seen.add(id(current)); message, message_clipped = bounded(current, 4096); truncated |= message_clipped
+        frames = []; tb = current.__traceback__
+        while tb is not None and frames_left:
+            filename, cut1 = bounded(tb.tb_frame.f_code.co_filename, 512); function, cut2 = bounded(tb.tb_frame.f_code.co_name, 128)
+            frames.append({"file": filename, "line": tb.tb_lineno, "function": function}); truncated |= cut1 or cut2
+            tb = tb.tb_next; frames_left -= 1
+        truncated |= tb is not None
+        kind, clipped = bounded(type(current).__name__, 128); truncated |= clipped
+        relation = "cause" if current.__cause__ is not None else "context" if not current.__suppress_context__ and current.__context__ is not None else None
+        chain.append({"kind": kind, "message": message, "message_truncated": message_clipped,
+                      "traceback_frames": frames, "next_relation": relation})
+        current = current.__cause__ if relation == "cause" else current.__context__ if relation == "context" else None
+    truncated |= current is not None
+    run_id, clipped = bounded(args.run_id, 64); truncated |= clipped
+    record = {"schema_version": 1, "task": TASK, "stage": "same_C1_C_avif", "run_id": run_id, "attempt": args.attempt,
+              "controller": i0.identity(Path(__file__).absolute()), "plan_sha256": PLAN_SHA256,
+              "authenticated_worker_branch": True, "exception_chain": chain, "truncated": truncated,
+              "limits": {"JSON_bytes": 65536, "chain": 4, "total_frames": 24, "message_bytes_each": 4096},
+              "traceback_source_lines_or_locals_captured": False, "environment_captured": False, "diagnostic_only": True,
+              "successful_stage_flags_at_failure": {k: report[k] for k in ("current_C_dependency_verified", "avif_C_verified", "same_open_C1_chain_verified")}}
+    def encoded_size():
+        """按真实JSON编码核硬上限，控制字符转义也计入。"""
+        return len((json.dumps(record, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8"))
+    while encoded_size() > 65536:
+        record["truncated"] = True
+        for item in chain:
+            item["message"] = item["message"][:len(item["message"]) // 2]; item["message_truncated"] = True
+            for frame in item["traceback_frames"]:
+                for key in ("file", "function"): frame[key] = frame[key][:len(frame[key]) // 2]
+    target = i0.guarded(args.output / "private-diagnostics/worker-original-exception.json")
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "wb") as stream:
+        os.fchmod(stream.fileno(), 0o600)
+        stream.write((json.dumps(record, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode("utf-8"))
+    log("已保存本轮worker有界原异常私有原件；未导出环境/秘密/SDK")
+
+
 def main(argv=None):
     """唯一父监督器控制完整链工作时限/空间/票据与精确清理，成功须父子证据齐全。"""
     args = parser().parse_args(argv); created, trusted, code, i0, protocol, docker, base = False, False, 1, None, None, None, None
@@ -579,6 +629,10 @@ def main(argv=None):
     except BaseException as error:
         report["result"] = "not_run" if isinstance(error, NotRun) else "interrupted" if isinstance(error, (Interrupted, KeyboardInterrupt)) else "failed"
         report["errors"].append({"kind": type(error).__name__, "stage": "same_C1_C_avif"})
+        if i0 is not None and trusted:
+            try: preserve_worker_exception(args, protocol, error, report, i0)
+            except Exception:
+                log("worker原异常私有保存未完成；保留首异常及原失败状态")
         if i0 is not None and created:
             i0.write_new(args.output / "private-diagnostics/private-failure.json", {"kind": type(error).__name__, "message": str(error)[:2000]})
         code = 3 if report["result"] == "not_run" else 130 if report["result"] == "interrupted" else 1

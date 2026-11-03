@@ -4,8 +4,8 @@
 
 ## 已提交控制与实际输入
 
-- V1 原源码提交：`ce638e8979ed34bd61bc3532a6e704d642884b68`。部署路径为 `tools/ci_linux_avif_c_tasks.py`（87,970 B，SHA-256 `87c61b193a394a9189afb70fcbd43c1cee90eae0c1a23cb55b1f16a132a706ed`）和 `tools/linux-avif-c-ci-plan.json`（11,420 B，`7446f064fffa951647dcd5bb0636c955f4aebfbc971181de493f8ab175a03cf2`）。部署必须保持 Git blob 原字节。
-- fork 两工具已在实际提交 `0a6b1033c3adb6c91d2fe5029c2dc3c5c58c6f43` 保持上述原字节；本工作流身份检查不依赖未来提交号。
+- V1 原源码提交：`6f83a245da6bab4acd431162cc2563794e90c2b6`。部署路径为 `tools/ci_linux_avif_c_tasks.py`（92,094 B，SHA-256 `fd0e06956c928efa3f76697acb0f000650a99d973e59e3ccece7fef6e4bea755`）和 `tools/linux-avif-c-ci-plan.json`（11,420 B，`7446f064fffa951647dcd5bb0636c955f4aebfbc971181de493f8ab175a03cf2`）。部署必须保持 Git blob 原字节。
+- 历史初版 fork `0a6b1033c3adb6c91d2fe5029c2dc3c5c58c6f43` 部署的是 ce638e8 的旧控制器及同一计划；本轮控制器必须与上述实际 ROOT 6f83a24 原字节一致，随本次经审工作流一起部署，不填未来 fork 提交号。
 - V0 原八任务消费者提交：`03a0f60dec9125665683a9126a2cf9941f8157dc`。source 85,648 B / `26ae9ec0d79a7fe45131310af685a160008ebf55d86470be2e02b01434c6edc9`；plan 63,078 B / `2597b2a551e04e6c70ff444b18b4e2a9d67364995721ed8f388e397b28e00bbe`。
 - 十五文本包：Release `406525604`，tag `ci-inputs-8.5.3-20261008`，实际 asset **706653203**，名称 `j11-avif-runtime-addon-20261104-02.tar.gz`，203,456 B / `7c858b01c4003c2d9ba9d0265fd821884eeee4a5f8237d9307b444d4c3736852`。15 个平铺 USTAR `0644` 原件，合计 989,653 B；仅 V0 两文本相对历史 01 包改变，另十三件逐字节不变。下载前核 Release/asset API 的 ID、名称、长度、digest、上传状态及固定下载 URL，下载后重核完整包及全部成员。
 - 原十七件依赖保持 SDL 原工作流的强 SHA；加 V1 两件后固定 **19 pins**。其中含原 D、I1D 的宿主准备基础、既有 replay/host 工具和计划、公开 CMS 证书及原有 clang runtime。原 D / I1D 的 main、handoff、旧 image/font 消费周期均不被调用。
@@ -58,3 +58,10 @@ API 列表可能短暂为空；依据该次命令取得的真实 run ID 或精�
 首固定先导 `41698533113`（head `f633318b91eb58808f47b340525120137f068f7e`）在宿主输入运输步骤失败：设备 SDK basename 误写为 `iPhoneOV14.0.sdk.tar.gz.enc`。认证的 Release `406525604` 原 API 中实际资产为 `iPhoneOS14.0.sdk.tar.gz.enc`，ID `621045292`、27,728,336 B、SHA-256 `07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133`。原错误只报告运输失败，没有保留 HTTP 码，所以不将 404 写成实测结果。
 
 本次只将下载 row 与 `--device-sdk` 物理路径的两处 `iPhoneOV14.0` 改为 `iPhoneOS14.0`，原密文/明文大小、SHA、SDK 密码 stdin、V0/V1、十五文本包、19 pins、权限、CMS、截止时间、预算和回收正文均不变；不跳过设备 SDK，不增加容错。原 artifact `13262152852`（ZIP 8,887 B / `6cc4c3bb8d5b82e4af7d82c7ed801752ceb4ce81b70705a8e569ce59e0a89145`）及认证四成员诊断保留，公开摘要 `driver_started=false`、C1/八任务步骤 skipped，没有 NASM/AVIF 编译或缓存接受。主代理只重试同一首 tuple，重试成功仍须完整原件与本机独立静态验收。
+
+
+2026-11-04 原异常诊断重试：868ad98已修正原SDK名称，唯一41701925715输入运输step成功，但host source_contract或其结果落盘在C1创建前失败；C/NASM/AVIF Task均未开始。原ZIP4698118B/a7e4a010与25成员认证保留，旧日志仅ValueError/generic错误，不能判定下载/TLS/SHA或具体源码首因。
+
+ROOT 6f83a245da6bab4acd431162cc2563794e90c2b6只补已认证worker_fd分支原异常私有保存，独立worker-original-exception.json不碰父generic文件。最多4异常/24帧/每消息4KiB、实际JSON64KiB硬限；记录真实message/cause/context与frame位置，不收locals/env/source line，剔除protocol password/ticket及URL凭据/query。原子O_CREAT/O_EXCL/O_NOFOLLOW与创建即0600，保存失败保留首错。ROOT受影响8项/.388s及增量独审8dea6403通过，原37测试/execute/source_contract/allow_fetch/Task/SDK/计划与15文本包完全不变。
+
+本次CI绑定仅同步三个实际值：ROOT source commit、V1 controller SHA及真实92094字节（含cleanup expected_tool），另外18部署pin/原SDK OS包名/CMS/预算/deadline/有限公开summary和精确cleanup原体保持。新增原异常原件仍只进入已有私有CMS封套，不在公开摘要输出内容。先唯一重试24.04/8.5.3/sim-arm64取得真实原异常，不扩矩阵，不将诊断修复、运输或输入物化计作源码资格。
