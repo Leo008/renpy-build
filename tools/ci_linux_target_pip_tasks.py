@@ -21,8 +21,8 @@ import zipfile
 sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 DEFAULT_PLAN = HERE / "linux-target-pip-ci-plan.json"
-# 独立SHA绑定真实08运输、原D及已提交pip/导出工具，不接受浮动输入。
-PLAN_SHA256 = "a0532f644db62d174b2de9cde7c123dbe264945e71cc49bb20668816cd067480"
+# 独立SHA绑定真实09运输、原D及已提交pip/导出工具，不接受浮动输入。
+PLAN_SHA256 = "76adfb5296f1d0677b6899d655405309247600375ba56ec135c9ab73e6a4ba2e"
 REMOTE_J2 = "/reko/j9c-inputs"
 REMOTE_CODE = "/reko/j9c-code"
 REMOTE_RESULTS = "/reko/j9c-results"
@@ -148,17 +148,17 @@ def validate_selection(args, plan):
 
 
 def extract_text(archive, destination, catalog):
-    """08只有四个普通文本成员，逐字节核对且禁止目录、链接或PAX。"""
+    """09只有四个普通文本成员，逐字节核对且禁止目录、链接或PAX。"""
     expected = {row["path"]: row for row in catalog}; seen = set(); destination.mkdir(mode=0o700)
     with tarfile.open(archive, "r:gz") as source:
         for item in source:
             require(item.name in expected and item.name not in seen and item.isfile() and not item.sparse and not item.pax_headers
-                    and item.mode == 0o644 and item.uid == item.gid == item.mtime == 0, "08文本包成员或模式错误")
-            row = expected[item.name]; require(item.size == row["bytes"], "08文本成员大小错误"); seen.add(item.name)
+                    and item.mode == 0o644 and item.uid == item.gid == item.mtime == 0, "09文本包成员或模式错误")
+            row = expected[item.name]; require(item.size == row["bytes"], "09文本成员大小错误"); seen.add(item.name)
             with source.extractfile(item) as stream, (destination / item.name).open("xb") as output:
-                body = stream.read(row["bytes"] + 1); require(len(body) == row["bytes"], "08文本成员长度错误"); output.write(body)
+                body = stream.read(row["bytes"] + 1); require(len(body) == row["bytes"], "09文本成员长度错误"); output.write(body)
             checked(destination / item.name, row)
-    require(seen == set(expected), "08文本包缺项")
+    require(seen == set(expected), "09文本包缺项")
 
 
 def verify_py2_zip(path, extra, plan):
@@ -369,8 +369,8 @@ def main(argv=None):
             if isinstance(value, Path) and key != "output": require(not value.is_relative_to(args.output) and not args.output.is_relative_to(value), "输入输出路径交叉")
         args.output.mkdir(mode=0o700); created = True; diagnostics = args.output / "private-diagnostics"; diagnostics.mkdir(mode=0o700)
         plan = load_plan(args.plan); validate_selection(args, plan); report["plan_sha256"] = PLAN_SHA256
-        require("pip_runtime_addon" in plan, "计划尚未绑定实际08公开运输身份，禁止执行")
-        require(identity(args.pip_addon, plan["limits"]["text_addon_bytes"])["bytes"] > 0, "08文本包为空或超限")
+        require("pip_runtime_addon" in plan, "计划尚未绑定实际09公开运输身份，禁止执行")
+        require(identity(args.pip_addon, plan["limits"]["text_addon_bytes"])["bytes"] > 0, "09文本包为空或超限")
         checked(args.runtime_addon, plan["B_runtime_addon"]); checked(args.pip_addon, plan["pip_runtime_addon"]); checked(args.py2_artifact, plan["Py2_original_artifact"])
         d = load_D(args.d_wrapper, plan); dplan = d.load_plan()
         profile = dplan["producer_profiles"][args.ubuntu]; checked(args.h1_artifact, profile["artifact"])

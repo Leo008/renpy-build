@@ -76,12 +76,12 @@
     "metadata_source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
     "metadata_root_files": 43
   },
-  "pip_worker_commit": "c1a7dc586b4a7a6dd5ee082d9d8f2302af12cff6",
+  "pip_worker_commit": "3cce70766778b6d126fa0bf1f45d78deb293b019",
   "text_runtime_catalog": [
     {
       "path": "run_locked_target_pip_tasks.py",
-      "bytes": 71823,
-      "sha256": "d892706abc76e6bd9cace71b89eb7c82cffcd42d09ef9860029175f9bd3cbc26"
+      "bytes": 76531,
+      "sha256": "ab07648691784fd29740a2f65d10c3a29994966ecfd9d41694ca6fc2913fc6ee"
     },
     {
       "path": "target-pip-binding-plan.json",
@@ -91,12 +91,12 @@
     {
       "path": "run_target_pip_export.py",
       "bytes": 39334,
-      "sha256": "3340230b57d35050eda81419589f2e6228c2c30ce1061049bdedb653df706e5b"
+      "sha256": "9226d36896b742121b2f0baae7a3706e37a01c7025b203c99e98a6510f5d5c39"
     },
     {
       "path": "target-pip-export-plan.json",
       "bytes": 2523,
-      "sha256": "6b795735e694419bf14322726ba7af6b5e037fc05d0748757d59a63d2640666d"
+      "sha256": "db1971392d2b05b9f0dcadc2c5265b24f3350e3970985f07665e5557ba3018a4"
     }
   ],
   "H2_extra": {
@@ -171,14 +171,14 @@
     "manual_device_acceptance": "deferred",
     "seed_historical_raw_pyc_recomputed_on_host": false
   },
-  "pip_export_commit": "88eed753e4074e12b361ca3fb1902272f4439ff1",
+  "pip_export_commit": "613a3f5faeb680031ae9bb83eb527a2ee93bb22f",
   "pip_runtime_addon": {
     "release_id": 406525604,
-    "id": 704859538,
-    "name": "j9-target-pip-runtime-addon-20261103-08.tar.gz",
-    "bytes": 81136,
-    "sha256": "85b4501ffd1f1422fddf2bb4438fa78243dd4946f74fcce7f803d9dbc8cacfac",
-    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-08.tar.gz",
+    "id": 705030280,
+    "name": "j9-target-pip-runtime-addon-20261103-09.tar.gz",
+    "bytes": 80606,
+    "sha256": "f0006f364b2d2d09c602701c29bab1cb67f40f179b8ac081ecba5a9fccb34f9f",
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-09.tar.gz",
     "format": "ustar-four-flat-regular-mode0644-uid0-gid0-mtime0"
   }
 }
