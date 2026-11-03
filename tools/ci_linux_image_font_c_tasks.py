@@ -24,7 +24,7 @@ import time
 import types
 
 HERE = Path(__file__).absolute().parent
-PLAN_SHA256 = "648c1fdd16dda722d88d66116daa7d14a4f3c0388b8272be5e89306ea17de884"
+PLAN_SHA256 = "3df54862807dae60307202b4b88de080075d96596141b34eef76b206e1e08c27"
 TASK = "R00-02J11I3"
 RESULT = "single_tuple_actual_C_original_image_and_font_verified"
 FALSE = {"production_shared_provider_verified": False, "G1_verified": False, "G2_verified": False,
@@ -299,6 +299,61 @@ def feature_evidence(folder, features, row, arch, consumer, plan, i0, final_tabl
                 actual.append(proof)
     require(actual == features and sum(len(v) for v in expected.values()) == (4 if row["release"] == "8.5.3" else 6), "target sidecar或完整四/六份FT探针不同")
 
+def cairo_disabled_evidence(folder, proof, row, arch, consumer, plan, i0, table, objects, group, llvm):
+    """逐原件重算第五字体库的禁用配置/原头来源/metadata/nm，不用sidecar布尔代替。"""
+    contract=plan["harfbuzz_cairo_disabled_contract"]
+    workspace=Path("/reko/j9-workspaces")/row["release"]/arch
+    root=workspace/("tmp/build/harfbuzz.ios-"+arch)/("harfbuzz-"+contract["version"])
+    prefix=workspace/("tmp/install.ios-"+arch)
+    expected=[]
+    for spec in contract["source_members"]:expected.append(("source",str(root/spec["path"]),"harfbuzz-cairo-disabled/source/"+spec["path"]))
+    for name in ("config.h","config.status","src/hb-features.h"):
+        expected.append(("configuration",str(root/name),"harfbuzz-cairo-disabled/configuration/"+name))
+    for name in contract["metadata"]:expected.append(("installed",str(prefix/name),"harfbuzz-cairo-disabled/installed/"+name))
+    documents=proof["documents"]
+    require([(v["role"],v["source"],v["preserved"]) for v in documents]==expected and proof["task_name"]=="build-harfbuzz.ios-"+arch,
+            "HB Cairo完整source/config/installed原件集合不同")
+    raw={}
+    for item,(role,origin,relative) in zip(documents,expected):
+        require(set(item)=={"role","source","preserved","bytes","sha256"} and i0.identity(folder/relative)=={k:item[k] for k in ("bytes","sha256")},
+                "HB Cairo保存原件SHA不同")
+        raw[relative]=i0.raw_file(folder/relative,plan["limits"]["command_log_bytes"])
+        if role=="source":
+            name=Path(origin).relative_to(root).as_posix();spec=next(v for v in contract["source_members"] if v["path"]==name)
+            require({k:item[k] for k in ("bytes","sha256")}=={k:spec[k] for k in ("bytes","sha256")},"HB Cairo原guard/安装规则来源不同")
+        elif role=="installed":
+            name=Path(origin).relative_to(prefix).as_posix()
+            require(table.get(name,{}).get("type")=="file" and {k:table[name][k] for k in ("bytes","sha256")}=={k:item[k] for k in ("bytes","sha256")},
+                    "HB Cairo保存metadata不是最终完整归档原成员")
+    require(proof["installed_header_source_binding"]==consumer.cairo_header_binding(table.values(),contract),
+            "HB Cairo最终安装头与原source关联不同")
+    archive=next(v for v in objects if v["path"]==contract["archive"])
+    require(proof["archive"]=={k:archive[k] for k in ("path","bytes","sha256","object_count")}
+            and proof["member_names"]==contract["archive_members"]==[v["name"] for v in archive["objects"]]
+            and archive["object_count"]==3,"HB Cairo完整原三对象与归档身份不同")
+    probe=proof["symbol_probe"];version="18" if row["ubuntu"]=="24.04" else "15"
+    command="/usr/bin/llvm-nm-"+version
+    require(set(probe)=={"argv","returncode","tool","stdout","stderr"} and probe["argv"]==[command,"-g",str(prefix/contract["archive"])]
+            and type(probe["returncode"]) is int and probe["returncode"]==0,"HB Cairo实际nm argv/rc不同")
+    tool=probe["tool"];package_record(tool,group);pinned=llvm["llvm-nm-"+version]
+    require(tool["path"]==command and tool["realpath"]==pinned["path"] and tool["sha256"]==pinned["sha256"],
+            "HB Cairo实际nm不是原锁LLVM")
+    for channel in ("stdout","stderr"):
+        require(probe[channel]==i0.identity(folder/("harfbuzz-cairo-disabled/nm."+channel),plan["limits"]["feature_file_bytes"]),
+                "HB Cairo实际nm原日志SHA不同")
+    calculated=consumer.cairo_disabled_data(raw["harfbuzz-cairo-disabled/configuration/config.h"],
+        raw["harfbuzz-cairo-disabled/configuration/config.status"],raw["harfbuzz-cairo-disabled/configuration/src/hb-features.h"],
+        raw["harfbuzz-cairo-disabled/installed/lib/pkgconfig/harfbuzz-cairo.pc"],raw["harfbuzz-cairo-disabled/installed/lib/libharfbuzz-cairo.la"],
+        i0.raw_file(folder/"harfbuzz-cairo-disabled/nm.stdout",plan["limits"]["feature_file_bytes"]),prefix,contract)
+    require(all(proof.get(k)==v for k,v in calculated.items())
+            and all(proof.get(k) is False for k in ("cairo_feature_enabled","host_Cairo_dependency_introduced","archive_empty_claimed",
+                                                   "source_HB_Cairo_configuration_changed","returned_binary_executed")),
+            "HB Cairo原数据重算与sidecar或限定边界不同")
+    return {"disabled_HarfBuzz_Cairo_provenance_verified":True,"HarfBuzz_Cairo_feature_enabled":False,
+            "installed_HarfBuzz_Cairo_header_source_verified":True,
+            "Cairo_other_metadata_dependencies_generally_qualified":False}
+
+
 def verify_returned(metadata, folder, old_products, release, arch, consumer_sha):
     """新宿主进程完整静态验真原最终/首FT归档、image中间态和native provenance。"""
     runtime, folder, old_products = Path(metadata) / "scripts/renpy", Path(folder), Path(old_products)
@@ -325,7 +380,7 @@ def verify_product_documents(runtime, folder, old_products, release, arch, consu
             and receipt["old_markers_synthesized"] is False and receipt["ran_tasks_seeded"] is False, "原成员/registry保护证明不同")
     old = i0.decode(i0.raw_file(old_products / "c-prefix-inventory.json")); old_names = {v["path"] for v in old}
     require(receipt["current_C_export"] == i0.identity(old_products / "export.json"), "本轮C导出不符")
-    wanted_sidecars = {"font-prefix-inventory.json", "font-archive-objects.json", "font-installed-headers.json", "font-commands.json", "font-native-tools.json", "font-features.json", "font-native-generators.json"}
+    wanted_sidecars = {"font-prefix-inventory.json", "font-archive-objects.json", "font-installed-headers.json", "font-commands.json", "font-native-tools.json", "font-features.json", "font-native-generators.json", "font-harfbuzz-cairo-disabled.json"}
     require(set(receipt["sidecars"]) == wanted_sidecars, "字体固定sidecar集合不同")
     sidecars = {name: i0.decode(i0.raw_file(folder / name)) for name in wanted_sidecars}
     for name in wanted_sidecars: require(receipt["sidecars"][name] == i0.identity(folder / name), "字体sidecar原字节不同")
@@ -359,7 +414,7 @@ def verify_product_documents(runtime, folder, old_products, release, arch, consu
     require(receipt["archive"]["path"] == archive.name and {k: receipt["archive"][k] for k in ("bytes", "sha256")} == i0.identity(archive), "最终完整prefix原件不同")
     objects, executables = scan_prefix(archive, entries, set(ip["expected_new_archives"]) | set(plan["expected_font_archives"]), old_names, arch, c, i0, inventory, preflight, plan["limits"])
     require([v for v in objects if v["path"] in ip["expected_new_archives"]] == image["archives"]
-            and [v for v in objects if v["path"] in plan["expected_font_archives"]] == sidecars["font-archive-objects.json"], "14库完整对象不同")
+            and [v for v in objects if v["path"] in plan["expected_font_archives"]] == sidecars["font-archive-objects.json"], "15库完整对象不同")
     require([v for v in executables if v["path"] in image_table] == image["executables"] and any(v["path"] == "bin/fribidi" for v in executables), "原image/目标FriBidi可执行不同")
     first_table = i0.inventory_table(first["entries"], plan["limits"]); early = first["products"]; early_table = i0.inventory_table(early["inventory"], plan["limits"])
     require(first["entries"] == consumer.first_ft_entries(early["inventory"], plan)
@@ -378,6 +433,7 @@ def verify_product_documents(runtime, folder, old_products, release, arch, consu
     packages = native.approved_packages(group); llvm = {k: v for k, v in group_env["tool_identities"].items() if k.startswith(("clang-", "clang++-", "llvm-ar-", "llvm-nm-"))}
     native_expected = {"ubuntu": row["ubuntu"], "installed_package_count": len(packages), "installed_projection_sha256": hashlib.sha256(json.dumps(sorted((name, abi, version) for (name, abi), version in packages.items())).encode()).hexdigest(), "native_tools": llvm, "apple_sdk_required": False}
     require(receipt["native_environment"] == native_expected, "完整native环境APT/LLVM投影不同")
+    cairo_proof=cairo_disabled_evidence(folder,sidecars["font-harfbuzz-cairo-disabled.json"],row,arch,consumer,plan,i0,table,objects,group,llvm)
     workspace = Path("/reko/j9-workspaces") / release / arch; commands = sidecars["font-commands.json"]
     expected = [(task_name(spec, arch), op[0], op[1]) for spec in row["tasks"] for op in spec["operations"] if op[0] in ("run", "patch")]
     require([(v["task_name"], v["operation"], v["template"]) for v in commands] == expected
@@ -421,7 +477,7 @@ def verify_product_documents(runtime, folder, old_products, release, arch, consu
             "returned_files": sorted(returned, key=lambda v: v["path"]), "new_archive_count": len(objects), "new_object_count": sum(v["object_count"] for v in objects),
             "first_FT_archive_all_objects_verified": True, "native_apinames_count": len(tools), "native_generators_count": sum(len(v["actual_ELF_generators"]) for v in generators),
             "complete_features_and_native_provenance_verified": True, "original_image_checkpoint_reverified_from_final_archive": True,
-            "returned_binary_executed_on_host": False, "system_binary_raw_SHA_independently_recomputed_on_host": False}
+            "returned_binary_executed_on_host": False, "system_binary_raw_SHA_independently_recomputed_on_host": False, **cairo_proof}
 
 
 def container_owner(args, protocol, state, image_id, i0, base):
@@ -548,8 +604,9 @@ def image_font_handoff(args, plan, consumer, consumer_plan, i0, run, owner, runt
     (diagnostics / "image-font-host-verification.stdout").write_bytes(result.stdout); (diagnostics / "image-font-host-verification.stderr").write_bytes(result.stderr)
     require(result.returncode == 0 and len(result.stdout) + len(result.stderr) <= plan["limits"]["host_log_bytes"], "组合宿主完整reader拒绝/日志超限")
     verification = i0.decode(result.stdout)
-    require(all(verification[k] is True for k in ("all_bound_artifacts_verified", "all_returned_regular_files_hashed", "first_FT_archive_all_objects_verified", "complete_features_and_native_provenance_verified", "original_image_checkpoint_reverified_from_final_archive"))
-            and verification["new_archive_count"] == 14 and verification["native_apinames_count"] == (0 if args.release == "8.5.3" else 2)
+    require(all(verification[k] is True for k in ("all_bound_artifacts_verified", "all_returned_regular_files_hashed", "first_FT_archive_all_objects_verified", "complete_features_and_native_provenance_verified", "original_image_checkpoint_reverified_from_final_archive", "disabled_HarfBuzz_Cairo_provenance_verified", "installed_HarfBuzz_Cairo_header_source_verified"))
+            and verification["new_archive_count"] == 15 and verification["native_apinames_count"] == (0 if args.release == "8.5.3" else 2)
+            and verification["HarfBuzz_Cairo_feature_enabled"] is False and verification["Cairo_other_metadata_dependencies_generally_qualified"] is False
             and verification["returned_binary_executed_on_host"] is False, "组合完整reader范围不同")
     # 完整文件清单只留私有stdout，公开summary仅放计数/证明，不复制正文。
     return {"handoff": proof, "receipt": i0.identity(folder / "current-image-font-c-receipt.json"),

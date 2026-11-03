@@ -71,15 +71,15 @@
     },
     {
       "path": "run_locked_current_image_font_c_tasks.py",
-      "source_commit": "39c350d384da7176bf8245975036f6bcfcfcd1cc",
-      "bytes": 74298,
-      "sha256": "1913b36dd6daf85886639bd31c01490836fd5bd919f927aac3f5e247310bfa65"
+      "source_commit": "b7be891afc358eba13eef62ced0ac64c27a2bee3",
+      "bytes": 81766,
+      "sha256": "a92b839af9d7428515040e270042edfb59f30ecf638e018333e7f9a6670cd45b"
     },
     {
       "path": "current-image-font-c-task-plan.json",
-      "source_commit": "f2a4376288b7ef07e52a31ec80966d0a892be21c",
-      "bytes": 64919,
-      "sha256": "3342a6978cff955725223d0b4228565bc224a980127f5a046a7571b43bd5b282"
+      "source_commit": "b7be891afc358eba13eef62ced0ac64c27a2bee3",
+      "bytes": 67656,
+      "sha256": "cf9044b9a3f550dd20da7c8c9a698f79c400f0aee39aa35d89363d58225c41fb"
     }
   ],
   "C_runtime_addon": {
@@ -213,12 +213,13 @@
     "called_script": "CREATE_CONTROL_DIRECTORY",
     "old_image_handoff_execute_main_called": false
   },
-  "image_font_consumer_commit": "39c350d384da7176bf8245975036f6bcfcfcd1cc",
+  "image_font_consumer_commit": "b7be891afc358eba13eef62ced0ac64c27a2bee3",
   "reader_contract": {
-    "final_prefix": "one full original archive, all members bytes/mode/links and every new image/font MachO object/executable",
+    "final_prefix": "one full original archive, all members bytes/mode/links and every new image/font object/executable;10image+5font=15 new static archives",
     "first_FT": "finite original archive/raw installed headers/features before FT-HB overwrite, original early non-FT members checked through final archive",
     "native": "two original apinames on old routes, all preserved native generators, ELF64 headers/DT_NEEDED from raw bytes, fixed APT package qualification/native LLVM identities; system binary SHA is authenticated this-run observation, not independently rehashed historical source",
     "features": "Exact four modern probes or six old-route probes: target after-configure/after-build plus old native host after-configure only; raw headers/macros and same-compiler argv. font-features sidecar contains only two target after-build records.",
-    "returned_folder": "ordinary bounded files/directories only; hash every returned regular original file, critical sidecars bound by receipts; host never executes returned ELF or target binaries"
+    "returned_folder": "ordinary bounded files/directories only; hash every returned regular original file, critical sidecars bound by receipts; host never executes returned ELF or target binaries",
+    "disabled_HarfBuzz_Cairo": "Fifth font archive and all3 objects, final hb-cairo.h same originalsource bytes, raw source8/config3/pc-la/nm and exact native LLVM/APT qualification. Feature remains disabled; other nonCairo metadata tokens only authenticated observations, not generic dependency qualification."
   }
 }
