@@ -151,5 +151,13 @@
   "return_tree_preflight": {
     "interpreter": "/usr/bin/python3.10",
     "source_sha256": "9cc43c90ce0d70a1cba89acaf9645511e3f2dfc5d9937647f0e7a1b55db56ed4"
+  },
+  "legacy_7_8_7_only": {
+    "metalangle-legacy": {
+      "release": "7.8.7",
+      "interpreter": "H1-Python2",
+      "commit": "ffc603fabdfeeaea5cab4e6114ac2c4e4d9e5224",
+      "tree": "2d032d2fb84303948b2423af041aba4844fedb4f"
+    }
   }
 }

@@ -21,7 +21,7 @@ import types
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-graphics-metadata-ci-plan.json"
-PLAN_SHA256 = "a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf"
+PLAN_SHA256 = "5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533"
 REMOTE_RUNTIME = "/reko/j10-runtime"
 REMOTE_SOURCES = "/reko/j10-sources"
 REMOTE_RESULTS = "/reko/j10-results"
@@ -278,6 +278,7 @@ def load_plan(path=DEFAULT_PLAN):
                 and re.fullmatch("[0-9a-f]{64}", row["sha256"]), "工具清单字段错误")
     require(plan["environment"]["ubuntu"] == "22.04" and plan["H1_profile"]["ubuntu"] == "22.04"
             and set(plan["families"]) == {"metalangle-legacy", "metalangle-modern"}, "只允许固定22环境和两main")
+    require(plan["legacy_7_8_7_only"] == {"metalangle-legacy": {**plan["families"]["metalangle-legacy"], "release": "7.8.7"}}, "额外补验仅允许7.8.7原legacy路线")
     require(plan["retention_limits"] == {"max_result_members": 32768, "max_result_bytes": 512 * 1024**2,
             "max_archive_bytes": 256 * 1024**2, "max_diagnostic_bytes": 16 * 1024**2}, "结果保全边界不同")
     require(plan["return_tree_preflight"] == {"interpreter": "/usr/bin/python3.10",
@@ -404,6 +405,11 @@ def generator_argv(family, row):
     return argv
 
 
+def selected_families(plan, legacy_7_8_7_only=False):
+    """默认完整保留原两family；显式补验只选固定7.8.7 legacy，不开放任意版本。"""
+    return plan["legacy_7_8_7_only"] if legacy_7_8_7_only else plan["families"]
+
+
 def verify_returned(run, runtime, source, directory, release, output, original_receipt_sha256):
     """宿主仅执行固定Python读取器，逐源/全Git/唯一header验证，不执行回传ELF。"""
     receipt = directory / "generated/generation-receipt.json";expected = identity(receipt)["sha256"]
@@ -423,10 +429,10 @@ def verify_returned(run, runtime, source, directory, release, output, original_r
             "host_verifier_executed_returned_ELF": False}
 
 
-def execute_families(run, modules, runtime, sources, plan, report, scratch):
-    """两个family独立推进；任一失败保全原诊断且不阻断另一个，不制造失败receipt。"""
+def execute_families(run, modules, runtime, sources, plan, report, scratch, legacy_7_8_7_only=False):
+    """按固定选择执行原生成器；默认两family独立推进，补验只保全7.8.7，不制造receipt。"""
     local = scratch / "results";local.mkdir();rows = [];report["families"] = rows
-    for family, row in plan["families"].items():
+    for family, row in selected_families(plan, legacy_7_8_7_only).items():
         record = {"family": family, "release": row["release"], "result": "failed", "generator_verified": False, "original_results_retrieved": False, "original_results_preserved": False, "errors": []};rows.append(record)
         remote = REMOTE_RESULTS + "/" + family
         try:
@@ -459,14 +465,18 @@ def execute_families(run, modules, runtime, sources, plan, report, scratch):
             record.update(result="passed", generator_verified=True)
         log(family + " 结果=" + record["result"])
     report["families"] = rows
-    require(len(rows) == 2 and all(row["generator_verified"] is True for row in rows), "两原生成器未全部实际验证")
+    if legacy_7_8_7_only:
+        require(len(rows) == 1 and rows[0]["release"] == "7.8.7" and rows[0]["generator_verified"] is True, "7.8.7原legacy生成器未实际验证")
+    else:
+        require(len(rows) == 2 and all(row["generator_verified"] is True for row in rows), "两原生成器未全部实际验证")
 
 
 def execute(args, plan, output, report, verified, scratch):
     """同一无网C1 lifetime恢复H1并运行版本脚本；finally保留命令总表且关闭容器。"""
     docker = require_linux();modules, manifest, folder, lock, runtime = verified
     graphics = modules["materialize_graphics_inputs"];source_root = scratch / "sources";source_root.mkdir();sources = {}
-    for family in plan["families"]:
+    legacy_7_8_7_only = getattr(args, "legacy_7_8_7_only", False)
+    for family in selected_families(plan, legacy_7_8_7_only):
         source = source_root / family / "MetalANGLE"
         graphics.materialize_route(guarded(args.source_cache), source, lock, family);sources[family] = source
     container = output / "container";container.mkdir();run = modules["preflight_environment"].EnvironmentRun(modules["materialize_apt_inputs"], container, docker)
@@ -483,14 +493,19 @@ def execute(args, plan, output, report, verified, scratch):
             run.copy(source, target + "/MetalANGLE", "copy-complete-original-source-" + family)
         host = restore_host(run, modules, folder, runtime, plan);write_json(output / "actual-restored-H1.json", host)
         report["actual_H1_restored_and_probed"] = True
-        execute_families(run, modules, runtime, sources, plan, report, scratch)
+        execute_families(run, modules, runtime, sources, plan, report, scratch, legacy_7_8_7_only)
     finally:
         original_error_pending = sys.exc_info()[0] is not None
         try:run.close();report["container_closed"] = True
         except Exception as error:
             report["cleanup_error"] = {"kind": type(error).__name__, "message": str(error)}
             if not original_error_pending:raise
-    report.update(actual_linux_execution_verified=True, legacy_original_generator_verified=True, modern_original_generator_verified=True)
+    if legacy_7_8_7_only:
+        report.update(actual_linux_execution_verified=True, legacy_original_generator_verified=True,
+                      legacy_7_8_7_original_generator_verified=True, modern_original_generator_verified=False,
+                      two_original_families_verified=False, modern_execution_state="not_run_in_this_invocation")
+    else:
+        report.update(actual_linux_execution_verified=True, legacy_original_generator_verified=True, modern_original_generator_verified=True)
 
 
 def parser():
@@ -500,6 +515,7 @@ def parser():
     result.add_argument("--runtime-dir", type=Path, default=HERE);result.add_argument("--source-cache", type=Path, required=True)
     result.add_argument("--h1-artifact", type=Path, required=True);result.add_argument("--bundle", type=Path, required=True)
     result.add_argument("--output", type=Path, required=True);result.add_argument("--fetch-missing-sources", action="store_true")
+    result.add_argument("--legacy-7-8-7-only", action="store_true", help="仅run允许：单独补验固定7.8.7 legacy原生成器，不重复modern")
     return result
 
 
@@ -511,7 +527,12 @@ def main(argv=None):
               "legacy_original_generator_verified": False, "modern_original_generator_verified": False, "container_closed": False,
               "local_temporary_workspaces": "not_created",
               "SDK_inputs_consumed": False, "H0_or_pip_replayed": False, "Xcode_or_engine_or_B_make_executed": False, "R00_ready": False}
+    if args.legacy_7_8_7_only:
+        report.update(execution_scope="legacy_7_8_7_only", selected_routes=["7.8.7"],
+                      legacy_7_8_7_original_generator_verified=False, two_original_families_verified=False,
+                      modern_execution_state="not_run_in_this_invocation")
     try:
+        require(not args.legacy_7_8_7_only or args.command == "run", "7.8.7单独补验只允许run，不能标记输入预检为执行")
         output = guarded(args.output)
         require(not output.exists() and output.parent.is_dir(), "输出必须独占新目录")
         for path in (args.runtime_dir, args.source_cache, args.h1_artifact, args.bundle):
@@ -527,12 +548,15 @@ def main(argv=None):
             if report["local_temporary_workspaces"] == "created":
                 report["local_temporary_workspaces"] = "cleanup_failed" if any(output.glob(".j10-work-*")) else "removed"
         require(report["local_temporary_workspaces"] == "removed", "本轮临时物化尚未回收")
-        report["result"] = "two_original_generators_actually_verified_on_Linux" if args.command == "run" else "fixed_input_bytes_verified_only"
+        if args.command == "run" and args.legacy_7_8_7_only:
+            report["result"] = "legacy_7_8_7_original_generator_actually_verified_on_Linux"
+        else:
+            report["result"] = "two_original_generators_actually_verified_on_Linux" if args.command == "run" else "fixed_input_bytes_verified_only"
     except NotRun as error:report.update(result="not_run");report["errors"].append({"kind": "NotRun", "message": str(error)})
     except Exception as error:report["errors"].append({"kind": type(error).__name__, "message": str(error)})
     if created:write_json(output / "report.json", report)
     log("结果=" + report["result"])
-    return 3 if report["result"] == "not_run" else 0 if report["result"] in ("fixed_input_bytes_verified_only", "two_original_generators_actually_verified_on_Linux") else 1
+    return 3 if report["result"] == "not_run" else 0 if report["result"] in ("fixed_input_bytes_verified_only", "two_original_generators_actually_verified_on_Linux", "legacy_7_8_7_original_generator_actually_verified_on_Linux") else 1
 
 
 if __name__ == "__main__":
