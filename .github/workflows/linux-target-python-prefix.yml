@@ -87,9 +87,9 @@ jobs:
           if sys.version_info[:2] != (3,10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyPrefixCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_target_python_prefix.py': '759ed16de47fa688c91b68fdfc4e7e691df616ba28e3a21998fc799fcb765738',
-              'tools/linux-target-python-prefix-ci-plan.json': 'e3db9508a80123722a4705ee56055bfc00092af5522a4ac3c0fc49e7b4a6fc4e',
-              'tools/run_locked_target_python_tasks.py': 'c027ff891e094eed3cc7d06eae610631ab07e6653b3be9c358acd76806a3fb6d',
+              'tools/ci_linux_target_python_prefix.py': '43daa607684ad1bd6f68b3923e6ea03b3838668f81865a6b2c1be8e3b36c9033',
+              'tools/linux-target-python-prefix-ci-plan.json': '097c502d2c7a30ac1e3db442728bab5f10e665dc8cbd73ec57956a9c243b5342',
+              'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a',
               'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4',
               'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb',
               'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824',
@@ -120,7 +120,7 @@ jobs:
                   raise SystemExit('[RenPyPrefixCI] B必须明确选择批准的历史单版sim-arm64')
           addons = {
               'c-prerequisites': ('j9-c-prefix-runtime-addon-20261102-03.tar.gz',73548,'1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f'),
-              'target-install': ('j9-target-python-runtime-addon-20261103-05.tar.gz',98789,'8230de1be890d706b2216b5bc119be85dda7a2abe4229f555a75ae6b7acceadf'),
+              'target-install': ('j9-target-python-runtime-addon-20261103-06.tar.gz',102948,'da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80'),
           }
           addon_name, addon_bytes, addon_sha = addons[phase]
           with open(os.environ['GITHUB_ENV'],'a') as stream:

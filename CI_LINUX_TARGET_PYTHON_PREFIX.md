@@ -2,7 +2,7 @@
 
 此工作流通过显式 phase 选择 R00-02J9 的原始 C 前置任务或目标 Python 安装。默认 c-prerequisites 保持原 C 路线；历史运行 41471558503 和现代运行 41470949898 的四版×三个架构已由主项目独立验收。target-install 当前只允许 Ubuntu22.04 的 7.8.7 或 8.3.7／sim-arm64，必须明确单版和架构；首轮试跑选择 7.8.7。B 每次在同一个全新 C1 worker 中重新实际执行原 C 与原 Python Task，不导入外部 C 前缀或预填完成状态。B 候选尚待真实 CI 验证；任何工具回归均不代表目标安装、pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
 
-编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。C 默认 profile 使用上述增量03。B 当前 profile 的七件来自提交 `4e701cde9fc10169e5f50d34727209cae14b9c16`，总原字节452202；归档 `j9-target-python-runtime-addon-20261103-05.tar.gz` 为98789字节，SHA256 `8230de1be890d706b2216b5bc119be85dda7a2abe4229f555a75ae6b7acceadf`。各profile固定自己的worker/plan身份，不能互换。历史B增量04来自63dde6，95387字节/SHA256 `1bdda8d22ab4630586a6c6866638557b71d3e371d8d136993c1224939123a565`，保留原身份。B 完整43件元数据根的18来源、9个scope和3份CPython原tar已通过fresh校验，归档发布状态以主项目证据为准。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
+编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。C 默认 profile 使用上述增量03。B 当前 profile 的七件来自提交 `6d6172ec386bfcd6d97f9a3f08f31220edb2907c`，总原字节469104；归档 `j9-target-python-runtime-addon-20261103-06.tar.gz` 为102948字节，SHA256 `da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80`。历史05来自4e701cd，为98789字节/SHA256 `8230de1be890d706b2216b5bc119be85dda7a2abe4229f555a75ae6b7acceadf`，保持原身份。各profile固定自己的worker/plan身份，不能互换。历史B增量04来自63dde6，95387字节/SHA256 `1bdda8d22ab4630586a6c6866638557b71d3e371d8d136993c1224939123a565`，保留原身份。B 完整43件元数据根的18来源、9个scope和3份CPython原tar已通过fresh校验，归档发布状态以主项目证据为准。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
 
 SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后核明文大小/SHA及既有 SHA 秘密。AES256CBC/PBKDF2-SHA256/200000/salt8 的密码只通过宿主 stdin，不放 argv 或子进程环境。SDK 与 H0 密码不会发送到构建容器。所有实际 C 任务在固定 C1 同一容器内执行，容器无网络、无宿主挂载、非 privileged；保留原 unshare 的受控 capability 设置。
 
@@ -36,4 +36,9 @@ B 失败或SIGTERM取消只生成明确标注diagnostic_only的有限私有快�
 
 增量04的两次真实首轮分别为CP27 run41560284924、CP39 run41560729164，均在原make链接解释器时缺MetalANGLE搜索路径而失败；完整原ZIP/CMS已由主项目认证取回并独立审查，未计目标安装通过。新B窄修复只在原build_ios的固定configure入口，逐原Makefile.pre.in/注解/Task和实际已安装框架验真后，对8.4.1/8.3.7/7.8.7的LDFLAGS追加一次精确-F当前install路径；8.5.3原本已有，保持不加。C32函数/计划、原Task模板、SDK及标准不变。
 
-新worker主审39项无skip、CI配套主审28项无skip及完整43根fresh输入校验通过。target-framework-link-binding.json独立绑定原make日志、实际Makefile、展开投影与真实解释器链接argv；CP3原规则的两次LD展开保留。静态reader重取原日志argv并复核原Makefile.pre.in/sidecar/收据SHA，篡改或自签矛盾不能通过。05工具验证仍不计实际Linux目标安装，新CI必须另跑、完整取回验收；04历史失败不改写。
+05阶段worker主审39项无skip、CI配套主审28项无skip及完整43根fresh输入校验通过。target-framework-link-binding.json独立绑定原make日志、实际Makefile、展开投影与真实解释器链接argv；CP3原规则的两次LD展开保留。静态reader重取原日志argv并复核原Makefile.pre.in/sidecar/收据SHA，篡改或自签矛盾不能通过。05工具验证仍不计实际Linux目标安装，新CI必须另跑、完整取回验收；04历史失败不改写。
+
+
+05的CP27 run41564816073和CP39 run41564819755均已完成原make、make install及host复制，新-F闭合已核；完整B后验被原C通用ar唯一成员规则拒绝。原CP27/CP39库分别176/210 occurrences，同名重复与实际LIBRARY_OBJS顺序相同且同字节；旧快照没有全部原build.o，不补称完整布局通过。
+
+06仅对两处原libpython安装路径使用B专属保留occurrence解析，纯展开原Makefile/template/实际GNUmake投影，按原相对.o路径逐个比较实际源对象完整bytes/SHA和MachO CPU/平台/min；同名异字节、顺序/次数/源对象缺失均拒绝，C32及原C唯一规则不变。新增layout/source_objects两份sidecar及receipt SHA；原build.o按明确list只放私有PAX proof，经原CMS运输，绝不进入公开七文本输入包。失败也仅按已写投影和原模板列出现存普通.o，缺或不符如实missing/rejected，不扫描SDK/build/host整树。主审41项/CI31项无skip及完整43根fresh仅是工具/输入验证，完整B成功仍须新CI，旧失败不重标。
