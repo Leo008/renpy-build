@@ -2,6 +2,12 @@ name: RenPy fixed Linux original graphics metadata
 
 'on':
   workflow_dispatch:
+    inputs:
+      legacy_7_8_7_only:
+        description: 仅补验固定7.8.7 legacy；不运行modern，不代表两family本轮通过
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -20,7 +26,9 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       PYTHONDONTWRITEBYTECODE: '1'
-      REKO_SOURCE_COMMIT: 7680e8f18019fd2ad6868ef7b72f888958173c45
+      LEGACY_7_8_7_ONLY: ${{ inputs.legacy_7_8_7_only && 'true' || 'false' }}
+      REKO_SOURCE_COMMIT: 4cca88547ccb3bf15b4ee5f15b8037daeec89ff9
+      REKO_RUNTIME_SOURCE_COMMIT: 7680e8f18019fd2ad6868ef7b72f888958173c45
       RUNTIME_NAME: j10-graphics-metadata-runtime-20261103-01.tar.gz
       RUNTIME_BYTES: '1029731'
       RUNTIME_SHA256: b9895611b60bf08dcfa9c7082db9a3495d03087b26e858712cd7a6491b6a7852
@@ -42,7 +50,7 @@ jobs:
           import hashlib, json, os, platform, shutil, sys
           from pathlib import Path
           if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPyGraphicsCI] 需要真实Linux amd64 Python3.10')
-          expected={'tools/ci_linux_graphics_metadata.py':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88','tools/linux-graphics-metadata-ci-plan.json':'a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf','tools/j9-diagnostics-recipient.pem':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8'}
+          expected={'tools/ci_linux_graphics_metadata.py':'d7a8d57c6aa28d54d075bdadf9987cb669528b435e0beb666d9c0be7ef17af43','tools/linux-graphics-metadata-ci-plan.json':'5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533','tools/j9-diagnostics-recipient.pem':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8'}
           for name,sha in expected.items():
               p=Path(name)
               if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPyGraphicsCI] 部署原件不同：'+name)
@@ -152,17 +160,20 @@ jobs:
                   path.chmod(0o644)
                   if identity(path)!={k:catalog[item.name][k] for k in ('bytes','sha256')}:raise RuntimeError('运行时成员原SHA不同')
           if seen!=set(catalog):raise RuntimeError('13运行时原件缺件')
-          (private/'input-transport.json').write_text(json.dumps({'source_commit':os.environ['REKO_SOURCE_COMMIT'],'runtime_asset_id':704686340,'runtime_release_id':406525604,'runtime_archive':identity(inputs/runtime_name),'runtime_members':13,'H1_archive':identity(inputs/'H1-original.zip'),'SDK_inputs_consumed':False,'repository_decryption_secrets_used':False},indent=2)+'\n')
+          (private/'input-transport.json').write_text(json.dumps({'control_source_commit':os.environ['REKO_SOURCE_COMMIT'],'runtime_source_commit':os.environ['REKO_RUNTIME_SOURCE_COMMIT'],'runtime_asset_id':704686340,'runtime_release_id':406525604,'runtime_archive':identity(inputs/runtime_name),'runtime_members':13,'H1_archive':identity(inputs/'H1-original.zip'),'SDK_inputs_consumed':False,'repository_decryption_secrets_used':False},indent=2)+'\n')
           print('[RenPyGraphicsCI] 真实Release/API身份、H1完整ZIP和13文本成员SHA全部通过',flush=True)
           PYCODE
-      - name: 同一C1执行两份原生成器并只写私有日志
+      - name: 同一C1执行固定选择的原生成器并只写私有日志
         shell: bash
         run: |
           private="$RUNNER_TEMP/reko-j10-evidence/private-diagnostics"
           mkdir -p "$private"
           chmod 700 "$private"
+          selected_mode=()
+          if [[ "$LEGACY_7_8_7_ONLY" == true ]]; then selected_mode=(--legacy-7-8-7-only); fi
           set +e
           /usr/bin/python3.10 -B tools/ci_linux_graphics_metadata.py run \
+            "${selected_mode[@]}" \
             --runtime-dir "$RUNNER_TEMP/reko-j10-inputs/runtime" \
             --source-cache "$RUNNER_TEMP/reko-j10-inputs/source-cache" \
             --fetch-missing-sources \
@@ -191,21 +202,28 @@ jobs:
           path=evidence/'private-diagnostics/worker/report.json';driver=evidence/'private-diagnostics/driver-status.json'
           report=json.loads(path.read_bytes()) if path.is_file() and not path.is_symlink() else {}
           status=json.loads(driver.read_bytes()) if driver.is_file() and not driver.is_symlink() else {}
-          allowed_results={'two_original_generators_actually_verified_on_Linux','fixed_input_bytes_verified_only','failed','not_run'}
+          only=os.environ['LEGACY_7_8_7_ONLY']=='true'
+          allowed_results={'two_original_generators_actually_verified_on_Linux','legacy_7_8_7_original_generator_actually_verified_on_Linux','fixed_input_bytes_verified_only','failed','not_run'}
           if report and report.get('result') not in allowed_results:raise RuntimeError('未知worker结果，不公开原正文')
-          wanted={'metalangle-legacy':'8.3.7','metalangle-modern':'8.5.3'};families=[]
+          wanted={'metalangle-legacy':'7.8.7'} if only else {'metalangle-legacy':'8.3.7','metalangle-modern':'8.5.3'};families=[]
           for row in report.get('families',[]):
               if row.get('family') not in wanted or row.get('release')!=wanted[row['family']]:raise RuntimeError('未知返回family')
               families.append({key:row[key] for key in ('family','release','result','generator_verified','original_results_preserved')})
           scope_flags=('SDK_inputs_consumed','H0_or_pip_replayed','Xcode_or_engine_or_B_make_executed','R00_ready')
+          expected_result='legacy_7_8_7_original_generator_actually_verified_on_Linux' if only else 'two_original_generators_actually_verified_on_Linux'
+          selection_verified=(report.get('execution_scope')=='legacy_7_8_7_only' and report.get('selected_routes')==['7.8.7']
+                              and report.get('legacy_7_8_7_original_generator_verified') is True
+                              and report.get('two_original_families_verified') is False
+                              and report.get('modern_original_generator_verified') is False
+                              and report.get('modern_execution_state')=='not_run_in_this_invocation') if only else report.get('modern_original_generator_verified') is True
           verified=(type(status.get('returncode')) is int and status['returncode']==0 and status.get('Linux_generator_driver_actually_invoked') is True
                     and report.get('task')=='R00-02J10G-Linux'
-                    and report.get('plan_sha256')=='a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf'
-                    and report.get('execution_tool')=={'bytes':35594,'sha256':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88'}
-                    and report.get('result')=='two_original_generators_actually_verified_on_Linux'
-                    and all(report.get(key) is True for key in ('inputs_verified','actual_linux_execution_verified','actual_H1_restored_and_probed','legacy_original_generator_verified','modern_original_generator_verified','container_closed'))
+                    and report.get('plan_sha256')=='5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533'
+                    and report.get('execution_tool')=={'bytes':37554,'sha256':'d7a8d57c6aa28d54d075bdadf9987cb669528b435e0beb666d9c0be7ef17af43'}
+                    and report.get('result')==expected_result and selection_verified
+                    and all(report.get(key) is True for key in ('inputs_verified','actual_linux_execution_verified','actual_H1_restored_and_probed','legacy_original_generator_verified','container_closed'))
                     and all(report.get(key) is False for key in scope_flags)
-                    and report.get('local_temporary_workspaces')=='removed' and len(families)==2
+                    and report.get('local_temporary_workspaces')=='removed' and len(families)==len(wanted)
                     and {row['family'] for row in families}==set(wanted)
                     and all(row['result']=='passed' and row['generator_verified'] is True and row['original_results_preserved'] is True for row in families))
           if any(report.get(key,False) is not False for key in ('SDK_inputs_consumed','H0_or_pip_replayed','Xcode_or_engine_or_B_make_executed','R00_ready')):raise RuntimeError('worker越过固定J10G范围')
@@ -217,11 +235,14 @@ jobs:
               return value if type(value) is int and value>=0 else None
           storage={'estimated_work_bytes':8*1024**3,'reserve_bytes':2*1024**3,'minimum_entry_free_bytes':10*1024**3,
                    'before_free_bytes':storage_free('storage-before.json'),'after_driver_free_bytes':storage_free('storage-after-driver.json'),'peak_measured':False}
-          summary={'task':'R00-02J10G-Linux','source_commit':os.environ['REKO_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
-                   'execution_tool_sha256':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88',
-                   'plan_sha256':'a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf',
+          summary={'task':'R00-02J10G-Linux','source_commit':os.environ['REKO_SOURCE_COMMIT'],'runtime_source_commit':os.environ['REKO_RUNTIME_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
+                   'execution_tool_sha256':'d7a8d57c6aa28d54d075bdadf9987cb669528b435e0beb666d9c0be7ef17af43',
+                   'plan_sha256':'5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533',
                    'runtime_asset_id':704686340,'runtime_bytes':1029731,'runtime_sha256':os.environ['RUNTIME_SHA256'],'remote_storage':storage,
                    'result':report.get('result','failed_before_worker_report'),'families':families,'actual_linux_execution_verified':verified,
+                   'execution_scope':'legacy_7_8_7_only' if only else 'two_original_families',
+                   'selected_routes':list(wanted.values()),'legacy_7_8_7_original_generator_verified':verified and only,
+                   'two_original_families_verified':verified and not only,'modern_original_generator_verified':verified and not only,
                    'ROOT_independent_acceptance_completed':False,'SDK_inputs_consumed':False,'H0_or_pip_replayed':False,
                    'Xcode_or_engine_or_B_make_executed':False,'R00_ready':False,'plaintext_uploaded':False}
           (evidence/'public-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
@@ -240,7 +261,7 @@ jobs:
           if summary.is_file() and not summary.is_symlink():
               shutil.copyfile(summary,public/'public-summary.json')
               report=json.loads(summary.read_bytes())
-              print('[RenPyGraphicsCI] 实际结果='+str(report['result'])+'；两family='+json.dumps(report['families'],ensure_ascii=False),flush=True)
+              print('[RenPyGraphicsCI] 实际结果='+str(report['result'])+'；所选family='+json.dumps(report['families'],ensure_ascii=False),flush=True)
           else:
               (public/'workflow-status.json').write_text(json.dumps({'actual_linux_execution_verified':False,'result':'failed_before_worker_summary','job_status':'${{ job.status }}'},ensure_ascii=False,indent=2)+'\n')
           if not private.exists():

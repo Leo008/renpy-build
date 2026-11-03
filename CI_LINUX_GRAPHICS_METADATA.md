@@ -1,15 +1,17 @@
 # 固定 Linux 原图形版本头生成 CI
 
-本工作流仅完成 R00-02J10G：固定 Ubuntu 22.04/C1 环境中恢复完整 H1 CP27 分发，然后分别执行 legacy 原 Python2 生成器和 modern 原 Bash 生成器；两端验证唯一 `commit.h` 及完整派生树。它不执行图形库、引擎或目标 Python 构建，也不关闭 R00 输入总闭包、G1/G2 或产品会话。
+本工作流仅完成 R00-02J10G：默认在固定 Ubuntu 22.04/C1 环境中恢复完整 H1 CP27 分发，然后分别执行 legacy 原 Python2 生成器和 modern 原 Bash 生成器；两端验证唯一 `commit.h` 及完整派生树。它不执行图形库、引擎或目标 Python 构建，也不关闭 R00 输入总闭包、G1/G2 或产品会话。
+
+新增 `legacy_7_8_7_only` 布尔调度选项，默认 `false` 保留原 8.3.7 legacy 加 8.5.3 modern 两 family 流程。选择 `true` 只单独执行固定 7.8.7 legacy 原生成器，仍经过容器 verify、完整有界回传归档和宿主 verify；modern 本轮不执行，不能据共享 family 计入 7.8.7 或把补验记为两 family 通过。新控制器为 37554 B/SHA `d7a8d57c6aa28d54d075bdadf9987cb669528b435e0beb666d9c0be7ef17af43`，新控制计划为 6639 B/SHA `5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533`；实际 Linux 控制器/测试/计划源码提交为 `4cca88547ccb3bf15b4ee5f15b8037daeec89ff9`；主代理唯一有效套件 30 项无 skip 通过，作者未重复测试。原 26 项测试 AST 不变，新增 4 项只检验固定模式的输入/argv/失败/未运行边界；工具回归不代表 7.8.7 Linux 实跑通过。
 
 ## 来源与部署原件
 
-Reko 原件来源提交为 `7680e8f18019fd2ad6868ef7b72f888958173c45`。部署时只将两件原件改名/放到明确位置，字节不改：
+新 Linux 控制器和计划来源提交为 `4cca88547ccb3bf15b4ee5f15b8037daeec89ff9`；13 件运行时来源仍为 `7680e8f18019fd2ad6868ef7b72f888958173c45`。部署时只将下列两件新控制原件改名/放到明确位置，字节不改：
 
 | Reko 原路径 | fork 路径 | 完整 SHA-256 |
 |---|---|---|
-| `scripts/renpy/run_linux_graphics_metadata.py` | `tools/ci_linux_graphics_metadata.py` | `8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88` |
-| `scripts/renpy/linux-graphics-metadata-ci-plan.json` | `tools/linux-graphics-metadata-ci-plan.json` | `a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf` |
+| `scripts/renpy/run_linux_graphics_metadata.py` | `tools/ci_linux_graphics_metadata.py` | `d7a8d57c6aa28d54d075bdadf9987cb669528b435e0beb666d9c0be7ef17af43` |
+| `scripts/renpy/linux-graphics-metadata-ci-plan.json` | `tools/linux-graphics-metadata-ci-plan.json` | `5575f006a2ddb35c66da0c3d114c933aa1aec2672f7b54bd6d2883b1b86da533` |
 
 本工具的 13 份运行时文本原件逐项身份固定在 companion plan 中，与旧 J9 的 43 份目录隔离。运输包仅允许这 13 个 flat 普通文件，mode0644，无目录/链接/附加文件；包的实际 Release asset 身份须与工作流冻结值一致，随后逐成员核对大小和 SHA。不得给尚未生成的包填写猜测名称、摘要或提交号。
 
@@ -34,12 +36,14 @@ CI 远端独立使用 **8 GiB 工作空间估算 + 2 GiB 余量 = 10 GiB 入口�
 
 ## 调度与结果
 
-工作流仅手动运行一个固定 job，同时处理两个 family，不提供任意 SDK、命令回调、版本或输入 URL 选项。主代理需先核查最终 workflow/fork commit、13 文本输入包实际身份和公开范围，再调度；此候选说明不表示workflow已部署、注册或实跑。
+工作流仅手动运行一个固定 job；布尔选项默认处理原两个 family，选择 true 仅固定 7.8.7 legacy。该选项不提供任意 SDK、命令回调、版本或输入 URL。主代理需先核查最终 workflow/fork commit、13 文本输入包实际身份和公开范围，再调度；此候选说明不表示workflow已部署、注册或实跑。
 
-首次部署保留仅匹配本workflow文件的`push`入口注册工作流，而job明确仅`workflow_dispatch`才执行；ROOT确认注册后再以单文件原子提交移除`push`入口。注册push与移除push均不执行生成器，不能把注册状态当作CI通过。
+既有工作流已通过限定 push 完成注册并移除该入口；本次补验更新不重新增加 push。作业仍限定 `workflow_dispatch` 且仓库为 `Leo008/renpy-build`，不会因部署提交自动执行生成器。
 
 公开产物严格仅含摘要、无害 CMS 自检记录、密文和身份清单。完整返回树、原始日志及诊断只进入既有 CMS AuthEnvelopedData 封套：AES-256-GCM、RSA3072 OAEP-SHA256/MGF1-SHA256，固定旧公证书 SHA `db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8`；私钥只保留在本机，不上传 CI。
 
 CI 先用无害字节真实测试 CMS 加密/解密和篡改拒绝，再仅持原公证书封装真实结果。加密失败则任务失败，不输出明文替代。完整密文与身份检查通过后才清理 runner 私有证据；失败仍保留明确不可取回状态，不伪造 generator 或 R00 通过。
 
 取回时按 GitHub API 的真实 artifact 大小与 digest 估算 ZIP、CMS、认证解密和读取器峰值，通过本机空间门禁后再下载，复用已有完整 ZIP；不保留分块或第二份整树。主代理必须核真实 run/jobs/attempt、原部署和包身份，认证解密、逐成员重核完整结果、读取原命令/收据及完整树证明后才计入 J10G 验收。`CI success` 或输入预检通过均不替代这一步。
+
+公开摘要依据显式请求分别核固定结果、单/双 family 集合及真实返回证据。补验成功只将 `legacy_7_8_7_original_generator_verified` 置 true，`two_original_families_verified` 和 `modern_original_generator_verified` 必须 false；worker 必须记录 `modern_execution_state=not_run_in_this_invocation`。默认模式仍要求原 8.3.7/8.5.3 两条实际结果全部通过。`actual_linux_execution_verified` 只描述本轮明确选择，ROOT 独立验收仍单列待核。13件运行时的原源码提交继续标记为 `runtime_source_commit=7680e8f18019fd2ad6868ef7b72f888958173c45`，不把旧运行时来源当作新控制器来源。历史 run `41597801530` 和其原部署、摘要、CMS、结果证明保持原身份。
