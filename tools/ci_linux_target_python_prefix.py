@@ -23,7 +23,7 @@ import types
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-target-python-prefix-ci-plan.json"
-PLAN_SHA256 = "e3db9508a80123722a4705ee56055bfc00092af5522a4ac3c0fc49e7b4a6fc4e"
+PLAN_SHA256 = "097c502d2c7a30ac1e3db442728bab5f10e665dc8cbd73ec57956a9c243b5342"
 GROUPS = {"22.04": ["8.3.7", "7.8.7"], "24.04": ["8.5.3", "8.4.1"]}
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
 REMOTE_ROOT = "/reko/j9-runtime/root"
@@ -241,7 +241,7 @@ TARGET_SIDECARS = (
     "target-libpython-symbols.json", "target-libpython-nm.stdout", "target-make-projection.json", "target-python-commands.json",
     "target-install-events.jsonl", "target-source-after-patches.json", "target-scproxy-generation.json", "target-implicit-ensurepip.json",
     "target-host-before.json", "target-host-after.json", "target-host-delta.json", "c-prefix-receipt.json", "c-prefix-inventory.json",
-    "c-archive-objects.json", "c-headers-and-sources.json")
+    "c-archive-objects.json", "c-headers-and-sources.json", "target-libpython-layout.json", "target-libpython-source-objects.json")
 
 TARGET_BUILD_RECEIPT = r'''import shlex
 def verify_cp39_build_context():
@@ -324,10 +324,12 @@ build,_=m.expected_paths(workspace,row,arch,spec['tasks'][0]);python_root=build/
 args=type('ExportArgs',(),{'workspace':workspace,'arch':arch})()
 c_inventory=m.checked_json(folder/'c-prefix-inventory.json',c['inventory_sha256'])
 products=m.verify_target_prefix(args,plan,row,spec,python_root,projection,c_inventory,inventory,native)
-for filename,key in [('target-prefix-inventory.json','inventory_sha256'),('target-stdlib-sources.json','stdlib_sources_sha256'),('target-native-products.json','native_products_sha256'),('target-libpython-symbols.json','static_module_symbols_sha256')]:
+for filename,key in [('target-prefix-inventory.json','inventory_sha256'),('target-stdlib-sources.json','stdlib_sources_sha256'),('target-native-products.json','native_products_sha256'),('target-libpython-symbols.json','static_module_symbols_sha256'),('target-libpython-layout.json','libpython_layout_sha256'),('target-libpython-source-objects.json','libpython_source_objects_sha256')]:
  assert pax_identity(folder/filename)['sha256']==receipt[key]
 assert products['inventory']==m.decode(m.raw_file(folder/'target-prefix-inventory.json')) and products['stdlib']==m.decode(m.raw_file(folder/'target-stdlib-sources.json'))
 assert {k:products[k] for k in ('archives','binaries','native_bridge','target_sysconfig')}==m.decode(m.raw_file(folder/'target-native-products.json'))
+assert products['libpython_layout']==m.decode(m.raw_file(folder/'target-libpython-layout.json'))
+assert products['libpython_layout']['source_objects']==m.decode(m.raw_file(folder/'target-libpython-source-objects.json'))
 symbols=m.validate_target_symbols(m.raw_file(folder/'target-libpython-nm.stdout'),row);assert symbols==m.decode(m.raw_file(folder/'target-libpython-symbols.json'))
 library=python_root/('libpython'+'.'.join(row['version'].split('.')[:2])+'.a');major='18' if release in ('8.5.3','8.4.1') else '15'
 nm_raw=native.command(['/usr/bin/llvm-nm-'+major,'-g','--defined-only',library]);nm=m.validate_target_symbols(nm_raw,row)
@@ -340,6 +342,10 @@ archive_id=pax_write(prefix,products['inventory'],archive)
 build_dir=m.raw_file(python_root/'pybuilddir.txt',4096).decode().strip();assert build_dir and not build_dir.startswith('/') and '..' not in build_dir.split('/')
 config_name='_sysconfigdata.py' if row['python']=='2' else '_sysconfigdata__'+projection['MACHDEP']+'_'+projection['MULTIARCH']+'.py'
 required={'LICENSE','Include/Python.h','Modules/_scproxy.c','pyconfig.h','pybuilddir.txt','Makefile','config.site',build_dir+'/'+config_name,library.name}
+# 每个原build对象只运输一次；下面侧文件保留所有重复occurrence/顺序，绝不从归档反推伪造原.o。
+layout_source=plan['target_install']['libpython_layout']['routes'][release];template=layout_source['makefile_template']
+object_paths=m.parse_libpython_object_paths(m.raw_file(python_root/'Makefile'),m.raw_file(python_root/template['path']),projection,layout_source)
+required.add(template['path']);required.update(object_paths)
 if spec.get('build_context_candidate'):
  required.update(spec['build_context_candidate'][key]['path'] for key in ('configure_ac','makefile_template'))
 directories=projection['LIBSUBDIRS'].split()+(projection['TESTSUBDIRS'].split() if projection['TEST_MODULES']=='yes' else [])
@@ -398,7 +404,8 @@ spec=next(r for r in plan['target_install']['routes'] if r['release']==release)
 required_files={'target-install-receipt.json','target-prefix-inventory.json','target-stdlib-sources.json','target-native-products.json','target-libpython-symbols.json',
  'target-libpython-nm.stdout','target-make-projection.json','target-python-commands.json','target-install-events.jsonl','target-source-after-patches.json',
  'target-scproxy-generation.json','target-implicit-ensurepip.json','target-host-before.json','target-host-after.json','target-host-delta.json',
- 'c-prefix-receipt.json','c-prefix-inventory.json','c-archive-objects.json','c-headers-and-sources.json','target-proof-inventory.json','target-export-nm.stdout'}
+ 'c-prefix-receipt.json','c-prefix-inventory.json','c-archive-objects.json','c-headers-and-sources.json','target-proof-inventory.json','target-export-nm.stdout',
+ 'target-libpython-layout.json','target-libpython-source-objects.json'}
 if release in plan['target_install']['framework_link_candidate']['releases']:required_files.add('target-framework-link-binding.json')
 assert required_files<=set(export['files']) and all(name in required_files or re.fullmatch(r'target-python-command-[0-9]{3}\.log',name) for name in export['files'])
 for name,identity in export['files'].items():assert '/' not in name and name not in ('.','..') and pax_identity(folder/name)==identity
@@ -418,7 +425,7 @@ original_build,_=m.expected_paths(original_prefix.parent.parent,row,arch,spec['t
 assert receipt['C_receipt']['path']==str(pathlib.Path('/reko/j9-results')/release/arch/'c-prefix-receipt.json')
 assert projection['prefix']==str(original_prefix) and projection['VERSION']=='.'.join(row['version'].split('.')[:2]) and projection['ABIFLAGS']==''
 assert projection['ENSUREPIP']==m.effective_make_ensurepip(spec) and receipt['original_CP39_cross_wrapper_modified'] is False
-for filename,key in [('target-prefix-inventory.json','inventory_sha256'),('target-stdlib-sources.json','stdlib_sources_sha256'),('target-native-products.json','native_products_sha256'),('target-libpython-symbols.json','static_module_symbols_sha256')]:assert pax_identity(folder/filename)['sha256']==receipt[key]
+for filename,key in [('target-prefix-inventory.json','inventory_sha256'),('target-stdlib-sources.json','stdlib_sources_sha256'),('target-native-products.json','native_products_sha256'),('target-libpython-symbols.json','static_module_symbols_sha256'),('target-libpython-layout.json','libpython_layout_sha256'),('target-libpython-source-objects.json','libpython_source_objects_sha256')]:assert pax_identity(folder/filename)['sha256']==receipt[key]
 entries=m.decode(m.raw_file(folder/'target-prefix-inventory.json'));proof=m.decode(m.raw_file(folder/'target-proof-inventory.json'))
 assert len(entries)==export['member_count'] and len(proof)==export['proof_member_count']
 c_inventory=m.checked_json(folder/'c-prefix-inventory.json',c['inventory_sha256'])
@@ -466,6 +473,14 @@ try:
  config=m.raw_file(python_root/'pyconfig.h').decode();assert re.search(r'^#define SIZEOF_VOID_P 8$',config,re.M) and re.search(r'^#define SIZEOF_LONG 8$',config,re.M) and not re.search(r'^#define WORDS_BIGENDIAN(?:\s+1)?$',config,re.M)
  library_name='libpython'+minor+'.a';library_raw=m.raw_file(prefix/'lib'/library_name,1024**3)
  assert projection['LIBRARY']==library_name and library_raw==m.raw_file(python_root/library_name,1024**3)
+ # 只从已回取的原build相对.o读取证明；旧诊断若缺.o即失败，不用archive成员回填source。
+ layout_source=plan['target_install']['libpython_layout']['routes'][release];template=layout_source['makefile_template']
+ object_paths=m.parse_libpython_object_paths(m.raw_file(python_root/'Makefile'),m.raw_file(python_root/template['path']),projection,layout_source)
+ source_objects={name:m.raw_file(python_root/name) for name in set(object_paths)}
+ libpython_layout=m.check_libpython_layout(library_raw,m.raw_file(python_root/'Makefile'),m.raw_file(python_root/template['path']),projection,source_objects,row,arch,plan)
+ copy_paths=m.libpython_install_paths(original_prefix,row,projection);seen_copies=set()
+ assert {**libpython_layout,'installed_copy_paths':copy_paths}==m.decode(m.raw_file(folder/'target-libpython-layout.json'))
+ assert libpython_layout['source_objects']==m.decode(m.raw_file(folder/'target-libpython-source-objects.json'))
  archives=[];binaries=[];bridges=[];bridge='bin/hostpython'+row['python'];bridge_sha=plan['host_producers'][release]['interpreter_sha256']
  for record in entries:
   if record['type']!='file' or record['path'].startswith('MetalANGLE.framework/'):continue
@@ -475,13 +490,16 @@ try:
    assert record['path']==bridge and record['sha256']==bridge_sha and path.stat().st_mode&0o111
    bridges.append({**record,'elf':native.elf_identity(m.raw_file(path))})
   elif magic==b'!<arch>\n':
-   objects=[{'name':name,'bytes':len(body),'sha256':m.sha(body),**m.target_macho(body,arch)} for name,body in m.ar_members(m.raw_file(path,1024**3))]
+   if record['path'] in copy_paths:
+    assert m.raw_file(path,1024**3)==library_raw;objects=libpython_layout['objects'];seen_copies.add(record['path'])
+   else:
+    assert record['path'] in {r['path'] for r in c_inventory}
+    objects=[{'name':name,'bytes':len(body),'sha256':m.sha(body),**m.target_macho(body,arch)} for name,body in m.ar_members(m.raw_file(path,1024**3))]
    assert all(x['file_type']==1 for x in objects)
-   if record['path'] not in {r['path'] for r in c_inventory}:assert path.name==library_name and record['sha256']==m.sha(library_raw)
    archives.append({'path':record['path'],'bytes':record['bytes'],'sha256':record['sha256'],'objects':objects})
   elif magic[:4]==b'\xcf\xfa\xed\xfe':binaries.append({**record,**m.target_macho(m.raw_file(path),arch)})
   elif path.suffix in ('.so','.dylib','.a','.o'):raise ValueError('unverified target native file')
- assert len(bridges)==1 and any(a['path']=='lib/'+library_name for a in archives)
+ assert len(bridges)==1 and seen_copies==set(copy_paths)
  native_products={'archives':archives,'binaries':binaries,'native_bridge':bridges[0],
   'target_sysconfig':{'path':str(original_prefix/'lib'/('python'+minor)/config_name),'sha256':m.sha(config_raw),
   'source':str(original_python/build_dir/config_name),'target_variables':target_variables}}
@@ -528,6 +546,8 @@ try:
  assert pax_identity(workspace/framework['path'])=={'bytes':framework['size'],'sha256':framework['sha256']};m.verify_framework(workspace/framework['path'],prefix,arch,inventory)
  result={'release':release,'arch':arch,'target_python_install_verified':True,'full_inventory_members':len(entries),'stdlib_sources':len(stdlib_records),
   'MachO_archive_objects':sum(len(a['objects']) for a in archives),'hostcopy_verified':True,'original_framework_verified':True,'container_nm_reexecuted':True,
+  'libpython_build_object_occurrences':libpython_layout['object_count'],'libpython_unique_member_names':libpython_layout['unique_member_names'],
+  'libpython_duplicate_counts':libpython_layout['duplicate_counts'],'libpython_each_original_object_occurrence_verified':True,
   'host_nm_recomputed':host_nm,'CP39_build_context_candidate_verified':cp39_candidate_verified,
   'B_framework_link_argument_binding_verified':framework_binding_verified,
   'stdlib_changed_since_post_patch_snapshot':stdlib_changes,'returned_binary_executed_on_host':False,'target_pip_bound':False,'ios_runtime_verified':False}
@@ -544,7 +564,7 @@ m=types.ModuleType('reko_j9_B_failed_snapshot');m.__file__=str(p);exec(compile(r
 plan=m.load_plan();inventory,*_=m.helpers(plan);row=next(r for r in plan['routes'] if r['release']==release);spec=next(r for r in plan['target_install']['routes'] if r['release']==release)
 workspace=pathlib.Path('/reko/j9-workspaces')/release/arch;build,_=m.expected_paths(workspace,row,arch,spec['tasks'][0]);python_root=build/spec['archive']['root']
 target=pathlib.Path('/reko/j9-failed-snapshots')/release/arch;target.mkdir(parents=True);stage=target/'staged-regular-diagnostic';stage.mkdir(mode=0o700)
-missing=[];links=[];rejected=[]
+missing=[];links=[];rejected=[];diagnostic_object_paths=None
 def capture(source,relative):
  """诊断只复制受控普通原件；链接仅登记原文，绝不跟随或物化到诊断tar。"""
  if relative.startswith('/') or chr(92) in relative or chr(0) in relative or any(p in ('','.','..') for p in relative.split('/')):rejected.append({'path':relative,'reason':'invalid_path'});return
@@ -568,10 +588,22 @@ def capture(source,relative):
    if destination.is_file() and not destination.is_symlink():destination.unlink()
    rejected.append({'path':relative,'reason':'unstable_or_unreadable'})
  else:rejected.append({'path':relative,'reason':'special_file'})
+def capture_libpython_objects(projection_path):
+ """只从已写实际投影和原模板取得明确.o列表；不执行Makefile，不扫描整个build。"""
+ global diagnostic_object_paths
+ try:
+  if projection_path.exists():
+   projection=m.decode(m.raw_file(projection_path));source=plan['target_install']['libpython_layout']['routes'][release];template=source['makefile_template']
+   diagnostic_object_paths=m.parse_libpython_object_paths(m.raw_file(python_root/'Makefile'),m.raw_file(python_root/template['path']),projection,source)
+   capture(python_root/template['path'],'proof/'+template['path'])
+   for name in sorted(set(diagnostic_object_paths)):capture(python_root/name,'proof/'+name)
+  else:missing.append('proof/libpython-source-object-list')
+ except Exception:rejected.append({'path':'proof/libpython-source-object-list','reason':'original_object_list_unavailable'})
 try:
  capture(workspace/('tmp/install.ios-'+arch),'prefix')
  for name in ('Lib','Makefile','pyconfig.h','pybuilddir.txt','config.site','LICENSE','Include/Python.h','Modules/_scproxy.c','Modules/Setup.local'):
   capture(python_root/name,'proof/'+name)
+ capture_libpython_objects(pathlib.Path('/reko/j9-results')/release/arch/'target-make-projection.json')
  path=python_root/'pybuilddir.txt'
  if path.is_file() and not path.is_symlink():
   directory=m.raw_file(path,4096).decode().strip()
@@ -585,6 +617,7 @@ try:
  manifest={'kind':'target-install-diagnostic-only','diagnostic_only':True,'target_success':False,'target_python_install_verified':False,
   'release':release,'arch':arch,'worker_sha256':worker_sha,'plan_sha256':m.PLAN_SHA256,'archive':identity,'members':entries,
   'missing':missing,'links_recorded_not_materialized':links,'rejected_entries':rejected,'SDK_cross_tree_included':False,'host_distribution_tree_included':False}
+ manifest['libpython_object_paths_in_original_order']=diagnostic_object_paths
  with (target/'target-diagnostic-identity.json').open('x') as stream:json.dump(manifest,stream,ensure_ascii=False,indent=2);stream.write('\n')
  print(json.dumps({'diagnostic_only':True,'target_success':False,'regular_diagnostic_members':len(entries),'missing_count':len(missing)}))
 finally:shutil.rmtree(stage)
@@ -1009,7 +1042,7 @@ def load_plan(path=DEFAULT_PLAN):
             and re.fullmatch("[0-9a-f]{40}", plan["metadata_source_commit"]), "J9D固定阶段/范围错误")
     validate_addon_catalog(plan["metadata_addon"])
     target = plan["target_install"];validate_addon_catalog(target["metadata_addon"])
-    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "4e701cde9fc10169e5f50d34727209cae14b9c16" and len(target["allowed_cells"]) == 2
+    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "6d6172ec386bfcd6d97f9a3f08f31220edb2907c" and len(target["allowed_cells"]) == 2
             and {(r["ubuntu"],r["release"],r["arch"]) for r in target["allowed_cells"]} == {("22.04","8.3.7","sim-arm64"),("22.04","7.8.7","sim-arm64")}, "B只允许两已验C选择及固定提交")
     expected = {"run_locked_target_python_tasks.py", "target-python-prefix-plan.json", "validate_lock.py", "build_common.py",
                 "materialize_source_inputs.py", "remote-sources.lock.json", "runtime-lock.json"}

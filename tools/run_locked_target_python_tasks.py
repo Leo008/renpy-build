@@ -28,7 +28,7 @@ import zipfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "target-python-prefix-plan.json"
-PLAN_SHA256 = "b8436c30ab5eaa5db96ae232d030a1409556293c2e109330e0d5177d9fea7c0d"
+PLAN_SHA256 = "13f0fa3051364aaebca1ee2d43b93e5928688df18da266e40094a9ebd7644d5e"
 SCOPE = "four_approved_routes_original_ios_C_prerequisites_only"
 TARGET_SCOPE = "same_C1_worker_original_four_target_Python_install_tasks_only"
 RELEASES = ("8.5.3", "8.4.1", "8.3.7", "7.8.7")
@@ -111,7 +111,7 @@ def load_plan(path=DEFAULT_PLAN):
     require(len(plan["routes"]) == 4 and {r["release"] for r in plan["routes"]} == set(RELEASES)
             and set(plan["host_producers"]) == set(RELEASES), "必须固定四路线和各自 host 产物")
     target = plan["target_install"]
-    require(set(target) == {"task", "scope", "C_base_provenance", "routes", "limitations", "framework_link_candidate"}
+    require(set(target) == {"task", "scope", "C_base_provenance", "routes", "limitations", "framework_link_candidate", "libpython_layout"}
             and target["task"] == "R00-02J9B" and target["scope"] == TARGET_SCOPE
             and len(target["routes"]) == 4 and {r["release"] for r in target["routes"]} == set(RELEASES), "target-install 计划范围错误")
     for row in target["routes"]:
@@ -146,6 +146,15 @@ def load_plan(path=DEFAULT_PLAN):
                 and source["build_task_sha256"] == specification["tasks"][-1]["function_sha256"]
                 and all(source["configure_template"] == next(o[1] for o in specification["tasks"][-1]["operations"][arch] if o[0] == "run") for arch in ARCHES),
                 "B框架搜索的原注解/Task/命令身份不同")
+    layout = target["libpython_layout"]
+    require(set(layout) == {"scope", "routes", "reason"}
+            and layout["scope"] == "B_only_original_libpython_each_archive_occurrence_bound_to_source_object"
+            and set(layout["routes"]) == set(RELEASES), "B libpython布局范围错误")
+    for release, source in layout["routes"].items():
+        require(source["makefile_template"] == framework["routes"][release]["makefile_template"]
+                and source["object_variables"][0] == "LIBRARY_OBJS"
+                and len(set(source["object_variables"])) == len(source["object_variables"])
+                and source["archive_rule"].startswith("$(LIBRARY): $(LIBRARY_OBJS)\n"), "B libpython原模板/归档规则不同")
     for name, expected in {**plan["dependencies"], **plan["locks"]}.items():
         require(Path(name).name == name and name not in ("", ".", ".."), "依赖名称错误")
         require(sha(raw_file(HERE / name)) == expected, "固定依赖字节变化：" + name)
@@ -1231,7 +1240,9 @@ def make_projection(python_root, context, output):
     """以额外只读目标导出真实 GNUmake 展开值，不修改原生成 Makefile 或执行 pip。"""
     keys = ("LIBSUBDIRS", "TESTSUBDIRS", "TEST_MODULES", "LIBDEST", "BINLIBDEST", "LIBRARY", "LDLIBRARY", "VERSION", "LDVERSION", "ABIFLAGS", "MACHDEP", "MULTIARCH",
             "SOABI", "CC", "CFLAGS", "LDFLAGS", "LDSHARED", "CONFIG_ARGS", "PYTHON_FOR_BUILD", "ENSUREPIP", "srcdir", "prefix", "PLATDIR",
-            "CONFIGURE_LDFLAGS", "PY_CORE_LDFLAGS", "LINKCC", "LINKFORSHARED", "BUILDPYTHON", "BLDLIBRARY", "LINK_PYTHON_OBJS", "LIBS", "MODLIBS", "SYSLIBS", "LDLAST")
+            "CONFIGURE_LDFLAGS", "PY_CORE_LDFLAGS", "LINKCC", "LINKFORSHARED", "BUILDPYTHON", "BLDLIBRARY", "LINK_PYTHON_OBJS", "LIBS", "MODLIBS", "SYSLIBS", "LDLAST",
+            "LIBPL", "LIBRARY_OBJS", "LIBRARY_OBJS_OMIT_FROZEN", "DEEPFREEZE_OBJS", "PARSER_OBJS", "OBJECT_OBJS", "PYTHON_OBJS", "MODULE_OBJS", "SIGNAL_OBJS", "MODOBJS",
+            "POBJS", "PEGEN_OBJS", "DYNLOADFILE", "LIBOBJS", "MACHDEP_OBJS", "DTRACE_OBJS", "UNICODE_OBJS", "THREADOBJ")
     code = "import os,json;print(json.dumps({k:os.environ['REKO_LOCKED_'+k] for k in " + repr(keys) + "}))"
     audit = output / "target-python-make-projection.mk"
     text = ".PHONY: reko_locked_projection\n" + "\n".join("export REKO_LOCKED_" + key + " := $(" + key + ")" for key in keys)
@@ -1366,6 +1377,118 @@ def verify_build_python(projection, context, row, plan, host_prefix):
             "sha256": plan["host_producers"][row["release"]]["interpreter_sha256"], "CP39_wrapper_added": False, **details}
 
 
+def libpython_ar_members(raw):
+    """仅B libpython保留全部顺序成员；同名必须逐字相同，原C的ar_members不变。"""
+    require(isinstance(raw, bytes) and raw.startswith(b"!<arch>\n") and len(raw) <= 1024**3, "libpython须为有界普通ar，拒绝thin/外部归档")
+    offset, result, longnames, symbols, seen = 8, [], None, 0, {}
+    while offset < len(raw):
+        require(len(result) < 10000 and offset + 60 <= len(raw), "libpython ar头截断/成员过多")
+        header = raw[offset:offset + 60]
+        require(header[58:] == b"`\n" and re.fullmatch(rb"[0-9]+ *", header[48:58]), "libpython ar头非法")
+        size = int(header[48:58]);start = offset + 60;end = start + size
+        require(end <= len(raw), "libpython ar成员截断")
+        name = header[:16].decode("ascii").strip();raw_name = name;body = raw[start:end];offset = end + size % 2
+        require(offset <= len(raw) and (size % 2 == 0 or raw[end:offset] == b"\n"), "libpython ar对齐错误")
+        if name == "//":
+            require(longnames is None, "libpython ar长名表重复")
+            longnames = body;continue
+        if name.startswith("#1/"):
+            require(re.fullmatch(r"#1/[0-9]+", name), "libpython BSD名称格式不同")
+            width = int(name[3:]);require(0 < width <= len(body), "libpython BSD名称越界")
+            name, body = body[:width].rstrip(b"\0").decode("ascii"), body[width:]
+        elif re.fullmatch(r"/[0-9]+", name):
+            index = int(name[1:]);require(longnames is not None and index < len(longnames)
+                    and (index == 0 or longnames[max(0, index - 2):index] == b"/\n"), "libpython GNU长名索引越界")
+            stop = longnames.find(b"/\n", index);require(stop > index, "libpython GNU长名未终止")
+            name = longnames[index:stop].decode("ascii")
+        else:name = name.rstrip("/")
+        if raw_name in ("/", "/SYM64/") or name in ("__.SYMDEF", "__.SYMDEF SORTED"):
+            symbols += 1;require(symbols == 1, "libpython符号索引重复")
+            continue
+        require(re.fullmatch(r"[A-Za-z0-9_.+-]+\.o", name) is not None and name not in (".", ".."), "libpython出现外部/未知非对象成员")
+        require(name not in seen or seen[name] == body, "libpython同名成员字节不一致")
+        seen[name] = body;result.append((name, body))
+    require(offset == len(raw) and result, "libpython ar为空或尾部损坏")
+    return result
+
+
+def parse_libpython_object_paths(makefile_raw, template_raw, projection, source_spec):
+    """纯展开固定原Makefile对象变量，保留路径/次数/顺序；不执行Makefile或shell。"""
+    descriptor = source_spec["makefile_template"]
+    require(len(template_raw) == descriptor["bytes"] and sha(template_raw) == descriptor["sha256"], "libpython原Makefile模板字节不同")
+    require(makefile_raw.decode().count(source_spec["archive_rule"]) == 1
+            and template_raw.decode().count(source_spec["archive_rule"]) == 1, "libpython原归档规则不同")
+    allowed = set(source_spec["object_variables"])
+    def definitions(raw):
+        """只接纳受检对象变量的一处简单递归赋值，不模拟GNUmake函数或条件分支。"""
+        found = {};depth = 0
+        for line in raw.decode().replace("\\\n", " ").splitlines():
+            if re.match(r"^(?:ifeq|ifneq|ifdef|ifndef)\b", line):depth += 1
+            elif re.match(r"^endif\b", line):depth -= 1
+            match = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)[ \t]*([:+?]?=)[ \t]*(.*)", line)
+            if match and match[1] in allowed:
+                require(match[1] not in found and match[2] == "=" and depth == 0, "libpython对象变量重复/条件/非原赋值")
+                found[match[1]] = " ".join(match[3].split())
+        require(set(found) == allowed, "libpython对象变量缺失/未知")
+        return found
+    original, actual = definitions(template_raw), definitions(makefile_raw)
+    substitutions = source_spec.get("literal_configure_substitutions", {})
+    require(substitutions in ({}, {"PERF_TRAMPOLINE_OBJ": "", "PLATFORM_OBJS": ""}), "libpython非批准iOS configure对象替换")
+    for name in allowed:
+        dynamic = re.fullmatch(r"@[A-Z_]+@|_MODOBJS_", original[name]) is not None
+        expression = original[name]
+        if not dynamic:
+            for key, value in substitutions.items():expression = expression.replace("@" + key + "@", value)
+            expression = " ".join(expression.split())
+        require((dynamic and "$" not in actual[name]) or (not dynamic and actual[name] == expression), "libpython原对象变量表达式改变：" + name)
+    def expand(name, stack=()):
+        """仅递归展开白名单$(变量)，循环/函数/命令替换一律拒绝。"""
+        require(name in actual and name not in stack and len(stack) < 32, "libpython对象变量循环/未知引用")
+        value = re.sub(r"\$\(([A-Za-z_][A-Za-z0-9_]*)\)", lambda match: expand(match[1], (*stack, name)), actual[name])
+        require("$" not in value and "@" not in value and "#" not in value, "libpython对象变量含未知展开/函数")
+        return " ".join(value.split())
+    for name in allowed:require(name in projection and isinstance(projection[name], str)
+            and " ".join(projection[name].split()) == expand(name), "libpython GNUmake实际投影与原表达式不同：" + name)
+    paths = expand("LIBRARY_OBJS").split()
+    require(0 < len(paths) <= 10000 and all(re.fullmatch(r"(?:[A-Za-z0-9_.+-]+/)*[A-Za-z0-9_.+-]+\.o", path)
+            and len(path) < 1024 and all(part not in (".", "..") for part in path.split("/")) for path in paths), "libpython对象源路径越界/未知/为空")
+    return paths
+
+
+def check_libpython_layout(archive_raw, makefile_raw, template_raw, projection, source_objects, row, arch, plan):
+    """纯bytes验证每个libpython occurrence与原build对象、Makefile顺序及MachO平台；供D静读。"""
+    require(row["release"] in RELEASES and arch in ARCHES, "libpython未知路线/架构")
+    config = plan["target_install"]["libpython_layout"];source = config["routes"][row["release"]]
+    paths = parse_libpython_object_paths(makefile_raw, template_raw, projection, source)
+    require(isinstance(source_objects, dict) and set(source_objects) == set(paths), "libpython原源对象缺失/额外对象")
+    members = libpython_ar_members(archive_raw)
+    require([name for name, body in members] == [Path(path).name for path in paths], "libpython成员数量/名称/顺序不符真实Makefile")
+    occurrences, counts, sources = [], {}, {}
+    for index, ((name, body), path) in enumerate(zip(members, paths)):
+        require(isinstance(source_objects[path], bytes) and source_objects[path] == body, "libpython成员与原.o源字节不同：" + path)
+        identity = target_macho(body, arch);require(identity["file_type"] == 1, "libpython出现非MH_OBJECT成员")
+        counts[name] = counts.get(name, 0) + 1
+        item = {"index": index, "name": name, "occurrence": counts[name], "source_path": path,
+                "bytes": len(body), "sha256": sha(body), **identity}
+        occurrences.append(item);sources[path] = {key: value for key, value in item.items() if key not in ("index", "occurrence", "name")}
+    return {"scope": config["scope"], "release": row["release"], "arch": arch, "original_archive_rule": source["archive_rule"],
+            "makefile_sha256": sha(makefile_raw), "template_sha256": sha(template_raw), "archive_sha256": sha(archive_raw),
+            "archive_bytes": len(archive_raw), "objects": occurrences, "source_objects": [sources[path] for path in sorted(sources)],
+            "object_count": len(occurrences), "unique_member_names": len(counts), "duplicate_counts": {name: count for name, count in counts.items() if count > 1},
+            "each_original_object_occurrence_verified": True}
+
+
+def libpython_install_paths(prefix, row, projection):
+    """纯值限定原root lib与LIBPL/config两处副本，不按basename扩大白名单。"""
+    prefix = Path(prefix);minor = ".".join(row["version"].split(".")[:2]);library = "libpython" + minor + ".a"
+    config = Path(projection["LIBPL"])
+    require(prefix.is_absolute() and ".." not in prefix.parts and config.is_absolute() and ".." not in config.parts
+            and config.parent == prefix / "lib" / ("python" + minor)
+            and (config.name == "config" if row["python"] == "2" else re.fullmatch(r"config-" + re.escape(minor) + r"(?:-[A-Za-z0-9_.+-]+)?", config.name) is not None)
+            and projection["LIBRARY"] == library, "libpython原LIBPL安装路径不同/逃逸")
+    return ["lib/" + library, (config / library).relative_to(prefix).as_posix()]
+
+
 def verify_target_prefix(args, plan, row, specification, python_root, projection, c_inventory, inventory, native):
     """完整验 target stdlib/sysconfig/headers/libpython；仅原 H1 hostpython 是 native ELF 例外。"""
     prefix = args.workspace / ("tmp/install.ios-" + args.arch)
@@ -1394,6 +1517,12 @@ def verify_target_prefix(args, plan, row, specification, python_root, projection
     library_name = "libpython" + ".".join(row["version"].split(".")[:2]) + ".a"
     library = prefix / "lib" / library_name;library_raw = raw_file(library, 1024**3)
     require(projection["LIBRARY"] == library_name and library_raw == raw_file(python_root / library_name, 1024**3), "真正 target libpython 未按原 build/install 产生")
+    source_spec = plan["target_install"]["libpython_layout"]["routes"][row["release"]]
+    makefile_raw = raw_file(python_root / "Makefile");template_raw = raw_file(python_root / "Makefile.pre.in")
+    object_paths = parse_libpython_object_paths(makefile_raw, template_raw, projection, source_spec)
+    source_objects = {path: raw_file(python_root / path) for path in set(object_paths)}
+    libpython_layout = check_libpython_layout(library_raw, makefile_raw, template_raw, projection, source_objects, row, args.arch, plan)
+    copy_paths = libpython_install_paths(prefix, row, projection);seen_copies = set()
     bridge = "bin/hostpython" + row["python"];bridge_sha = plan["host_producers"][row["release"]]["interpreter_sha256"]
     binaries, archives, bridges = [], [], []
     for record in records:
@@ -1404,13 +1533,17 @@ def verify_target_prefix(args, plan, row, specification, python_root, projection
             require(record["path"] == bridge and record["sha256"] == bridge_sha and path.stat().st_mode & 0o111, "target 前缀出现非批准 H1 native ELF")
             bridges.append({**record, "elf": native.elf_identity(raw_file(path))})
         elif magic == b"!<arch>\n":
-            objects = [{"name": name, "bytes": len(body), "sha256": sha(body), **target_macho(body, args.arch)} for name, body in ar_members(raw_file(path, 1024**3))]
+            if record["path"] in copy_paths:
+                require(raw_file(path, 1024**3) == library_raw, "libpython原安装两副本/原build库字节不同")
+                objects = libpython_layout["objects"];seen_copies.add(record["path"])
+            else:
+                require(record["path"] in {r["path"] for r in c_inventory}, "target出现非原安装位置的未知archive")
+                objects = [{"name": name, "bytes": len(body), "sha256": sha(body), **target_macho(body, args.arch)} for name, body in ar_members(raw_file(path, 1024**3))]
             require(all(obj["file_type"] == 1 for obj in objects), "Python archive 混入非 object")
-            if record["path"] not in {r["path"] for r in c_inventory}:require(path.name == library_name and record["sha256"] == sha(library_raw), "target 出现未知/错误 libpython archive")
             archives.append({"path": record["path"], "bytes": record["bytes"], "sha256": record["sha256"], "objects": objects})
         elif magic[:4] == b"\xcf\xfa\xed\xfe":binaries.append({**record, **target_macho(raw_file(path), args.arch)})
         elif path.suffix in (".so", ".dylib", ".a", ".o"):require(False, "目标 native 文件未验证：" + record["path"])
-    require(len(bridges) == 1 and any(a["path"] == "lib/" + library_name for a in archives), "缺真实 libpython 或唯一 H1 bridge")
+    require(len(bridges) == 1 and seen_copies == set(copy_paths), "缺真实libpython原两副本或唯一H1 bridge")
     if specification["native_sysconfig_copy"] is not None:
         descriptor = specification["native_sysconfig_copy"];path = prefix / descriptor["path"]
         require(sha(raw_file(path)) == descriptor["sha256"], "CP312 原 Linux sysconfig copy 不同")
@@ -1420,7 +1553,8 @@ def verify_target_prefix(args, plan, row, specification, python_root, projection
                 "CP39 B 已出现 pip/第三方目标包，明确 no-ensurepip 候选未保持独立阶段")
     return {"inventory": records, "stdlib": stdlib_records, "target_sysconfig": {"path": str(stdlib / config_name), "sha256": sha(target_config_raw), "source": str(target_config),
             "target_variables": target_variables},
-            "archives": archives, "binaries": binaries, "native_bridge": bridges[0], "target_stdlib_source_count": len(stdlib_records), "old_C_members_unchanged": True}
+            "archives": archives, "binaries": binaries, "native_bridge": bridges[0], "target_stdlib_source_count": len(stdlib_records), "old_C_members_unchanged": True,
+            "libpython_layout": {**libpython_layout, "installed_copy_paths": copy_paths}}
 
 
 def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c_receipt):
@@ -1495,7 +1629,9 @@ def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c
     if specification.get("build_context_candidate"):
         require(host_before == host_after, "CP39 明确 no-ensurepip 候选改变了完整 H1 衍生前缀")
     for name, value in (("target-prefix-inventory.json", products["inventory"]), ("target-stdlib-sources.json", products["stdlib"]),
-                        ("target-native-products.json", {k: products[k] for k in ("archives", "binaries", "native_bridge", "target_sysconfig")})):
+                        ("target-native-products.json", {k: products[k] for k in ("archives", "binaries", "native_bridge", "target_sysconfig")}),
+                        ("target-libpython-layout.json", products["libpython_layout"]),
+                        ("target-libpython-source-objects.json", products["libpython_layout"]["source_objects"])):
         write_new(args.output / name, value)
     c_reference = {"path": str(args.output / "c-prefix-receipt.json"), "sha256": sha(raw_file(args.output / "c-prefix-receipt.json"))}
     target = {"schema_version": 1, "task": "R00-02J9B", "scope": TARGET_SCOPE, "release": args.release, "arch": args.arch,
@@ -1503,6 +1639,8 @@ def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c
               "Cython": cython, "tasks": receipts, "make_projection": projection, "build_python": build_python, "config_site": specification["config_site"],
               "B_framework_link_candidate": framework_link,
               "B_framework_link_binding_sha256": sha(raw_file(args.output / "target-framework-link-binding.json")) if framework_link is not None else None,
+              "libpython_layout_sha256": sha(raw_file(args.output / "target-libpython-layout.json")),
+              "libpython_source_objects_sha256": sha(raw_file(args.output / "target-libpython-source-objects.json")),
               "original_CP39_cross_wrapper_modified": False, "CP39_build_context_candidate_used": specification.get("build_context_candidate") is not None,
               "implicit_install_ensurepip": {**ensurepip,
               "host_before_sha256": sha(raw_file(args.output / "target-host-before.json")),
