@@ -1,28 +1,30 @@
 # 单 tuple 原 C → image → font 源码 CI
 
-本工作流部署 Reko 已提交的 I3 控制器，提交为 `581c7e12e9e8a54dfa2da2613ed991e14e9be588`。两件部署原件保持原字节：
+本工作流部署 Reko 已提交的 I3 控制器，提交为 `63c36f45caf6ebd1fd05d63eeb79c6b2d4e87ca4`。两件部署原件保持原字节：
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
-| `tools/ci_linux_image_font_c_tasks.py` | 62146 | `6a533d142604b5cf1ec10ad9cea9ce29284b90653a5ce34a242d35bf852ce4cf` |
-| `tools/linux-image-font-c-ci-plan.json` | 9633 | `648c1fdd16dda722d88d66116daa7d14a4f3c0388b8272be5e89306ea17de884` |
+| `tools/ci_linux_image_font_c_tasks.py` | 67243 | `7cfeb4daca9e2a79eac3223b3793771ced81822eecbc8608accac590f3bb5dbc` |
+| `tools/linux-image-font-c-ci-plan.json` | 9977 | `3df54862807dae60307202b4b88de080075d96596141b34eef76b206e1e08c27` |
 
-原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 为 `39c350d384da7176bf8245975036f6bcfcfcd1cc` 原文，计划仍为 `f2a4376288b7ef07e52a31ec80966d0a892be21c` 原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
+原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 和计划均为 `b7be891afc358eba13eef62ced0ac64c27a2bee3` 原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
 
 实际 font CI 的前置条件是对应 tuple 的 image 原件已完成 ROOT 和独立验收。部署、微测试及 Actions success 均不代替这项验收；主代理必须先核对应门禁再调度本工作流。首次调度仅为 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。入口仅 `workflow_dispatch`，每次一个明确 tuple，没有 `all` 或 matrix；其他 tuple 必须匹配原 D Ubuntu 组及其前置验收。并发组和产物名包含版本、架构，新工作流使用独立临时命名空间。
 
-十一文本输入已真实发布至 Release `406525604`、asset `706098386`：
+十一文本输入已真实发布至 Release `406525604`、asset `706284647`：
 
-- 名称：`j11-image-font-c-runtime-addon-20261103-03.tar.gz`
-- 字节：`169358`；SHA-256：`856fc824fddcd7fca2487f3da12b7476f2811fd240799eaba14feb43cdacb511`
-- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261103-03.tar.gz)
-- 11 个平铺普通 `0644` 成员、原文共 `882540` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
+- 名称：`j11-image-font-c-runtime-addon-20261104-04.tar.gz`
+- 字节：`172461`；SHA-256：`40641bf25b547a6aa56349e096ff19219638890a6f7142afab9ffe3ea514852c`
+- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261104-04.tar.gz)
+- 11 个平铺普通 `0644` 成员、原文共 `892745` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
 
 C03 仍是 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`，73548 字节、SHA-256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`；H1 仍按原 D 固定 profile 选原 ZIP。APT、SDK14、H0 密文、recipe CAS 和 clang runtime 使用既有固定原件；H0/CAS 缓存只供控制器复用，不设再次下载 fallback。需要既有 `CI_INPUTS_PASSWORD`、两件 SDK SHA 与 `REKO_H0_INPUTS_PASSWORD`，秘密只经宿主 stdin/FIFO/内存，不进入日志或 C1 命令环境。不执行 H2 密码、新 J2、B 或 pip 流程，也不发布任何私有编译输入。
 
 控制器在同一 open C1 执行原 D 单 tuple C，原 cell 和完整宿主 reader 通过后才交接 I2。producer 43 原件不变；原 I1D API 只生成一次独立物理 consumer 50，再在同一根排他增加 I2 两件成为 52，并复验全部 52 与原 43。宿主 I1D 两件不计入 52。前端保持原 H0 scope，8.5 使用 `8.5.3-host-ci-success`，不重放或重选 H0。I2 先执行并验真八 image Task，再执行现代八个或旧路线十二个原 font Task。
 
-完整宿主静态 reader 在新进程认证 52 闭包，流式核最终前缀全部成员、十 image 加四 font 库的每个 Mach-O 对象、原 C/image 成员不变、目标 FriBidi、首 FT 覆盖前原归档及全部特性头。现代四份或旧路线六份特性探针绑定真实头、宏和编译器 argv；旧路线两次 apinames、全部实际保留 native 生成器均核原 ELF/DT_NEEDED 和固定包资格。宿主不执行返回 ELF，系统二进制 SHA 只记本轮认证观测，不声称宿主重算未回传系统二进制。
+完整宿主静态 reader 在新进程认证 52 闭包，流式核最终前缀全部成员、十 image 加五 font 库的每个 Mach-O 对象、原 C/image 成员不变、目标 FriBidi、首 FT 覆盖前原归档及全部特性头。现代四份或旧路线六份特性探针绑定真实头、宏和编译器 argv；旧路线两次 apinames、全部实际保留 native 生成器均核原 ELF/DT_NEEDED 和固定包资格。宿主不执行返回 ELF，系统二进制 SHA 只记本轮认证观测，不声称宿主重算未回传系统二进制。
+
+第五个 font 库是原 HarfBuzz 8.0.1 在 Cairo 禁用时仍按原 Makefile 无条件安装的 `libharfbuzz-cairo.a`。保持原 `--with-cairo=no` 与全部原 Task，不禁掉原安装产物，也不将该库称为已实现 Cairo 功能或空归档。新增私有 `font-harfbuzz-cairo-disabled.json` 绑定八份锁定原源码、三份实际配置及最终安装 `.pc`/`.la`，共十三份原字节；宿主从完整最终归档重算三原对象、安装头 `hb-cairo.h` 与锁定源码的 bytes/SHA 直接相等，以及认证本机 LLVM nm 的真实 argv/stdout和系统包身份。配置必须保持禁用 Cairo，符号中不得出现 Cairo API；`.la` 只核保留目标 HarfBuzz 且拒 Cairo 依赖，其他非 Cairo metadata token 留原观测，不声称完成通用依赖资格。宿主不执行返回目标库。
 
 job 时限为 360 分钟。第一步从本 attempt 唯一当前 job 的 API `started_at` 得真实 UTC 起点并加 21600 秒；缺证据就失败，不以当前时间补默认值。控制器共用 `min(18000, 实际剩余秒数−3330)` 工作时限，覆盖准备/H0/C/image/font/全部 host readers。保留 30 秒子进程退出、120 秒容器清理、180 秒收尾和 3000 秒 CMS/上传，不累加各阶段时限。
 
@@ -30,7 +32,7 @@ job 时限为 360 分钟。第一步从本 attempt 唯一当前 job 的 API `sta
 
 I3 每个返回树先核逻辑 1 GiB、32768 成员及分配量，复制后宿主再核。完整 CMS 封套保持固定 AES-256-GCM、RSA3072 OAEP-SHA256/MGF1-SHA256、原公开接收证书和全部原身份。上限为单件 1 GiB、73728 成员、总 3 GiB：给两个 I3 有界返回树各 32768/1 GiB，另给原 D/workflow 8192 成员/1 GiB 余量。超额失败并保留原诊断，不截断清单或回退明文上传。封套身份清理读取限 32 MiB，与完整成员清单匹配，其余所有权小文件仍维持原 1 MiB 上限。CI 不持有真实接收私钥。
 
-公开只允许有限摘要、CMS 自检、完整身份清单和认证密文。摘要只在实际 I3 `TASK=R00-02J11I3`、`RESULT=single_tuple_actual_C_original_image_and_font_verified`、19 pin、consumer 52、14 库与全部 host-reader 证明同时成立时登记本轮有限结果；完整 returned-files 清单仍只在私有日志。`always` 收尾仅按新控制器真实身份、本 job 票据及精确 C1 id/image 和临时根 inode 清理；名称为空仍查精确 id，同名替换拒绝。原私有证据仅在完整 CMS 身份复核后回收。
+公开只允许有限摘要、CMS 自检、完整身份清单和认证密文。摘要只在实际 I3 `TASK=R00-02J11I3`、`RESULT=single_tuple_actual_C_original_image_and_font_verified`、19 pin、consumer 52、15 库与全部 host-reader 证明同时成立时登记本轮有限结果；新增两项 host-reader 正证明 `disabled_HarfBuzz_Cairo_provenance_verified` 与 `installed_HarfBuzz_Cairo_header_source_verified` 必须同时为真，`HarfBuzz_Cairo_feature_enabled` 和 `Cairo_other_metadata_dependencies_generally_qualified` 必须为假；仅这些有限布尔和计数进入公开摘要，不公开十三份原件、metadata token 或 nm stdout。完整 returned-files 清单仍只在私有日志。`always` 收尾仅按新控制器真实身份、本 job 票据及精确 C1 id/image 和临时根 inode 清理；名称为空仍查精确 id，同名替换拒绝。原私有证据仅在完整 CMS 身份复核后回收。
 
 本工作流部署不计真实 font 编译验收。每次实际原件仍需本机认证、ROOT 和独立静态验收。ROOT 独立验收、shared provider、G1/G2、Cubism、完整引擎与 iOS 会话都保持未通过；人工和真机验收保持 `deferred`。
 
@@ -38,4 +40,6 @@ I3 每个返回树先核逻辑 1 GiB、32768 成员及分配量，复制后宿�
 
 历史02（2026-11-03）：首字体先导41648269103保留失败。原C/image、FriBidi与首FT安装rc0后，系统包资格检查拒绝；具体owner未被旧日志记录。14af937仅修Multi-Arch包名/架构规范与诊断，原APT清单与Task不变，40项回归和独审通过；7370e88监督绑定35项通过。本轮02仅换这件已提交worker，随后唯一同tuple重试；部署不计字体构建通过。
 
-本轮03（2026-11-03）：第二先导41654292030保留失败，原C/image/Fribidi/首FT命令rc0，实际31个man3安装路径未列入旧模型。39c350d仅补原安装规则支持的208文件/6目录及未知路径诊断，47项回归与cc619fbd独审通过；581c7e1监督绑定35项通过。03只替换这件已提交worker，其他10文本/原9不变；原HB预生成HTML与CMake安装仅按源码合同建模，不称已实跑通过。下一仅重试相同8.5.3/sim-arm64，部署/输入发布不计font通过。
+历史03（2026-11-03）：第二先导41654292030保留失败，原C/image/Fribidi/首FT命令rc0，实际31个man3安装路径未列入旧模型。39c350d仅补原安装规则支持的208文件/6目录及未知路径诊断，47项回归与cc619fbd独审通过；581c7e1监督绑定35项通过。03只替换这件已提交worker，其他10文本/原9不变；原HB预生成HTML与CMake安装仅按源码合同建模，不称已实跑通过。下一仅重试相同8.5.3/sim-arm64，部署/输入发布不计font通过。
+
+本轮04（2026-11-04）：第三先导41665830759保留失败，原HB安装后出现原模型未收录的 cairo archive、libtool 和 pkgconfig 三件产物。已认证419成员诊断及原上游8.0.1源码确认该安装规则无条件执行，但实际Cairo配置为禁用。b7be891只补完整原安装闭包、禁用配置/原源码/三对象/安装头绑定；原Task、configure、SDK及image依赖均不改。消费者先55项、后受影响新增9项回归通过，旧47项AST不变，不称为一次56项套件。04只替换这两件已提交I2文本，其他九文本不变；第二I3原子从完整回传原字节重算新证明并要求15库，42项回归及50c212独审通过；该套件仅为协议回归，不是实际Linux字体构建。本轮部署及输入发布均不计font编译验收，下一次仍仅重试同一8.5.3/sim-arm64。
