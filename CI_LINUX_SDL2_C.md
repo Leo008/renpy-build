@@ -58,6 +58,6 @@ always 清理只按本轮实际 controller/run/ticket 与 C1 精确 ID/image，�
 
 ## 注册与首轮安排
 
-新 workflow 先临时加入仅 `codex/ios-locked-inputs-20261102` 分支且仅 `.github/workflows/linux-sdl2-c.yml` 的 push 注册入口。job 仍只允许 `workflow_dispatch && repository == Leo008/renpy-build`，因此注册 run 应为 skipped；注册 run 不算编译或验收通过。
+实际注册提交 `0f8c3113f0b3a5cde252031bb54296b9da03472e` 已推送并核远端 HEAD。GitHub API 确认 workflow ID `405924381`，唯一 push 注册 run [41671277529](https://github.com/Leo008/renpy-build/actions/runs/41671277529) 为 `completed/skipped`，符合 dispatch/repo guard；该 run 未构建、不计任何验收。
 
-主代理待 GitHub API 确认真实 workflow 注册后，在后续 workflow/doc 两文件原子中移除该五行 push 入口、更新真实注册记录，再单独 dispatch 首个 8.5.3/sim-arm64。当前离线候选尚未提交、发布、注册或触发真实 CI；登记只能写实际 API 结果，不能填未来 workflow ID、run ID 或通过数。
+本次两文件原子仅移除五行临时 push 入口并记录上述真实 API；现在只有显式 workflow_dispatch。首轮仍由主代理独立调度唯一 8.5.3/sim-arm64，dispatch/run/构建/原件验收实际结果另记，不预填成功。

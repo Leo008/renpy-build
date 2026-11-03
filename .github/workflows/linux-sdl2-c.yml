@@ -1,10 +1,5 @@
 name: RenPy single tuple original SDL2 C
 'on':
-  push:
-    branches:
-    - codex/ios-locked-inputs-20261102
-    paths:
-    - .github/workflows/linux-sdl2-c.yml
   workflow_dispatch:
     inputs:
       ubuntu_group:
