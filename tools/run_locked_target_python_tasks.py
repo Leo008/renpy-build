@@ -28,7 +28,7 @@ import zipfile
 HERE = Path(__file__).absolute().parent
 ROOT = HERE.parents[1]
 DEFAULT_PLAN = HERE / "target-python-prefix-plan.json"
-PLAN_SHA256 = "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
+PLAN_SHA256 = "b8436c30ab5eaa5db96ae232d030a1409556293c2e109330e0d5177d9fea7c0d"
 SCOPE = "four_approved_routes_original_ios_C_prerequisites_only"
 TARGET_SCOPE = "same_C1_worker_original_four_target_Python_install_tasks_only"
 RELEASES = ("8.5.3", "8.4.1", "8.3.7", "7.8.7")
@@ -111,7 +111,7 @@ def load_plan(path=DEFAULT_PLAN):
     require(len(plan["routes"]) == 4 and {r["release"] for r in plan["routes"]} == set(RELEASES)
             and set(plan["host_producers"]) == set(RELEASES), "必须固定四路线和各自 host 产物")
     target = plan["target_install"]
-    require(set(target) == {"task", "scope", "C_base_provenance", "routes", "limitations"}
+    require(set(target) == {"task", "scope", "C_base_provenance", "routes", "limitations", "framework_link_candidate"}
             and target["task"] == "R00-02J9B" and target["scope"] == TARGET_SCOPE
             and len(target["routes"]) == 4 and {r["release"] for r in target["routes"]} == set(RELEASES), "target-install 计划范围错误")
     for row in target["routes"]:
@@ -134,6 +134,18 @@ def load_plan(path=DEFAULT_PLAN):
                         for arch in ARCHES), "CP39 原 configure 模板不同")
         else:
             require(candidate is None, "不允许对其他三路线添加 CP39 上下文候选")
+    framework = target["framework_link_candidate"]
+    require(set(framework) == {"scope", "releases", "already_complete_releases", "reason", "routes"}
+            and framework["scope"] == "B_build_ios_only_exact_MetalANGLE_framework_search"
+            and framework["releases"] == ["8.4.1", "8.3.7", "7.8.7"] and framework["already_complete_releases"] == ["8.5.3"]
+            and set(framework["routes"]) == set(RELEASES), "B框架搜索候选范围错误")
+    for row in plan["routes"]:
+        source = framework["routes"][row["release"]]
+        specification = next(s for s in target["routes"] if s["release"] == row["release"])
+        require(source["annotator"] == row["flag_sources"]["metalangle_annotator"]
+                and source["build_task_sha256"] == specification["tasks"][-1]["function_sha256"]
+                and all(source["configure_template"] == next(o[1] for o in specification["tasks"][-1]["operations"][arch] if o[0] == "run") for arch in ARCHES),
+                "B框架搜索的原注解/Task/命令身份不同")
     for name, expected in {**plan["dependencies"], **plan["locks"]}.items():
         require(Path(name).name == name and name not in ("", ".", ".."), "依赖名称错误")
         require(sha(raw_file(HERE / name)) == expected, "固定依赖字节变化：" + name)
@@ -886,6 +898,106 @@ def captured_original_run(context, original, template, output, ordinal):
     return {"path": str(path), "bytes": path.stat().st_size, "sha256": sha(raw_file(path, 1024**3))}
 
 
+def check_target_framework_link_binding(record, row, specification, arch, workspace, plan, makefile_raw=None, projection=None, actual_argv=None):
+    """纯字节/值检查B框架候选；供离线D读回使用，不查询宿主PATH或执行回传二进制。"""
+    config = plan["target_install"]["framework_link_candidate"]
+    require(row["release"] in config["releases"] and arch in ARCHES, "未知B框架候选路线/架构")
+    source = config["routes"][row["release"]]
+    workspace = Path(workspace);prefix = workspace / ("tmp/install.ios-" + arch)
+    require(workspace.is_absolute() and ".." not in workspace.parts and record["scope"] == config["scope"]
+            and record["release"] == row["release"] and record["arch"] == arch and record["prefix"] == str(prefix)
+            and record["source"] == source and record["reason"] == config["reason"]
+            and source["build_task_sha256"] == specification["tasks"][-1]["function_sha256"], "B框架候选source/目标prefix不同")
+    before, after = record["original_environment"], record["candidate_environment"]
+    require(set(before) == set(after) == set(ENV_KEYS), "B框架候选环境字段不同")
+    def search_flags(value):
+        """仅允许原分开的-F参数，拒绝拼接、重复及其他框架搜索选项。"""
+        words = shlex.split(value)
+        require(not any((word.startswith("-F") and word != "-F") or word.startswith("-iframework") for word in words), "未知B框架搜索参数")
+        indexes = [i for i, word in enumerate(words) if word == "-F"]
+        require(all(i + 1 < len(words) for i in indexes), "B框架搜索参数截断")
+        return [words[i + 1] for i in indexes]
+    require(all(search_flags(before[key]) == [str(prefix)] for key in ("CFLAGS", "CXXFLAGS"))
+            and not search_flags(before["LDFLAGS"]), "原B框架搜索缺失/重复/错误prefix")
+    words = shlex.split(before["LDFLAGS"])
+    require([words[i + 1] for i, word in enumerate(words) if word == "-framework" and i + 1 < len(words)] == ["MetalANGLE"]
+            and words.count("-framework") == 1, "原B框架链接名称/数量不同")
+    suffix = " -F " + str(prefix)
+    require(record["append"] == suffix and after["LDFLAGS"] == before["LDFLAGS"] + suffix
+            and search_flags(after["LDFLAGS"]) == [str(prefix)]
+            and all(after[key] == before[key] for key in ENV_KEYS if key != "LDFLAGS"), "B框架候选修改越界或重复施加")
+    archive = next(d for d in row["extra_inputs"] if d["path"] == "source/MetalANGLE.framework.ios" + (".simulator" if arch.startswith("sim-") else "") + ".zip")
+    require(record["framework"]["original_archive_sha256"] == archive["sha256"]
+            and record["framework"]["full_original_framework_bytes_verified"] is True, "B框架来源缺失/不同")
+    result = {"candidate_environment_bound": True, "prefix": str(prefix), "source": source}
+    if makefile_raw is not None:
+        require(projection is not None and actual_argv is not None, "B链接闭合缺实际投影/argv")
+        text = makefile_raw.decode();variable = source["configured_ldflags_variable"]
+        values = re.findall(r"^" + variable + r"[ \t]*=[ \t]*(.*)$", text, re.M)
+        require(values == [after["LDFLAGS"]] and text.count(source["link_recipe"]) == 1,
+                "B实际Makefile未消费候选LDFLAGS或原链接规则不同")
+        require(projection[variable] == after["LDFLAGS"] and projection["LDFLAGS"] == after["LDFLAGS"]
+                and shlex.split(projection["LINKCC"]) == shlex.split(after["CC"]), "B真实Makefile链接变量与候选不同")
+        recipe = source["link_recipe"].replace("\\\n", " ").replace("$@", projection["BUILDPYTHON"])
+        require(all(key in projection and isinstance(projection[key], str) for key in re.findall(r"\$\(([A-Z_]+)\)", recipe)),
+                "B真实Makefile链接投影字段缺失")
+        recipe = re.sub(r"\$\(([A-Z_]+)\)", lambda match: projection[match.group(1)], recipe)
+        require("$" not in recipe and actual_argv == shlex.split(recipe), "B最终真实链接argv不符合实际Makefile")
+        result.update(actual_makefile_sha256=sha(makefile_raw), actual_makefile_variable=variable,
+                      actual_link_argv=actual_argv, actual_link_argv_sha256=sha(json.dumps(actual_argv, separators=(",", ":")).encode()),
+                      target_link_argument_binding_verified=True)
+    return result
+
+
+def target_framework_link_candidate(context, row, specification, arch, template, plan, j8):
+    """仅在原build_ios configure点为三旧注解路线补一次B链接搜索，原C候选完全保留。"""
+    config = plan["target_install"]["framework_link_candidate"];source = config["routes"][row["release"]]
+    if row["release"] not in config["releases"] or template != source["configure_template"]:
+        return None
+    require(context.audit_spec["task"] == "build_ios" and context.audit_spec["function_sha256"] == source["build_task_sha256"], "B框架候选不是原build_ios")
+    prefix = context.root / ("tmp/install.ios-" + arch)
+    require(context.install == prefix and context.path("{{install}}") == prefix, "B框架实际prefix不同")
+    raw = raw_file(context.cwd / source["makefile_template"]["path"])
+    require(len(raw) == source["makefile_template"]["bytes"] and sha(raw) == source["makefile_template"]["sha256"], "B原Makefile.pre.in字节不同")
+    before = {key: context.environ[key] for key in ENV_KEYS};after = dict(before);suffix = " -F " + str(prefix);after["LDFLAGS"] += suffix
+    descriptor = next(d for d in row["extra_inputs"] if d["path"] == "source/MetalANGLE.framework.ios" + (".simulator" if arch.startswith("sim-") else "") + ".zip")
+    archive = context.root / descriptor["path"];j8.verify_bytes(raw_file(archive), descriptor)
+    framework = verify_framework(archive, prefix, arch, None)
+    record = {"scope": config["scope"], "release": row["release"], "arch": arch, "source": source, "prefix": str(prefix),
+              "original_environment": before, "candidate_environment": after, "append": suffix, "reason": config["reason"], "framework": framework}
+    check_target_framework_link_binding(record, row, specification, arch, context.root, plan)
+    context.environ.update(after)
+    return record
+
+
+def extract_target_python_link_argv(raw_log, executable):
+    """纯解析原make日志中的唯一python链接命令，保留实际每个参数及原规则自然重复。"""
+    require(isinstance(raw_log, bytes) and executable == "python", "未知目标Python链接日志/名称")
+    commands = []
+    for line in raw_log.decode(errors="replace").replace("\\\n", " ").splitlines():
+        try:words = shlex.split(line)
+        except ValueError:continue
+        if any(words[i] == "-o" and words[i + 1] == executable for i in range(len(words) - 1)):commands.append(words)
+    require(len(commands) == 1, "B最终真实解释器链接argv缺失/重复")
+    return commands[0]
+
+
+def verify_target_framework_link(events, row, specification, arch, workspace, plan, python_root, projection):
+    """读原make实际stdout闭合链接argv；不以configure成功或静态候选存在代替链接执行。"""
+    config = plan["target_install"]["framework_link_candidate"]
+    if row["release"] not in config["releases"]:return None
+    configurations = [e for e in events if e.get("B_framework_link_candidate") is not None]
+    require(len(configurations) == 1 and configurations[0]["returncode"] == 0, "B框架候选configure未成功")
+    builds = [e for e in events if e.get("operation") == "run" and e.get("template", "").strip() == "{{ make }}"]
+    require(len(builds) == 1 and builds[0]["returncode"] == 0, "B缺原make成功链接事件")
+    log = builds[0]["raw_command_log"];raw = raw_file(Path(log["path"]), 1024**3)
+    require(len(raw) == log["bytes"] and sha(raw) == log["sha256"], "B原make链接日志字节不同")
+    argv = extract_target_python_link_argv(raw, projection["BUILDPYTHON"])
+    record = configurations[0]["B_framework_link_candidate"]
+    binding = check_target_framework_link_binding(record, row, specification, arch, workspace, plan, raw_file(python_root / "Makefile"), projection, argv)
+    return {"candidate": record, "binding": binding, "actual_make_log": log}
+
+
 def cp39_configure_candidate(context, row, specification, template, plan):
     """只对已锁 CP39 原 configure 入口清空发现输入并显式禁用隐含 ensurepip。"""
     candidate = specification.get("build_context_candidate")
@@ -1045,6 +1157,7 @@ def python_context(original, tasks, row, specification, arch, workspace, plan, c
             if argv[0] == "cython":
                 found = shutil.which("cython", path=self.environ["PATH"])
                 require(found == cython["executable"] and sha(raw_file(Path(found))) == cython["sha256"], "实际 PATH 选中非批准 Cython")
+            framework_candidate = target_framework_link_candidate(self, row, specification, arch, template, plan, j8)
             execution_template, build_candidate = cp39_configure_candidate(self, row, specification, template, plan)
             if build_candidate is not None:argv = build_candidate["candidate_argv"]
             event = {"operation": "run", "task_name": self.task_name, "template": template, "argv": argv, "cwd": str(self.cwd),
@@ -1053,6 +1166,7 @@ def python_context(original, tasks, row, specification, arch, workspace, plan, c
             if build_candidate is not None:
                 event["execution_template"] = execution_template
                 event["CP39_build_context_candidate"] = build_candidate
+            if framework_candidate is not None:event["B_framework_link_candidate"] = framework_candidate
             events.append(event)
             with (output / "target-install-events.jsonl").open("a") as journal:journal.write(json.dumps({"phase": "start", **event}, ensure_ascii=False) + "\n")
             try:
@@ -1116,7 +1230,8 @@ def implicit_ensurepip_evidence(events, specification, host_prefix):
 def make_projection(python_root, context, output):
     """以额外只读目标导出真实 GNUmake 展开值，不修改原生成 Makefile 或执行 pip。"""
     keys = ("LIBSUBDIRS", "TESTSUBDIRS", "TEST_MODULES", "LIBDEST", "BINLIBDEST", "LIBRARY", "LDLIBRARY", "VERSION", "LDVERSION", "ABIFLAGS", "MACHDEP", "MULTIARCH",
-            "SOABI", "CC", "CFLAGS", "LDFLAGS", "LDSHARED", "CONFIG_ARGS", "PYTHON_FOR_BUILD", "ENSUREPIP", "srcdir", "prefix", "PLATDIR")
+            "SOABI", "CC", "CFLAGS", "LDFLAGS", "LDSHARED", "CONFIG_ARGS", "PYTHON_FOR_BUILD", "ENSUREPIP", "srcdir", "prefix", "PLATDIR",
+            "CONFIGURE_LDFLAGS", "PY_CORE_LDFLAGS", "LINKCC", "LINKFORSHARED", "BUILDPYTHON", "BLDLIBRARY", "LINK_PYTHON_OBJS", "LIBS", "MODLIBS", "SYSLIBS", "LDLAST")
     code = "import os,json;print(json.dumps({k:os.environ['REKO_LOCKED_'+k] for k in " + repr(keys) + "}))"
     audit = output / "target-python-make-projection.mk"
     text = ".PHONY: reko_locked_projection\n" + "\n".join("export REKO_LOCKED_" + key + " := $(" + key + ")" for key in keys)
@@ -1360,6 +1475,8 @@ def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c
         for event in events:
             if event["operation"] == "generate":require(sha(raw_file(Path(event["path"]))) == event["sha256"], "原Setup渲染被make阶段改变")
         projection = make_projection(python_root, context, args.output);write_new(args.output / "target-make-projection.json", projection)
+        framework_link = verify_target_framework_link(events, row, specification, args.arch, args.workspace, plan, python_root, projection)
+        if framework_link is not None:write_new(args.output / "target-framework-link-binding.json", framework_link)
         build_python = verify_build_python(projection, context, row, plan, host_prefix)
         ensurepip = implicit_ensurepip_evidence(events, specification, host_prefix)
         write_new(args.output / "target-implicit-ensurepip.json", ensurepip)
@@ -1384,6 +1501,8 @@ def execute_target_install(args, plan, row, loaded, original, tasks, frontend, c
     target = {"schema_version": 1, "task": "R00-02J9B", "scope": TARGET_SCOPE, "release": args.release, "arch": args.arch,
               "plan_sha256": PLAN_SHA256, "execution_source_sha256": sha(raw_file(Path(__file__).absolute())), "C_receipt": c_reference,
               "Cython": cython, "tasks": receipts, "make_projection": projection, "build_python": build_python, "config_site": specification["config_site"],
+              "B_framework_link_candidate": framework_link,
+              "B_framework_link_binding_sha256": sha(raw_file(args.output / "target-framework-link-binding.json")) if framework_link is not None else None,
               "original_CP39_cross_wrapper_modified": False, "CP39_build_context_candidate_used": specification.get("build_context_candidate") is not None,
               "implicit_install_ensurepip": {**ensurepip,
               "host_before_sha256": sha(raw_file(args.output / "target-host-before.json")),

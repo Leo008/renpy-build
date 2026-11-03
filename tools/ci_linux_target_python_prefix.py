@@ -23,7 +23,7 @@ import types
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-target-python-prefix-ci-plan.json"
-PLAN_SHA256 = "369aa3b59de3b3fd1501d33048ca6279d31c8a4656b24bb99ff4658ec1693b03"
+PLAN_SHA256 = "e3db9508a80123722a4705ee56055bfc00092af5522a4ac3c0fc49e7b4a6fc4e"
 GROUPS = {"22.04": ["8.3.7", "7.8.7"], "24.04": ["8.5.3", "8.4.1"]}
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
 REMOTE_ROOT = "/reko/j9-runtime/root"
@@ -280,6 +280,33 @@ def verify_cp39_build_context():
  return True
 '''
 
+TARGET_FRAMEWORK_RECEIPT = r'''def verify_target_framework_receipt():
+ """从原make日志重取真实argv并调用固定纯校验器，不把自签receipt当链接证据。"""
+ config=plan['target_install']['framework_link_candidate'];expected=release in config['releases']
+ filename='target-framework-link-binding.json';record=receipt['B_framework_link_candidate']
+ configurations=[event for event in events if event.get('B_framework_link_candidate') is not None]
+ if not expected:
+  assert release in config['already_complete_releases'] and record is None and receipt['B_framework_link_binding_sha256'] is None
+  assert not configurations and filename not in export['files'] and not (folder/filename).exists()
+  return False
+ assert filename in export['files'] and pax_identity(folder/filename)['sha256']==receipt['B_framework_link_binding_sha256']
+ assert m.decode(m.raw_file(folder/filename))==record and len(configurations)==1
+ configured=configurations[0];assert configured['returncode']==0 and configured['B_framework_link_candidate']==record['candidate']
+ source=config['routes'][release];assert configured['template']==source['configure_template']
+ assert {key:configured['environment'][key] for key in m.ENV_KEYS}==record['candidate']['candidate_environment']
+ template=source['makefile_template'];body=m.raw_file(python_root/template['path'])
+ assert len(body)==template['bytes'] and m.sha(body)==template['sha256'] and body.decode().count(source['link_recipe'])==1
+ builds=[event for event in events if event.get('operation')=='run' and event.get('template','').strip()=='{{ make }}']
+ assert len(builds)==1 and builds[0]['returncode']==0 and record['actual_make_log']==builds[0]['raw_command_log']
+ original=pathlib.Path(record['actual_make_log']['path']);assert original.parent==pathlib.Path('/reko/j9-results')/release/arch and re.fullmatch(r'target-python-command-[0-9]{3}\.log',original.name)
+ raw=m.raw_file(folder/original.name,1024**3);assert len(raw)==record['actual_make_log']['bytes'] and m.sha(raw)==record['actual_make_log']['sha256']
+ argv=m.extract_target_python_link_argv(raw,projection['BUILDPYTHON'])
+ binding=m.check_target_framework_link_binding(record['candidate'],row,spec,arch,original_prefix.parent.parent,plan,
+  makefile_raw=m.raw_file(python_root/'Makefile'),projection=projection,actual_argv=argv)
+ assert binding==record['binding'] and binding['target_link_argument_binding_verified'] is True
+ return True
+'''
+
 EXPORT_TARGET_PREFIX = TARGET_PAX + r'''import json,sys,types
 metadata,release,arch,worker_sha,sidecars=sys.argv[1:];metadata=pathlib.Path(metadata);sidecars=json.loads(sidecars)
 p=metadata/'scripts/renpy/run_locked_target_python_tasks.py';raw=p.read_bytes();assert hashlib.sha256(raw).hexdigest()==worker_sha
@@ -318,6 +345,16 @@ if spec.get('build_context_candidate'):
 directories=projection['LIBSUBDIRS'].split()+(projection['TESTSUBDIRS'].split() if projection['TEST_MODULES']=='yes' else [])
 if 'distutils/tests' in directories:required.add('Modules/xxmodule.c')
 events=m.decode(m.raw_file(folder/'target-python-commands.json'))
+framework_link=m.verify_target_framework_link(events,row,spec,arch,workspace,plan,python_root,projection)
+assert framework_link==receipt['B_framework_link_candidate']
+sidecars=list(sidecars)
+if framework_link is None:
+ assert receipt['B_framework_link_binding_sha256'] is None and not (folder/'target-framework-link-binding.json').exists()
+else:
+ assert m.decode(m.raw_file(folder/'target-framework-link-binding.json'))==framework_link
+ assert pax_identity(folder/'target-framework-link-binding.json')['sha256']==receipt['B_framework_link_binding_sha256']
+ sidecars.append('target-framework-link-binding.json')
+ required.add(plan['target_install']['framework_link_candidate']['routes'][release]['makefile_template']['path'])
 for event in events:
  if event['operation']=='generate':required.add(str(pathlib.Path(event['path']).relative_to(python_root)))
 proof_stage=target/'proof-staging';proof_stage.mkdir(mode=0o700)
@@ -348,7 +385,7 @@ with (target/'target-export.json').open('x') as stream:json.dump(result,stream,e
 print(json.dumps({'target_python_install_verified':True,'prefix_members':len(products['inventory']),'proof_members':len(proof)}))
 '''
 
-VERIFY_TARGET_EXPORT = TARGET_PAX + TARGET_BUILD_RECEIPT + r'''import json,subprocess,sys,types
+VERIFY_TARGET_EXPORT = TARGET_PAX + TARGET_BUILD_RECEIPT + TARGET_FRAMEWORK_RECEIPT + r'''import json,subprocess,sys,types
 metadata,folder,workspace,worker_sha=sys.argv[1:];metadata=pathlib.Path(metadata);folder=pathlib.Path(folder);workspace=pathlib.Path(workspace)
 p=metadata/'scripts/renpy/run_locked_target_python_tasks.py';raw=p.read_bytes();assert hashlib.sha256(raw).hexdigest()==worker_sha
 m=types.ModuleType('reko_j9_B_static_reader');m.__file__=str(p);exec(compile(raw,str(p),'exec'),m.__dict__)
@@ -362,6 +399,7 @@ required_files={'target-install-receipt.json','target-prefix-inventory.json','ta
  'target-libpython-nm.stdout','target-make-projection.json','target-python-commands.json','target-install-events.jsonl','target-source-after-patches.json',
  'target-scproxy-generation.json','target-implicit-ensurepip.json','target-host-before.json','target-host-after.json','target-host-delta.json',
  'c-prefix-receipt.json','c-prefix-inventory.json','c-archive-objects.json','c-headers-and-sources.json','target-proof-inventory.json','target-export-nm.stdout'}
+if release in plan['target_install']['framework_link_candidate']['releases']:required_files.add('target-framework-link-binding.json')
 assert required_files<=set(export['files']) and all(name in required_files or re.fullmatch(r'target-python-command-[0-9]{3}\.log',name) for name in export['files'])
 for name,identity in export['files'].items():assert '/' not in name and name not in ('.','..') and pax_identity(folder/name)==identity
 receipt=m.decode(m.raw_file(folder/'target-install-receipt.json'));c=m.decode(m.raw_file(folder/'c-prefix-receipt.json'))
@@ -471,6 +509,7 @@ try:
  assert pax_identity(folder/'target-host-before.json')==plan['host_producers'][release]['inventory']
  assert m.inventory_delta(before,after)==delta
  cp39_candidate_verified=verify_cp39_build_context()
+ framework_binding_verified=verify_target_framework_receipt()
  ensure=receipt['implicit_install_ensurepip'];assert ensure['explicit_pip_Task_executed'] is False and ensure['target_pip_bound'] is False
  for name,key in [('target-host-before.json','host_before_sha256'),('target-host-after.json','host_after_sha256'),('target-host-delta.json','host_delta_sha256')]:assert pax_identity(folder/name)['sha256']==ensure[key]
  relocated_events=[]
@@ -490,6 +529,7 @@ try:
  result={'release':release,'arch':arch,'target_python_install_verified':True,'full_inventory_members':len(entries),'stdlib_sources':len(stdlib_records),
   'MachO_archive_objects':sum(len(a['objects']) for a in archives),'hostcopy_verified':True,'original_framework_verified':True,'container_nm_reexecuted':True,
   'host_nm_recomputed':host_nm,'CP39_build_context_candidate_verified':cp39_candidate_verified,
+  'B_framework_link_argument_binding_verified':framework_binding_verified,
   'stdlib_changed_since_post_patch_snapshot':stdlib_changes,'returned_binary_executed_on_host':False,'target_pip_bound':False,'ios_runtime_verified':False}
 finally:
  for temporary in (prefix,python_root):
@@ -969,7 +1009,7 @@ def load_plan(path=DEFAULT_PLAN):
             and re.fullmatch("[0-9a-f]{40}", plan["metadata_source_commit"]), "J9D固定阶段/范围错误")
     validate_addon_catalog(plan["metadata_addon"])
     target = plan["target_install"];validate_addon_catalog(target["metadata_addon"])
-    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "63dde6de0a13918b50328ae696a4c881f733c5cc" and len(target["allowed_cells"]) == 2
+    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "4e701cde9fc10169e5f50d34727209cae14b9c16" and len(target["allowed_cells"]) == 2
             and {(r["ubuntu"],r["release"],r["arch"]) for r in target["allowed_cells"]} == {("22.04","8.3.7","sim-arm64"),("22.04","7.8.7","sim-arm64")}, "B只允许两已验C选择及固定提交")
     expected = {"run_locked_target_python_tasks.py", "target-python-prefix-plan.json", "validate_lock.py", "build_common.py",
                 "materialize_source_inputs.py", "remote-sources.lock.json", "runtime-lock.json"}

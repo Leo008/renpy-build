@@ -184,23 +184,23 @@
   "target_install": {
     "task": "R00-02J9B",
     "scope": "same_fresh_C1_worker_original_C_then_target_Python_install_no_pip",
-    "metadata_source_commit": "63dde6de0a13918b50328ae696a4c881f733c5cc",
+    "metadata_source_commit": "4e701cde9fc10169e5f50d34727209cae14b9c16",
     "worker": {
-      "bytes": 113612,
-      "sha256": "e5d6a378fdea5cb652941152f7f77d290eb2843c1c0786802784c29bf158cd16",
-      "plan_bytes": 179190,
-      "plan_sha256": "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
+      "bytes": 123850,
+      "sha256": "c027ff891e094eed3cc7d06eae610631ab07e6653b3be9c358acd76806a3fb6d",
+      "plan_bytes": 184266,
+      "plan_sha256": "b8436c30ab5eaa5db96ae232d030a1409556293c2e109330e0d5177d9fea7c0d"
     },
     "metadata_addon": [
       {
         "path": "runtime/run_locked_target_python_tasks.py",
-        "bytes": 113612,
-        "sha256": "e5d6a378fdea5cb652941152f7f77d290eb2843c1c0786802784c29bf158cd16"
+        "bytes": 123850,
+        "sha256": "c027ff891e094eed3cc7d06eae610631ab07e6653b3be9c358acd76806a3fb6d"
       },
       {
         "path": "runtime/target-python-prefix-plan.json",
-        "bytes": 179190,
-        "sha256": "b3cec4ea0a7588c9ef1ca0f07a50bafc3066c0116142409f80070669be494306"
+        "bytes": 184266,
+        "sha256": "b8436c30ab5eaa5db96ae232d030a1409556293c2e109330e0d5177d9fea7c0d"
       },
       {
         "path": "runtime/validate_lock.py",
@@ -253,7 +253,8 @@
       "新B成功原件没有预填SHA；必须实际worker原target receipt/fullprefix/stdlib/config/nm/hostcopy/MachO全核后独占写export。",
       "失败只保存受控prefix/Lib/生成配置的diagnostic_only私有PAX；不作为成功receipt/reader输入，不含cross SDK或完整host树。",
       "保持原H0/SDK宿主secret与私有CMS边界；target pip/shared/iOS session/global闭包未验收。",
-      "63dde6 CP39明确configure候选单列：原upgrade历史不改，实际no由原configure参数/wrapper/Makefile及完整host不变证明；不计显式pip Task。"
+      "63dde6 CP39明确configure候选单列：原upgrade历史不改，实际no由原configure参数/wrapper/Makefile及完整host不变证明；不计显式pip Task。",
+      "4e701cd只在B原build_ios配置点追加唯一安装前缀-F；原Makefile/投影/原make日志实际argv与sidecar/receipt强锚必须闭合，不将链接字段存在计为目标运行。"
     ]
   }
 }
