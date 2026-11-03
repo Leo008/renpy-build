@@ -1,0 +1,334 @@
+name: RenPy fixed Linux original graphics metadata
+
+'on':
+  workflow_dispatch:
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths: [.github/workflows/linux-graphics-metadata.yml]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-linux-graphics-metadata-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  generators:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Leo008/renpy-build'
+    name: Original legacy and modern graphics metadata Ubuntu 22.04
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      REKO_SOURCE_COMMIT: 7680e8f18019fd2ad6868ef7b72f888958173c45
+      RUNTIME_NAME: j10-graphics-metadata-runtime-20261103-01.tar.gz
+      RUNTIME_BYTES: '1029731'
+      RUNTIME_SHA256: b9895611b60bf08dcfa9c7082db9a3495d03087b26e858712cd7a6491b6a7852
+    steps:
+      - name: 仅检出两原件和已有公开CMS接收证书
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools/ci_linux_graphics_metadata.py
+            tools/linux-graphics-metadata-ci-plan.json
+            tools/j9-diagnostics-recipient.pem
+          sparse-checkout-cone-mode: false
+      - name: 核部署身份和空间边界
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, platform, shutil, sys
+          from pathlib import Path
+          if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPyGraphicsCI] 需要真实Linux amd64 Python3.10')
+          expected={'tools/ci_linux_graphics_metadata.py':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88','tools/linux-graphics-metadata-ci-plan.json':'a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf','tools/j9-diagnostics-recipient.pem':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8'}
+          for name,sha in expected.items():
+              p=Path(name)
+              if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPyGraphicsCI] 部署原件不同：'+name)
+          base=Path(os.environ['RUNNER_TEMP'])
+          private=base/'reko-j10-evidence/private-diagnostics';private.mkdir(mode=0o700,parents=True,exist_ok=True)
+          # 远端CI按8GiB工作估算加2GiB余量独立管理；两次可用空间采样不是实测峰值。
+          free=shutil.disk_usage(base).free
+          (private/'storage-before.json').write_text(json.dumps({'stage':'before_inputs_and_driver','free_bytes':free,'estimated_work_bytes':8*1024**3,'reserve_bytes':2*1024**3,'minimum_entry_free_bytes':10*1024**3,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+          if free<10*1024**3:raise SystemExit('[RenPyGraphicsCI] 远端CI未满足8GiB工作估算加2GiB余量的10GiB入口门禁')
+          plan=json.loads(Path('tools/linux-graphics-metadata-ci-plan.json').read_bytes())
+          if plan['environment']['ubuntu']!='22.04' or plan['H1_profile']['artifact']['id']!=13143390321 or len(plan['runtime_catalog'])!=13:raise SystemExit('[RenPyGraphicsCI] 输入范围不是固定J10G')
+          print('[RenPyGraphicsCI] 两原件/旧公证书及远端10GiB入口门禁通过；8GiB为工作估算，不消费SDK或解密秘密',flush=True)
+          PYCODE
+      - name: 先实测Linux CMS加密、解密和篡改拒绝
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, subprocess, tempfile
+          from pathlib import Path
+          public = Path(os.environ['RUNNER_TEMP'])/'reko-j10-public';public.mkdir()
+          def command(argv):
+              """CMS自检正文只含无害固定字节，失败不披露其他输入。"""
+              result = subprocess.run(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
+              if result.returncode: raise RuntimeError('Linux CMS自检命令失败')
+              return result.stdout
+          with tempfile.TemporaryDirectory(prefix='reko-j10-cms-selftest-',dir=os.environ['RUNNER_TEMP']) as name:
+              root=Path(name);root.chmod(0o700)
+              plain=root/'plain';plain.write_bytes(b'Reko J10 harmless CMS roundtrip\n')
+              key=root/'key.pem';cert=root/'cert.pem';sealed=root/'sealed.cms';restored=root/'restored'
+              command(['openssl','req','-new','-x509','-newkey','rsa:3072','-nodes','-keyout',str(key),'-out',str(cert),'-subj','/CN=Reko J10 Harmless CI Selftest/','-days','1','-sha256'])
+              # keyopt必须在其对应recip之后；此处按真实加密命令构造相同参数。
+              def seal(recipient, destination):
+                  """使用固定CMS算法和公证书封装无害探针。"""
+                  command(['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(destination),'-outform','DER','-recip',str(recipient),'-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256'])
+              seal(cert,sealed)
+              decrypt=['openssl','cms','-decrypt','-binary','-inform','DER','-in',str(sealed),'-recip',str(cert),'-inkey',str(key),'-out',str(restored)]
+              command(decrypt)
+              if restored.read_bytes()!=plain.read_bytes():raise RuntimeError('CMS还原字节不符')
+              damaged=bytearray(sealed.read_bytes());damaged[-1]^=1;sealed.write_bytes(damaged);restored.unlink()
+              if subprocess.run(decrypt,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90).returncode==0:raise RuntimeError('CMS未拒绝篡改')
+              if restored.exists():restored.unlink()
+              seal(Path('tools/j9-diagnostics-recipient.pem'),root/'actual-recipient-probe.cms')
+              report={'Linux_CMS_roundtrip':True,'tampered_ciphertext_rejected':True,'actual_recipient_encryption':True,'actual_recipient_private_key_on_CI':False,'openssl':command(['openssl','version']).decode().strip()}
+              (public/'cms-selftest.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print('[RenPyGraphicsCI] Linux CMS实际自检通过；CI仅持公开接收证书',flush=True)
+          PYCODE
+      - name: 取得既有固定22APT分发
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-22.04-41419224335-1
+          path: ${{ runner.temp }}/reko-j10-inputs/apt
+      - name: 核真实H1及13文本Release原件后取回
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, stat, subprocess, tarfile
+          from pathlib import Path
+          base=Path(os.environ['RUNNER_TEMP']);inputs=base/'reko-j10-inputs';private=base/'reko-j10-evidence/private-diagnostics'
+          inputs.mkdir(exist_ok=True);private.mkdir(mode=0o700,parents=True,exist_ok=True)
+          cli=shutil.which('gh')
+          if not cli:raise SystemExit('[RenPyGraphicsCI] 缺GitHub CLI')
+          command=[cli,'api'];help_result=subprocess.run(command+['--help'],capture_output=True,timeout=30)
+          if b'--allow-escape-sequences' in help_result.stdout+help_result.stderr:command.append('--allow-escape-sequences')
+          def api(endpoint, destination):
+              """仅请求固定公共仓库元数据，令牌/签名地址不输出或入包。"""
+              result=subprocess.run(command+[endpoint],capture_output=True,timeout=90)
+              if result.returncode:raise RuntimeError('固定GitHub元数据不可用')
+              destination.write_bytes(result.stdout);return json.loads(result.stdout)
+          runtime_name=os.environ['RUNTIME_NAME'];runtime_bytes=int(os.environ['RUNTIME_BYTES']);runtime_sha=os.environ['RUNTIME_SHA256']
+          release=api('repos/Leo008/renpy-build/releases/406525604',private/'runtime-release-api.json')
+          if release['id']!=406525604 or release['tag_name']!='ci-inputs-8.5.3-20261008':raise RuntimeError('固定Release不同')
+          assets=[r for r in release['assets'] if r['id']==704686340]
+          expected_url='https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/'+runtime_name
+          if len(assets)!=1 or assets[0]['name']!=runtime_name or assets[0]['size']!=runtime_bytes or assets[0]['digest']!='sha256:'+runtime_sha or assets[0]['state']!='uploaded' or assets[0]['browser_download_url']!=expected_url:raise RuntimeError('13文本发布原件身份不同')
+          h1=api('repos/Leo008/renpy-build/actions/artifacts/13143390321',private/'H1-artifact-api.json')
+          if h1['id']!=13143390321 or h1['workflow_run']['id']!=41446746901 or h1['size_in_bytes']!=101989031 or h1['digest']!='sha256:7c22c8e81eae045770f618907961c9b20741b9049cdf82b76af73f30949a5ec8' or h1['expired'] is not False:raise RuntimeError('原H1 artifact外部身份不同')
+          def identity(path):
+              """流式读取运输原件，不分配整ZIP副本。"""
+              if path.is_symlink() or not stat.S_ISREG(path.lstat().st_mode):raise RuntimeError('运输文件类型错误')
+              h=hashlib.sha256()
+              with path.open('rb') as stream:
+                  for block in iter(lambda:stream.read(1048576),b''):h.update(block)
+              return {'bytes':path.stat().st_size,'sha256':h.hexdigest()}
+          def download(endpoint, destination, size, sha, octet=False):
+              """完整已验缓存可复用；错缓存不覆盖，不打印GitHub临时签名地址。"""
+              expected={'bytes':size,'sha256':sha}
+              if destination.exists():
+                  if identity(destination)!=expected:raise RuntimeError('既有运输缓存身份不同')
+                  return
+              argv=command+(['--header','Accept:application/octet-stream'] if octet else [])+[endpoint]
+              with destination.open('xb') as stream:result=subprocess.run(argv,stdout=stream,stderr=subprocess.PIPE,timeout=600)
+              destination.chmod(0o600)
+              if result.returncode or identity(destination)!=expected:raise RuntimeError('完整原件运输大小/SHA失败')
+          download('repos/Leo008/renpy-build/releases/assets/704686340',inputs/runtime_name,runtime_bytes,runtime_sha,True)
+          download('repos/Leo008/renpy-build/actions/artifacts/13143390321/zip',inputs/'H1-original.zip',101989031,'7c22c8e81eae045770f618907961c9b20741b9049cdf82b76af73f30949a5ec8')
+          plan=json.loads(Path('tools/linux-graphics-metadata-ci-plan.json').read_bytes());catalog={r['name']:r for r in plan['runtime_catalog']}
+          runtime=inputs/'runtime';runtime.mkdir(mode=0o700);seen=set()
+          with tarfile.open(inputs/runtime_name,'r:gz') as source:
+              for item in source:
+                  if item.name not in catalog or item.name in seen or not item.isfile() or item.sparse or item.mode!=0o644 or item.size!=catalog[item.name]['bytes']:raise RuntimeError('运行时包不是固定13份平铺普通原件')
+                  seen.add(item.name);path=runtime/item.name
+                  with source.extractfile(item) as stream,path.open('xb') as target:shutil.copyfileobj(stream,target,1048576)
+                  path.chmod(0o644)
+                  if identity(path)!={k:catalog[item.name][k] for k in ('bytes','sha256')}:raise RuntimeError('运行时成员原SHA不同')
+          if seen!=set(catalog):raise RuntimeError('13运行时原件缺件')
+          (private/'input-transport.json').write_text(json.dumps({'source_commit':os.environ['REKO_SOURCE_COMMIT'],'runtime_asset_id':704686340,'runtime_release_id':406525604,'runtime_archive':identity(inputs/runtime_name),'runtime_members':13,'H1_archive':identity(inputs/'H1-original.zip'),'SDK_inputs_consumed':False,'repository_decryption_secrets_used':False},indent=2)+'\n')
+          print('[RenPyGraphicsCI] 真实Release/API身份、H1完整ZIP和13文本成员SHA全部通过',flush=True)
+          PYCODE
+      - name: 同一C1执行两份原生成器并只写私有日志
+        shell: bash
+        run: |
+          private="$RUNNER_TEMP/reko-j10-evidence/private-diagnostics"
+          mkdir -p "$private"
+          chmod 700 "$private"
+          set +e
+          /usr/bin/python3.10 -B tools/ci_linux_graphics_metadata.py run \
+            --runtime-dir "$RUNNER_TEMP/reko-j10-inputs/runtime" \
+            --source-cache "$RUNNER_TEMP/reko-j10-inputs/source-cache" \
+            --fetch-missing-sources \
+            --h1-artifact "$RUNNER_TEMP/reko-j10-inputs/H1-original.zip" \
+            --bundle "$RUNNER_TEMP/reko-j10-inputs/apt/apt-inputs-22.04" \
+            --output "$private/worker" >"$private/driver.stdout" 2>"$private/driver.stderr"
+          code=$?
+          set -e
+          /usr/bin/python3.10 -B - "$private/driver-status.json" "$code" <<'PYCODE'
+          import json,shutil,sys
+          from pathlib import Path
+          status=Path(sys.argv[1])
+          status.write_text(json.dumps({'returncode':int(sys.argv[2]),'Linux_generator_driver_actually_invoked':True},indent=2)+'\n')
+          # driver成功或失败返回后均采样；这里只记录该时点余量，不推断过程峰值。
+          (status.parent/'storage-after-driver.json').write_text(json.dumps({'stage':'after_driver','free_bytes':shutil.disk_usage(status.parent).free,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+          PYCODE
+          exit "$code"
+      - name: 形成仅限真实阶段的公开摘要
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import json,os
+          from pathlib import Path
+          evidence=Path(os.environ['RUNNER_TEMP'])/'reko-j10-evidence';evidence.mkdir(exist_ok=True)
+          path=evidence/'private-diagnostics/worker/report.json';driver=evidence/'private-diagnostics/driver-status.json'
+          report=json.loads(path.read_bytes()) if path.is_file() and not path.is_symlink() else {}
+          status=json.loads(driver.read_bytes()) if driver.is_file() and not driver.is_symlink() else {}
+          allowed_results={'two_original_generators_actually_verified_on_Linux','fixed_input_bytes_verified_only','failed','not_run'}
+          if report and report.get('result') not in allowed_results:raise RuntimeError('未知worker结果，不公开原正文')
+          wanted={'metalangle-legacy':'8.3.7','metalangle-modern':'8.5.3'};families=[]
+          for row in report.get('families',[]):
+              if row.get('family') not in wanted or row.get('release')!=wanted[row['family']]:raise RuntimeError('未知返回family')
+              families.append({key:row[key] for key in ('family','release','result','generator_verified','original_results_preserved')})
+          scope_flags=('SDK_inputs_consumed','H0_or_pip_replayed','Xcode_or_engine_or_B_make_executed','R00_ready')
+          verified=(type(status.get('returncode')) is int and status['returncode']==0 and status.get('Linux_generator_driver_actually_invoked') is True
+                    and report.get('task')=='R00-02J10G-Linux'
+                    and report.get('plan_sha256')=='a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf'
+                    and report.get('execution_tool')=={'bytes':35594,'sha256':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88'}
+                    and report.get('result')=='two_original_generators_actually_verified_on_Linux'
+                    and all(report.get(key) is True for key in ('inputs_verified','actual_linux_execution_verified','actual_H1_restored_and_probed','legacy_original_generator_verified','modern_original_generator_verified','container_closed'))
+                    and all(report.get(key) is False for key in scope_flags)
+                    and report.get('local_temporary_workspaces')=='removed' and len(families)==2
+                    and {row['family'] for row in families}==set(wanted)
+                    and all(row['result']=='passed' and row['generator_verified'] is True and row['original_results_preserved'] is True for row in families))
+          if any(report.get(key,False) is not False for key in ('SDK_inputs_consumed','H0_or_pip_replayed','Xcode_or_engine_or_B_make_executed','R00_ready')):raise RuntimeError('worker越过固定J10G范围')
+          def storage_free(name):
+              """仅公开可用空间数值；缺失或非整数采样保留未观测状态。"""
+              sample=evidence/'private-diagnostics'/name
+              row=json.loads(sample.read_bytes()) if sample.is_file() and not sample.is_symlink() else {}
+              value=row.get('free_bytes')
+              return value if type(value) is int and value>=0 else None
+          storage={'estimated_work_bytes':8*1024**3,'reserve_bytes':2*1024**3,'minimum_entry_free_bytes':10*1024**3,
+                   'before_free_bytes':storage_free('storage-before.json'),'after_driver_free_bytes':storage_free('storage-after-driver.json'),'peak_measured':False}
+          summary={'task':'R00-02J10G-Linux','source_commit':os.environ['REKO_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
+                   'execution_tool_sha256':'8847753deb9f1d926a1780692aa278b41c9a606507f2beab4c68f190476ebf88',
+                   'plan_sha256':'a3cf945e66e340c1ca2a9464a56dc246327b3d5d652f1964bd3b25d48533fdcf',
+                   'runtime_asset_id':704686340,'runtime_bytes':1029731,'runtime_sha256':os.environ['RUNTIME_SHA256'],'remote_storage':storage,
+                   'result':report.get('result','failed_before_worker_report'),'families':families,'actual_linux_execution_verified':verified,
+                   'ROOT_independent_acceptance_completed':False,'SDK_inputs_consumed':False,'H0_or_pip_replayed':False,
+                   'Xcode_or_engine_or_B_make_executed':False,'R00_ready':False,'plaintext_uploaded':False}
+          (evidence/'public-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
+          if status.get('returncode')==0 and not verified:raise RuntimeError('driver退出0但实际证据不完整')
+          print('[RenPyGraphicsCI] 有限公开摘要已形成；独立验收仍待ROOT',flush=True)
+          PYCODE
+      - name: 完整私有诊断封装加密并只导出公开白名单
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, stat, subprocess, tarfile, tempfile
+          from pathlib import Path
+          base=Path(os.environ['RUNNER_TEMP']);public=base/'reko-j10-public';public.mkdir(exist_ok=True)
+          evidence=base/'reko-j10-evidence';private=evidence/'private-diagnostics';summary=evidence/'public-summary.json'
+          if summary.is_file() and not summary.is_symlink():
+              shutil.copyfile(summary,public/'public-summary.json')
+              report=json.loads(summary.read_bytes())
+              print('[RenPyGraphicsCI] 实际结果='+str(report['result'])+'；两family='+json.dumps(report['families'],ensure_ascii=False),flush=True)
+          else:
+              (public/'workflow-status.json').write_text(json.dumps({'actual_linux_execution_verified':False,'result':'failed_before_worker_summary','job_status':'${{ job.status }}'},ensure_ascii=False,indent=2)+'\n')
+          if not private.exists():
+              print('[RenPyGraphicsCI] 尚无worker私有输出；此前失败不计J10G通过',flush=True)
+          else:
+              try:
+                  if private.is_symlink() or not private.is_dir():raise RuntimeError('私有诊断根异常')
+                  if any(private.glob('worker/.j10-work-*')):raise RuntimeError('临时H1/源码工作区未回收，不进入诊断封套')
+                  with tempfile.TemporaryDirectory(prefix='reko-j10-seal-',dir=base) as directory:
+                      temp=Path(directory);temp.chmod(0o700);plain=temp/'private-diagnostics.tar.gz';members=[]
+                      with tarfile.open(plain,'w:gz',format=tarfile.PAX_FORMAT) as bundle:
+                          for p in sorted(private.rglob('*')):
+                              mode=p.lstat().st_mode
+                              if stat.S_ISDIR(mode):continue
+                              if not stat.S_ISREG(mode):raise RuntimeError('私有诊断存在非普通原件')
+                              name=p.relative_to(private).as_posix()
+                              if name.startswith('/') or any(x in ('','.','..') for x in name.split('/')):raise RuntimeError('私有诊断路径异常')
+                              digest=hashlib.sha256()
+                              with p.open('rb') as stream:
+                                  for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                              size=p.stat().st_size
+                              if len(members)>=8192 or size>512*1024**2 or sum(row['bytes'] for row in members)+size>1024**3:raise RuntimeError('私有诊断超过有界封套上限')
+                              members.append({'path':name,'bytes':size,'sha256':digest.hexdigest()})
+                              info=tarfile.TarInfo('private-diagnostics/'+name);info.size=size;info.mode=0o600;info.mtime=0
+                              with p.open('rb') as stream:bundle.addfile(info,stream)
+                      sealed=temp/'private-diagnostics.cms'
+                      argv=['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(sealed),'-outform','DER','-recip','tools/j9-diagnostics-recipient.pem','-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256']
+                      result=subprocess.run(argv,capture_output=True,timeout=300)
+                      if result.returncode:raise RuntimeError('CMS encryption failed')
+                      def identity(p):
+                          """公开仅登记完整字节身份，正文保留在认证密文。"""
+                          digest=hashlib.sha256()
+                          with p.open('rb') as stream:
+                              for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                          return {'bytes':p.stat().st_size,'sha256':digest.hexdigest()}
+                      manifest={'schema_version':1,'algorithm':'CMS AuthEnvelopedData AES256GCM RSA3072 OAEP-SHA256 MGF1-SHA256 DER','recipient_certificate_sha256':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8','plaintext':identity(plain),'ciphertext':identity(sealed),'members':members,'member_count':len(members),'plaintext_uploaded':False}
+                      manifest_path=temp/'private-diagnostics-identity.json';manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+                      sealed.replace(public/sealed.name);manifest_path.replace(public/manifest_path.name)
+                  print('[RenPyGraphicsCI] 完整私有诊断已认证加密；成员='+str(len(members)),flush=True)
+              except Exception:
+                  for name in ('private-diagnostics.cms','private-diagnostics-identity.json'):
+                      p=public/name
+                      if p.exists():p.unlink()
+                  (public/'diagnostics-transport-status.json').write_text(json.dumps({'result':'failed_not_archived','complete_encrypted_diagnostics':False,'original_private_evidence_removed':False},indent=2)+'\n')
+                  raise RuntimeError('完整私有诊断未归档；保留原证据且本轮失败') from None
+          allowed={'public-summary.json','workflow-status.json','cms-selftest.json','private-diagnostics.cms','private-diagnostics-identity.json','diagnostics-transport-status.json'}
+          if any(p.name not in allowed or p.is_symlink() or not p.is_file() for p in public.iterdir()):raise RuntimeError('公开白名单异常')
+          PYCODE
+      - name: 兜底清理受控容器和本轮输入缓存
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, re, shutil, subprocess
+          from pathlib import Path
+          try:
+              result=subprocess.run(['docker','ps','--all','--format','{{.Names}}'],capture_output=True,check=True)
+              for name in result.stdout.decode().splitlines():
+                  if re.fullmatch(r'reko-preflight-[0-9a-f]{32}',name):
+                      state=json.loads(subprocess.run(['docker','inspect',name],capture_output=True,check=True).stdout)[0];host=state['HostConfig']
+                      if host['NetworkMode']!='none' or state.get('Mounts') or host.get('Privileged') is not False:raise RuntimeError('容器清理边界不符')
+                      subprocess.run(['docker','rm','--force',name],check=True)
+          finally:
+              base=Path(os.environ['RUNNER_TEMP'])
+              for pattern in ('reko-j10-inputs','reko-j10-seal-*','reko-j10-cms-selftest-*'):
+                  for path in base.glob(pattern):
+                      if path.is_symlink() or not path.is_dir():raise RuntimeError('临时输入清理路径异常')
+                      shutil.rmtree(path)
+              evidence=base/'reko-j10-evidence';public=base/'reko-j10-public';sealed=public/'private-diagnostics.cms';manifest=public/'private-diagnostics-identity.json'
+              if evidence.exists():
+                  if evidence.is_symlink() or not evidence.is_dir():raise RuntimeError('私有证据清理路径异常')
+                  if sealed.is_file() and not sealed.is_symlink() and manifest.is_file() and not manifest.is_symlink():
+                      expected=json.loads(manifest.read_bytes())['ciphertext'];digest=hashlib.sha256()
+                      with sealed.open('rb') as stream:
+                          for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                      if sealed.stat().st_size!=expected['bytes'] or digest.hexdigest()!=expected['sha256']:raise RuntimeError('密文未完整归档；保留原证据')
+                      shutil.rmtree(evidence)
+                  else:print('[RenPyGraphicsCI] 完整CMS未归档，runner保留原私有诊断；不以明文替代上传',flush=True)
+          PYCODE
+      - name: 只上传有限摘要和认证诊断密文
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-linux-graphics-metadata-22.04-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-j10-public/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
