@@ -47,10 +47,10 @@ jobs:
       UBUNTU_GROUP: ${{ inputs.ubuntu_group }}
       TARGET_RELEASE: ${{ inputs.release }}
       TARGET_ARCH: ${{ inputs.target_arch }}
-      REKO_SOURCE_COMMIT: 63c36f45caf6ebd1fd05d63eeb79c6b2d4e87ca4
-      RUNTIME_NAME: j11-image-font-c-runtime-addon-20261104-04.tar.gz
-      RUNTIME_BYTES: '172461'
-      RUNTIME_SHA256: 40641bf25b547a6aa56349e096ff19219638890a6f7142afab9ffe3ea514852c
+      REKO_SOURCE_COMMIT: d1c9a31704021311e45c8a534eb532c82d34bd59
+      RUNTIME_NAME: j11-image-font-c-runtime-addon-20261104-05.tar.gz
+      RUNTIME_BYTES: '174844'
+      RUNTIME_SHA256: 0fcda08f46cc2e1f6e369aed9bc10b515fe9545d2990c434362163dc4746d6a1
     steps:
     - name: 记录真实job开始和六小时UTC截止时间
       shell: bash
@@ -106,7 +106,7 @@ jobs:
         import hashlib,json,os,platform,shutil,sys
         from pathlib import Path
         if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPyImageFontCI] 需要Linux amd64 Python3.10')
-        expected={'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_image_c_tasks.py': '29ada979f9bf8b50af8026f83928cfdab5ce65233e185d07dc174f5b018cd8d1', 'tools/linux-image-c-ci-plan.json': 'd6e0b42a54eeff66023080bdd5516c8d372bd7a05d95ea26e0a3446428a59d33', 'tools/ci_linux_image_font_c_tasks.py': '7cfeb4daca9e2a79eac3223b3793771ced81822eecbc8608accac590f3bb5dbc', 'tools/linux-image-font-c-ci-plan.json': '3df54862807dae60307202b4b88de080075d96596141b34eef76b206e1e08c27'}
+        expected={'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_image_c_tasks.py': '29ada979f9bf8b50af8026f83928cfdab5ce65233e185d07dc174f5b018cd8d1', 'tools/linux-image-c-ci-plan.json': 'd6e0b42a54eeff66023080bdd5516c8d372bd7a05d95ea26e0a3446428a59d33', 'tools/ci_linux_image_font_c_tasks.py': '77ba8ac6168e39ee401e58140dfcae3a234eee6d056fcf9d17ba144a64afeb36', 'tools/linux-image-font-c-ci-plan.json': '6c988569ed3da718359159cc776e3a990ceca4a2d9c6d3016b2d012a555d4ef8'}
         for name,sha in expected.items():
             p=Path(name)
             if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPyImageFontCI] 固定原件不同：'+name)
@@ -196,7 +196,7 @@ jobs:
         release=api('repos/Leo008/renpy-build/releases/406525604','runtime-release-api.json')
         assets=[v for v in release['assets'] if v['name']==os.environ['RUNTIME_NAME']]
         url='https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/'+os.environ['RUNTIME_NAME']
-        if release['id']!=406525604 or release['tag_name']!='ci-inputs-8.5.3-20261008' or len(assets)!=1 or assets[0]['id']!=706284647 or assets[0]['size']!=int(os.environ['RUNTIME_BYTES']) or assets[0]['digest']!='sha256:'+os.environ['RUNTIME_SHA256'] or assets[0]['state']!='uploaded' or assets[0]['browser_download_url']!=url:raise SystemExit('[RenPyImageFontCI] 十一文本包实际发布身份不同')
+        if release['id']!=406525604 or release['tag_name']!='ci-inputs-8.5.3-20261008' or len(assets)!=1 or assets[0]['id']!=706626909 or assets[0]['size']!=int(os.environ['RUNTIME_BYTES']) or assets[0]['digest']!='sha256:'+os.environ['RUNTIME_SHA256'] or assets[0]['state']!='uploaded' or assets[0]['browser_download_url']!=url:raise SystemExit('[RenPyImageFontCI] 十一文本包实际发布身份不同')
         print('[RenPyImageFontCI] 真实H1 API/ZIP和十一文本Release资产身份通过',flush=True)
         PYCODE
     - name: 复用C03、H0和CAS缓存，核十一文本并宿主stdin解密SDK
@@ -262,7 +262,7 @@ jobs:
                 if p.stat().st_size!=catalog[item.name]['bytes'] or hashlib.sha256(p.read_bytes()).hexdigest()!=catalog[item.name]['sha256']:raise SystemExit('[RenPyImageFontCI] 十一文本成员原SHA不同')
                 p.chmod(0o644)
         if seen!=set(catalog):raise SystemExit('[RenPyImageFontCI] 十一文本缺件')
-        (Path(os.environ['RUNNER_TEMP'])/'reko-j11-font-control/input-transport.json').write_text(json.dumps({'runtime_asset_id':706284647,'runtime_bytes':int(os.environ['RUNTIME_BYTES']),'runtime_sha256':os.environ['RUNTIME_SHA256'],'flat_text_members':len(seen),'raw_text_bytes':sum(v['bytes'] for v in catalog.values()),'SDK_decrypted_only_on_host':True,'H2_or_new_J2_inputs_consumed':False},indent=2)+'\n')
+        (Path(os.environ['RUNNER_TEMP'])/'reko-j11-font-control/input-transport.json').write_text(json.dumps({'runtime_asset_id':706626909,'runtime_bytes':int(os.environ['RUNTIME_BYTES']),'runtime_sha256':os.environ['RUNTIME_SHA256'],'flat_text_members':len(seen),'raw_text_bytes':sum(v['bytes'] for v in catalog.values()),'SDK_decrypted_only_on_host':True,'H2_or_new_J2_inputs_consumed':False},indent=2)+'\n')
         print('[RenPyImageFontCI] C03/H0/CAS/十一文本和SDK完整身份通过；密码仅宿主stdin',flush=True)
         PYCODE
     - name: 同一C1真实原C接八image和八或十二font Task并有界返还
@@ -315,8 +315,8 @@ jobs:
         if any(report.get(k,False) is not False for k in false):raise RuntimeError('控制器越过C/image/font有限范围')
         image_font=report.get('image_font',{});host=image_font.get('host_verification',{})
         verified=(type(status.get('returncode')) is int and status['returncode']==0 and status.get('actual_controller_invoked') is True
-                  and deployment.get('checked_original_count')==19 and deployment.get('controller_sha256')=='7cfeb4daca9e2a79eac3223b3793771ced81822eecbc8608accac590f3bb5dbc'
-                  and deployment.get('plan_sha256')=='3df54862807dae60307202b4b88de080075d96596141b34eef76b206e1e08c27'
+                  and deployment.get('checked_original_count')==19 and deployment.get('controller_sha256')=='77ba8ac6168e39ee401e58140dfcae3a234eee6d056fcf9d17ba144a64afeb36'
+                  and deployment.get('plan_sha256')=='6c988569ed3da718359159cc776e3a990ceca4a2d9c6d3016b2d012a555d4ef8'
                   and report.get('task')=='R00-02J11I3' and report.get('release')==os.environ['TARGET_RELEASE'] and report.get('arch')==os.environ['TARGET_ARCH']
                   and report.get('ubuntu')==os.environ['UBUNTU_GROUP'] and result=='single_tuple_actual_C_original_image_and_font_verified'
                   and all(report.get(k) is True for k in ('current_C_dependency_verified','image_font_C_verified','same_open_C1_chain_verified','container_closed','private_inputs_removed'))
@@ -326,8 +326,8 @@ jobs:
                   and type(host.get('new_object_count')) is int and host['new_object_count']>0 and host.get('returned_binary_executed_on_host') is False)
         summary={'task':'R00-02J11I3','source_commit':os.environ['REKO_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
                  'ubuntu':os.environ['UBUNTU_GROUP'],'release':os.environ['TARGET_RELEASE'],'arch':os.environ['TARGET_ARCH'],'result':result,'actual_same_C1_C_image_font_verified':verified,
-                 'ROOT_independent_acceptance_completed':False,'manual_device_acceptance':'deferred','runtime_asset_id':706284647,'runtime_bytes':172461,'runtime_sha256':os.environ['RUNTIME_SHA256'],
-                 'controller_sha256_expected':'7cfeb4daca9e2a79eac3223b3793771ced81822eecbc8608accac590f3bb5dbc','plan_sha256_expected':'3df54862807dae60307202b4b88de080075d96596141b34eef76b206e1e08c27',
+                 'ROOT_independent_acceptance_completed':False,'manual_device_acceptance':'deferred','runtime_asset_id':706626909,'runtime_bytes':174844,'runtime_sha256':os.environ['RUNTIME_SHA256'],
+                 'controller_sha256_expected':'77ba8ac6168e39ee401e58140dfcae3a234eee6d056fcf9d17ba144a64afeb36','plan_sha256_expected':'6c988569ed3da718359159cc776e3a990ceca4a2d9c6d3016b2d012a555d4ef8',
                  'driver_started':status.get('actual_controller_invoked') is True,'new_archive_count':host.get('new_archive_count') if verified else None,
                  'new_object_count':host.get('new_object_count') if verified else None,'consumer_runtime_members':report.get('consumer_runtime_members') if verified else None,
                  'native_apinames_count':host.get('native_apinames_count') if verified else None,'disabled_HarfBuzz_Cairo_provenance_verified':verified and host.get('disabled_HarfBuzz_Cairo_provenance_verified') is True,'installed_HarfBuzz_Cairo_header_source_verified':verified and host.get('installed_HarfBuzz_Cairo_header_source_verified') is True,'HarfBuzz_Cairo_feature_enabled':host.get('HarfBuzz_Cairo_feature_enabled') if verified else None,'Cairo_other_metadata_dependencies_generally_qualified':False,'peak_measured':False,'plaintext_uploaded':False,**dict.fromkeys(false,False)}
@@ -409,7 +409,7 @@ jobs:
         import hashlib,json,os,re,shutil,stat,subprocess
         from pathlib import Path
         base=Path(os.environ['RUNNER_TEMP']);evidence=base/'reko-j11-font-evidence';private=evidence/'private-diagnostics';public=base/'reko-j11-font-public'
-        expected_tool={'bytes':67243,'sha256':'7cfeb4daca9e2a79eac3223b3793771ced81822eecbc8608accac590f3bb5dbc'}
+        expected_tool={'bytes':67243,'sha256':'77ba8ac6168e39ee401e58140dfcae3a234eee6d056fcf9d17ba144a64afeb36'}
         closed=False;inputs_removed=False;errors=[]
         def read(path,maximum=1024**2):
             """只读取本job私有根内有界普通原件。"""
