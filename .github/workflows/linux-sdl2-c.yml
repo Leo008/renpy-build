@@ -1,0 +1,501 @@
+name: RenPy single tuple original SDL2 C
+'on':
+  push:
+    branches:
+    - codex/ios-locked-inputs-20261102
+    paths:
+    - .github/workflows/linux-sdl2-c.yml
+  workflow_dispatch:
+    inputs:
+      ubuntu_group:
+        description: 固定C1 Ubuntu组，必须匹配单版本
+        required: true
+        type: choice
+        default: '24.04'
+        options:
+        - '22.04'
+        - '24.04'
+      release:
+        description: 单版本原C接SDL2两Task，默认8.5.3
+        required: true
+        type: choice
+        default: 8.5.3
+        options:
+        - 8.5.3
+        - 8.4.1
+        - 8.3.7
+        - 7.8.7
+      target_arch:
+        description: 只选一个ABI；默认sim-arm64，不含all
+        required: true
+        type: choice
+        default: sim-arm64
+        options:
+        - arm64
+        - sim-arm64
+        - sim-x86_64
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: renpy-linux-sdl2-c-${{ github.ref }}-${{ inputs.ubuntu_group }}-${{ inputs.release }}-${{ inputs.target_arch }}
+  cancel-in-progress: false
+jobs:
+  sdl2-C:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Leo008/renpy-build'
+    name: Original SDL2 C ${{ inputs.release }} ${{ inputs.target_arch }} Ubuntu ${{ inputs.ubuntu_group }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      UBUNTU_GROUP: ${{ inputs.ubuntu_group }}
+      TARGET_RELEASE: ${{ inputs.release }}
+      TARGET_ARCH: ${{ inputs.target_arch }}
+      REKO_SOURCE_COMMIT: 76382ab4d5e00e7b620b94b81304560ec842c16b
+      RUNTIME_NAME: j11-sdl2-c-runtime-addon-20261104-01.tar.gz
+      RUNTIME_BYTES: '160469'
+      RUNTIME_SHA256: ab6f9a92931a296ee6cc54ba75859cb8637cf111eee3787d4e8f5b67f29998a0
+      RUNTIME_ASSET_ID: '706204022'
+    steps:
+    - name: 记录真实job开始和六小时UTC截止时间
+      shell: bash
+      run: |
+        python3 -B - <<'PYCODE'
+        import datetime,json,os,shutil,subprocess,time
+        cli=shutil.which('gh')
+        if not cli:raise SystemExit('[RenPySDL2CI] 缺少GitHub CLI，不能确认真实job起点')
+        endpoint='repos/Leo008/renpy-build/actions/runs/'+os.environ['GITHUB_RUN_ID']+'/attempts/'+os.environ['GITHUB_RUN_ATTEMPT']+'/jobs?per_page=100'
+        result=subprocess.run([cli,'api',endpoint],capture_output=True,timeout=60)
+        if result.returncode:raise SystemExit('[RenPySDL2CI] 真实job API不可用')
+        name='Original SDL2 C '+os.environ['TARGET_RELEASE']+' '+os.environ['TARGET_ARCH']+' Ubuntu '+os.environ['UBUNTU_GROUP']
+        rows=[row for row in json.loads(result.stdout)['jobs'] if row['name']==name and row['status']=='in_progress']
+        if len(rows)!=1 or not rows[0].get('started_at'):raise SystemExit('[RenPySDL2CI] 未唯一确认实际运行job，不以当前时间补默认值')
+        started=int(datetime.datetime.fromisoformat(rows[0]['started_at'].replace('Z','+00:00')).timestamp())
+        if not 0<=time.time()-started<21600:raise SystemExit('[RenPySDL2CI] 实际job UTC起点异常')
+        with open(os.environ['GITHUB_ENV'],'a') as stream:
+            stream.write('REKO_JOB_STARTED_UTC='+str(started)+'\n')
+            stream.write('REKO_JOB_DEADLINE_UTC='+str(started+21600)+'\n')
+        PYCODE
+      env:
+        GH_TOKEN: ${{ github.token }}
+    - name: 检出固定19工具依赖和已有公开CMS证书
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      with:
+        persist-credentials: false
+        fetch-depth: 1
+        sparse-checkout: |
+          tools/ci_linux_target_python_prefix.py
+          tools/ci_linux_image_c_tasks.py
+          tools/ci_linux_sdl2_c_tasks.py
+          tools/linux-sdl2-c-ci-plan.json
+          tools/linux-image-c-ci-plan.json
+          tools/linux-target-python-prefix-ci-plan.json
+          tools/run_locked_target_python_tasks.py
+          tools/ci_linux_target_python_replay.py
+          tools/linux-target-python-replay-ci-plan.json
+          tools/inventory_source_inputs.py
+          tools/ci_linux_host_python_bootstrap.py
+          tools/linux-host-python-bootstrap-ci-plan.json
+          tools/run_locked_host_python_tasks.py
+          tools/host-python-bootstrap-plan.json
+          tools/ci_linux_host_replay.py
+          tools/run_linux_python_replay.py
+          tools/python-linux-host-replay-plan.json
+          tools/j9-diagnostics-recipient.pem
+          prebuilt/clang_rt.tar.gz
+        sparse-checkout-cone-mode: false
+    - name: 核固定19原件、单tuple与远端18GiB入口
+      shell: bash
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib,json,os,platform,shutil,sys
+        from pathlib import Path
+        if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPySDL2CI] 需要Linux amd64 Python3.10')
+        expected={'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_image_c_tasks.py': '29ada979f9bf8b50af8026f83928cfdab5ce65233e185d07dc174f5b018cd8d1', 'tools/linux-image-c-ci-plan.json': 'd6e0b42a54eeff66023080bdd5516c8d372bd7a05d95ea26e0a3446428a59d33', 'tools/ci_linux_sdl2_c_tasks.py': '0bb05badac68a36edf2e59350ad1b620891acc13f5538411c5a1fc0a74ccb440', 'tools/linux-sdl2-c-ci-plan.json': '571628b398ab39a4b02eff154c3b008f1071f151fb06b06f6637f50090b3c34c'}
+        for name,sha in expected.items():
+            p=Path(name)
+            if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPySDL2CI] 固定原件不同：'+name)
+        plan=json.loads(Path('tools/linux-sdl2-c-ci-plan.json').read_bytes());dplan=json.loads(Path('tools/linux-target-python-prefix-ci-plan.json').read_bytes())
+        group,release,arch=(os.environ[k] for k in ('UBUNTU_GROUP','TARGET_RELEASE','TARGET_ARCH'))
+        if release not in plan['groups'][group] or arch not in ('arm64','sim-arm64','sim-x86_64'):raise SystemExit('[RenPySDL2CI] 单tuple/group组合错误')
+        producer=dplan['producer_profiles'][group]['artifact']
+        with open(os.environ['GITHUB_ENV'],'a') as stream:
+            for key,value in {'H1_ARTIFACT_ID':producer['id'],'H1_ARTIFACT_BYTES':producer['bytes'],'H1_ARTIFACT_SHA256':producer['sha256'],'H1_RUN_ID':producer['run_id']}.items():stream.write(str(key)+'='+str(value)+'\n')
+        base=Path(os.environ['RUNNER_TEMP']);control=base/'reko-j11-sdl2-control';control.mkdir(mode=0o700)
+        free=shutil.disk_usage(base).free
+        (control/'storage-before.json').write_text(json.dumps({'free_bytes':free,'estimated_work_bytes':16*1024**3,'reserve_bytes':2*1024**3,'minimum_entry_free_bytes':18*1024**3,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+        if free<18*1024**3:raise SystemExit('[RenPySDL2CI] 远端18GiB入口不足；16+2GiB为估算而非实测峰值')
+        (control/'deployment-identity.json').write_text(json.dumps({'source_commit':os.environ['REKO_SOURCE_COMMIT'],'controller_sha256':expected['tools/ci_linux_sdl2_c_tasks.py'],'plan_sha256':expected['tools/linux-sdl2-c-ci-plan.json'],'checked_original_count':len(expected),'job_started_utc':int(os.environ['REKO_JOB_STARTED_UTC']),'job_deadline_utc':int(os.environ['REKO_JOB_DEADLINE_UTC'])},indent=2)+'\n')
+        print('[RenPySDL2CI] 固定19原件、单tuple与远端18GiB入口通过',flush=True)
+        PYCODE
+    - name: 先实测Linux CMS加密、解密和篡改拒绝
+      shell: bash
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib, json, os, shutil, subprocess, tempfile
+        from pathlib import Path
+        public = Path(os.environ['RUNNER_TEMP'])/'reko-j11-sdl2-public';public.mkdir()
+        def command(argv):
+            """CMS自检正文只含无害固定字节，失败不披露其他输入。"""
+            result = subprocess.run(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
+            if result.returncode: raise RuntimeError('Linux CMS自检命令失败')
+            return result.stdout
+        with tempfile.TemporaryDirectory(prefix='reko-j11-sdl2-cms-selftest-',dir=os.environ['RUNNER_TEMP']) as name:
+            root=Path(name);root.chmod(0o700)
+            plain=root/'plain';plain.write_bytes(b'Reko J11 harmless CMS roundtrip\n')
+            key=root/'key.pem';cert=root/'cert.pem';sealed=root/'sealed.cms';restored=root/'restored'
+            command(['openssl','req','-new','-x509','-newkey','rsa:3072','-nodes','-keyout',str(key),'-out',str(cert),'-subj','/CN=Reko J11 Harmless CI Selftest/','-days','1','-sha256'])
+            # keyopt必须在其对应recip之后；此处按真实加密命令构造相同参数。
+            def seal(recipient, destination):
+                """使用固定CMS算法和公证书封装无害探针。"""
+                command(['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(destination),'-outform','DER','-recip',str(recipient),'-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256'])
+            seal(cert,sealed)
+            decrypt=['openssl','cms','-decrypt','-binary','-inform','DER','-in',str(sealed),'-recip',str(cert),'-inkey',str(key),'-out',str(restored)]
+            command(decrypt)
+            if restored.read_bytes()!=plain.read_bytes():raise RuntimeError('CMS还原字节不符')
+            damaged=bytearray(sealed.read_bytes());damaged[-1]^=1;sealed.write_bytes(damaged);restored.unlink()
+            if subprocess.run(decrypt,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90).returncode==0:raise RuntimeError('CMS未拒绝篡改')
+            if restored.exists():restored.unlink()
+            seal(Path('tools/j9-diagnostics-recipient.pem'),root/'actual-recipient-probe.cms')
+            report={'Linux_CMS_roundtrip':True,'tampered_ciphertext_rejected':True,'actual_recipient_encryption':True,'actual_recipient_private_key_on_CI':False,'openssl':command(['openssl','version']).decode().strip()}
+            (public/'cms-selftest.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+        print('[RenPySDL2CI] Linux CMS实际自检通过；CI仅持公开接收证书',flush=True)
+        PYCODE
+    - name: 取得固定完整APT分发
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      with:
+        github-token: ${{ github.token }}
+        run-id: 41419224335
+        name: renpy-apt-inputs-${{ env.UBUNTU_GROUP }}-41419224335-1
+        path: ${{ runner.temp }}/reko-j11-sdl2-apt-inputs
+    - name: 验证原H1 ZIP与已发布十一文本实际API身份
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib,json,os,shutil,stat,subprocess
+        from pathlib import Path
+        cli=shutil.which('gh')
+        if not cli:raise SystemExit('[RenPySDL2CI] 缺少GitHub CLI')
+        base=Path(os.environ['RUNNER_TEMP']);control=base/'reko-j11-sdl2-control';argv=[cli,'api']
+        help_result=subprocess.run(argv+['--help'],capture_output=True,timeout=30)
+        if b'--allow-escape-sequences' in help_result.stdout+help_result.stderr:argv.append('--allow-escape-sequences')
+        def api(endpoint,name):
+            """保存原API正文为私有证据，不打印token或临时下载地址。"""
+            result=subprocess.run(argv+[endpoint],capture_output=True,timeout=90)
+            if result.returncode:raise SystemExit('[RenPySDL2CI] 固定GitHub API不可用')
+            (control/name).write_bytes(result.stdout);return json.loads(result.stdout)
+        row={'id':int(os.environ['H1_ARTIFACT_ID']),'bytes':int(os.environ['H1_ARTIFACT_BYTES']),'sha256':os.environ['H1_ARTIFACT_SHA256']}
+        route='repos/Leo008/renpy-build/actions/artifacts/'+str(row['id']);meta=api(route,'H1-artifact-api.json')
+        if meta.get('id')!=row['id'] or meta.get('expired') is not False or meta.get('size_in_bytes')!=row['bytes'] or meta.get('digest')!='sha256:'+row['sha256'] or meta['workflow_run']['id']!=int(os.environ['H1_RUN_ID']):raise SystemExit('[RenPySDL2CI] H1原artifact强身份不同')
+        p=base/'reko-j11-sdl2-H1-artifact.zip'
+        if not p.exists():
+            with p.open('xb') as stream:result=subprocess.run(argv+[route+'/zip'],stdout=stream,stderr=subprocess.PIPE,timeout=600)
+            if result.returncode:raise SystemExit('[RenPySDL2CI] H1原ZIP运输失败')
+        if p.is_symlink() or not stat.S_ISREG(p.lstat().st_mode):raise SystemExit('[RenPySDL2CI] H1 ZIP类型不同')
+        h=hashlib.sha256()
+        with p.open('rb') as stream:
+            while block:=stream.read(1048576):h.update(block)
+        if p.stat().st_size!=row['bytes'] or h.hexdigest()!=row['sha256']:raise SystemExit('[RenPySDL2CI] H1 ZIP缓存SHA不同，不覆盖或回退')
+        release=api('repos/Leo008/renpy-build/releases/406525604','runtime-release-api.json')
+        assets=[v for v in release['assets'] if v['name']==os.environ['RUNTIME_NAME']]
+        url='https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/'+os.environ['RUNTIME_NAME']
+        if release['id']!=406525604 or release['tag_name']!='ci-inputs-8.5.3-20261008' or len(assets)!=1 or assets[0]['id']!=int(os.environ['RUNTIME_ASSET_ID']) or assets[0]['size']!=int(os.environ['RUNTIME_BYTES']) or assets[0]['digest']!='sha256:'+os.environ['RUNTIME_SHA256'] or assets[0]['state']!='uploaded' or assets[0]['browser_download_url']!=url:raise SystemExit('[RenPySDL2CI] 十一文本包实际发布身份不同')
+        print('[RenPySDL2CI] 真实H1 API/ZIP和十一文本Release资产身份通过',flush=True)
+        PYCODE
+    - name: 复用C03、H0和CAS缓存，核十一文本并宿主stdin解密SDK
+      shell: bash
+      env:
+        CI_INPUTS_PASSWORD: ${{ secrets.CI_INPUTS_PASSWORD }}
+        IOS_DEVICE_SDK_SHA256: ${{ secrets.IOS_DEVICE_SDK_SHA256 }}
+        IOS_SIMULATOR_SDK_SHA256: ${{ secrets.IOS_SIMULATOR_SDK_SHA256 }}
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib, os, subprocess, urllib.request
+        from pathlib import Path
+        root=Path(os.environ['RUNNER_TEMP'])/'reko-j11-sdl2-inputs-cache';root.mkdir(mode=0o700)
+        password=os.environ.pop('CI_INPUTS_PASSWORD',None)
+        if not password or '\n' in password or '\r' in password:raise SystemExit('[RenPySDL2CI] 缺少有效SDK运输秘密')
+        origin='https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/'
+        def download(name,size,sha):
+            """读取既有发布原件，先校验外部强身份，不输出临时签名地址。"""
+            path=root/name
+            if path.exists():
+                digest=hashlib.sha256()
+                with path.open('rb') as stream:
+                    while block:=stream.read(1048576):digest.update(block)
+                if path.is_symlink() or path.stat().st_size!=size or digest.hexdigest()!=sha:raise SystemExit('[RenPySDL2CI] 显式输入缓存身份错误，不联网替换：'+name)
+                return path
+            try:
+                with urllib.request.urlopen(origin+name,timeout=120) as response,path.open('xb') as stream:
+                    total=0;digest=hashlib.sha256()
+                    while block:=response.read(1048576):
+                        total+=len(block)
+                        if total>size:raise ValueError('transport size overflow')
+                        digest.update(block);stream.write(block)
+                if total!=size or digest.hexdigest()!=sha:raise ValueError('transport identity mismatch')
+            except Exception:
+                raise SystemExit('[RenPySDL2CI] 固定发布输入运输/强身份失败：'+name) from None
+            return path
+        import json
+        plan=json.loads(Path('tools/linux-sdl2-c-ci-plan.json').read_bytes())
+        row=plan['C_runtime_addon'];download(row['name'],row['bytes'],row['sha256'])
+        download(os.environ['RUNTIME_NAME'],int(os.environ['RUNTIME_BYTES']),os.environ['RUNTIME_SHA256'])
+        download('h0-linux-host-inputs-20261102-01.tar.gz.enc',116556720,'4beeb8544d248c59f7f12216cd11a8d291d0d4edcf660eb854fbc4abcb1b34c5')
+        download('h1-public-recipe-addon-20261102-01.tar.gz',264133884,'0da8d46083c0c882b1e246a5c7e3df526e20c92246c823abfe3f617271fb5ec2')
+        rows=[('iPhoneOS14.0.sdk.tar.gz',27728336,'07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133',27728304,'2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287','IOS_DEVICE_SDK_SHA256'),('iPhoneSimulator14.0.sdk.tar.gz',21472384,'be1c1049401283b6fc4202c4eea6830412ca768c9f07a071734bfeac8b6f004a',21472366,'4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5','IOS_SIMULATOR_SDK_SHA256')]
+        child_env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'}
+        help_result=subprocess.run(['openssl','enc','-help'],capture_output=True,env=child_env,timeout=30)
+        for name,csize,csha,psize,psha,secret_sha in rows:
+            if os.environ.pop(secret_sha,None)!=psha:raise SystemExit('[RenPySDL2CI] SDK既有秘密SHA与固定身份不符')
+            encrypted=download(name+'.enc',csize,csha);plain=root/name
+            argv=['openssl','enc','-d','-aes-256-cbc','-pbkdf2','-iter','200000','-md','sha256','-in',str(encrypted),'-out',str(plain),'-pass','stdin']
+            if b'-saltlen' in help_result.stdout+help_result.stderr:argv+=['-saltlen','8']
+            result=subprocess.run(argv,input=(password+'\n').encode(),capture_output=True,env=child_env,timeout=180)
+            if result.returncode or plain.stat().st_size!=psize or hashlib.sha256(plain.read_bytes()).hexdigest()!=psha:
+                raise SystemExit('[RenPySDL2CI] SDK明文完整身份未通过')
+            plain.chmod(0o600);encrypted.unlink()
+        password=None
+        import tarfile,shutil
+        catalog={v['path']:v for v in plan['text_runtime_catalog']};runtime=root/'text-runtime';runtime.mkdir(mode=0o700);seen=set()
+        with tarfile.open(root/os.environ['RUNTIME_NAME'],'r:gz') as source:
+            for item in source:
+                if item.name not in catalog or item.name in seen or not item.isfile() or item.sparse or item.pax_headers or item.mode!=0o644 or item.size!=catalog[item.name]['bytes']:raise SystemExit('[RenPySDL2CI] 十一文本包成员类型/数量/大小不同')
+                seen.add(item.name);p=runtime/item.name
+                with source.extractfile(item) as inp,p.open('xb') as target:shutil.copyfileobj(inp,target,262144)
+                if p.stat().st_size!=catalog[item.name]['bytes'] or hashlib.sha256(p.read_bytes()).hexdigest()!=catalog[item.name]['sha256']:raise SystemExit('[RenPySDL2CI] 十一文本成员原SHA不同')
+                p.chmod(0o644)
+        if seen!=set(catalog):raise SystemExit('[RenPySDL2CI] 十一文本缺件')
+        (Path(os.environ['RUNNER_TEMP'])/'reko-j11-sdl2-control/input-transport.json').write_text(json.dumps({'runtime_asset_id':int(os.environ['RUNTIME_ASSET_ID']),'runtime_bytes':int(os.environ['RUNTIME_BYTES']),'runtime_sha256':os.environ['RUNTIME_SHA256'],'flat_text_members':len(seen),'raw_text_bytes':sum(v['bytes'] for v in catalog.values()),'parent_TLS_mode':'urllib_default_verified_context','SDK_decrypted_only_on_host':True,'H2_or_new_J2_inputs_consumed':False},indent=2)+'\n')
+        print('[RenPySDL2CI] C03/H0/CAS/十一文本和SDK完整身份通过；密码仅宿主stdin',flush=True)
+        PYCODE
+    - name: 同一C1真实原C接SDL2两原Task并有界返还
+      shell: bash
+      env:
+        REKO_H0_INPUTS_PASSWORD: ${{ secrets.REKO_H0_INPUTS_PASSWORD }}
+      run: |
+        control="$RUNNER_TEMP/reko-j11-sdl2-control"
+        set +e
+        /usr/bin/python3.10 -B tools/ci_linux_sdl2_c_tasks.py \
+          --ubuntu "$UBUNTU_GROUP" --release "$TARGET_RELEASE" --arch "$TARGET_ARCH" \
+          --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" --job-deadline-utc "$REKO_JOB_DEADLINE_UTC" \
+          --text-runtime-dir "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/text-runtime" \
+          --c-controller "$GITHUB_WORKSPACE/tools/ci_linux_image_c_tasks.py" \
+          --d-wrapper "$GITHUB_WORKSPACE/tools/ci_linux_target_python_prefix.py" \
+          --bundle "$RUNNER_TEMP/reko-j11-sdl2-apt-inputs/apt-inputs-$UBUNTU_GROUP" \
+          --h1-artifact "$RUNNER_TEMP/reko-j11-sdl2-H1-artifact.zip" \
+          --runtime-addon "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/j9-c-prefix-runtime-addon-20261102-03.tar.gz" \
+          --h0-cipher "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/h0-linux-host-inputs-20261102-01.tar.gz.enc" \
+          --recipe-addon "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/h1-public-recipe-addon-20261102-01.tar.gz" \
+          --device-sdk "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/iPhoneOS14.0.sdk.tar.gz" \
+          --simulator-sdk "$RUNNER_TEMP/reko-j11-sdl2-inputs-cache/iPhoneSimulator14.0.sdk.tar.gz" \
+          --clang-runtime "$GITHUB_WORKSPACE/prebuilt/clang_rt.tar.gz" \
+          --output "$RUNNER_TEMP/reko-j11-sdl2-evidence" --ccache >"$control/driver.stdout" 2>"$control/driver.stderr"
+        code=$?
+        set -e
+        /usr/bin/python3.10 -B - "$control" "$code" <<'PYCODE'
+        import json,shutil,sys
+        from pathlib import Path
+        control=Path(sys.argv[1]);(control/'driver-status.json').write_text(json.dumps({'returncode':int(sys.argv[2]),'actual_controller_invoked':True},indent=2)+'\n')
+        (control/'storage-after-driver.json').write_text(json.dumps({'free_bytes':shutil.disk_usage(control).free,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+        PYCODE
+        exit "$code"
+    - name: 仅形成真实有限阶段公开摘要
+      if: always()
+      shell: bash
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import json,os
+        from pathlib import Path
+        base=Path(os.environ['RUNNER_TEMP']);public=base/'reko-j11-sdl2-public';public.mkdir(exist_ok=True);control=base/'reko-j11-sdl2-control';evidence=base/'reko-j11-sdl2-evidence'
+        def read(path):
+            """只读有界普通小报告，不将私有正文直接复制到公开目录。"""
+            if path.is_symlink() or not path.is_file() or path.stat().st_size>32*1024**2:return {}
+            return json.loads(path.read_bytes())
+        report=read(evidence/'public-summary.json');status=read(control/'driver-status.json');deployment=read(control/'deployment-identity.json')
+        result=report.get('result','failed_before_controller_report')
+        if report and result not in ('single_tuple_actual_C_and_original_two_SDL2_static_tasks_verified','failed','not_run','interrupted'):raise RuntimeError('未知控制器结果，不公开原文')
+        false=('single_SDL_provider_verified','production_shared_provider_verified','G1_verified','G2_verified','Cubism_support_verified','complete_engine_source_verified','ios_session_verified','R00_ready','target_python_install_verified','target_pip_bound','historical_C_cache_restored')
+        if any(report.get(k,False) is not False for k in false):raise RuntimeError('控制器越过C/SDL2有限范围')
+        sdl2=report.get('sdl2',{});host=sdl2.get('host_verification',{})
+        verified=(type(status.get('returncode')) is int and status['returncode']==0 and status.get('actual_controller_invoked') is True
+                  and deployment.get('checked_original_count')==19 and deployment.get('controller_sha256')=='0bb05badac68a36edf2e59350ad1b620891acc13f5538411c5a1fc0a74ccb440'
+                  and deployment.get('plan_sha256')=='571628b398ab39a4b02eff154c3b008f1071f151fb06b06f6637f50090b3c34c'
+                  and report.get('scope')=='single_tuple_same_C1_actual_C_then_original_two_SDL2_tasks' and report.get('task')=='R00-02J11S1' and report.get('release')==os.environ['TARGET_RELEASE'] and report.get('arch')==os.environ['TARGET_ARCH']
+                  and report.get('ubuntu')==os.environ['UBUNTU_GROUP'] and result=='single_tuple_actual_C_and_original_two_SDL2_static_tasks_verified'
+                  and all(report.get(k) is True for k in ('current_C_dependency_verified','sdl2_C_verified','same_open_C1_chain_verified','container_closed','private_inputs_removed'))
+                  and report.get('producer_runtime_members')==43 and report.get('consumer_runtime_members')==52
+                  and all(host.get(k) is True for k in ('all_bound_artifacts_verified','all_returned_regular_files_hashed','all_new_archive_objects_verified','complete_configuration_and_API_raw_proofs_verified','original_C_H1_source_SDK_marker_protection_bound_to_actual_S0','config_before_plus_exact_original_append_equals_installed_bytes','actual_CC_CPPFLAGS_CFLAGS_argv_and_raw_API_stdout_bound'))
+                  and host.get('new_archive_count')==3 and host.get('complete_SDL2_header_count')==77 and host.get('deleted_workspace_raw_rehashed_after_cleanup') is False
+                  and type(host.get('new_object_count')) is int and host['new_object_count']>0 and host.get('returned_binary_executed_on_host') is False)
+        summary={'task':'R00-02J11S1','source_commit':os.environ['REKO_SOURCE_COMMIT'],'workflow_head':os.environ['GITHUB_SHA'],
+                 'ubuntu':os.environ['UBUNTU_GROUP'],'release':os.environ['TARGET_RELEASE'],'arch':os.environ['TARGET_ARCH'],'result':result,'actual_same_C1_C_SDL2_verified':verified,
+                 'ROOT_independent_acceptance_completed':False,'manual_device_acceptance':'deferred','runtime_asset_id':int(os.environ['RUNTIME_ASSET_ID']),'runtime_bytes':int(os.environ['RUNTIME_BYTES']),'runtime_sha256':os.environ['RUNTIME_SHA256'],
+                 'controller_sha256_expected':'0bb05badac68a36edf2e59350ad1b620891acc13f5538411c5a1fc0a74ccb440','plan_sha256_expected':'571628b398ab39a4b02eff154c3b008f1071f151fb06b06f6637f50090b3c34c',
+                 'driver_started':status.get('actual_controller_invoked') is True,'new_archive_count':host.get('new_archive_count') if verified else None,
+                 'new_object_count':host.get('new_object_count') if verified else None,'consumer_runtime_members':report.get('consumer_runtime_members') if verified else None,
+                 'complete_SDL2_header_count':host.get('complete_SDL2_header_count') if verified else None,'peak_measured':False,'plaintext_uploaded':False,**dict.fromkeys(false,False)}
+        (public/'public-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
+        if status.get('returncode')==0 and not verified:raise RuntimeError('控制器退出0但实际有限阶段证明不完整')
+        print('[RenPySDL2CI] 有限公开摘要形成；实际CI与ROOT独立验收分列',flush=True)
+        PYCODE
+    - name: 完整私有证据沿既有CMS封套只导出白名单
+      if: always()
+      shell: bash
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib,json,os,shutil,stat,subprocess,tarfile,tempfile
+        from pathlib import Path
+        base=Path(os.environ['RUNNER_TEMP']);public=base/'reko-j11-sdl2-public';public.mkdir(exist_ok=True)
+        evidence=base/'reko-j11-sdl2-evidence';private=evidence/'private-diagnostics';summary=evidence/'public-summary.json';control=base/'reko-j11-sdl2-control'
+        if control.is_dir() and not control.is_symlink():
+            private.mkdir(mode=0o700,parents=True,exist_ok=True)
+            for name in ('storage-before.json','storage-after-driver.json','deployment-identity.json','H1-artifact-api.json','runtime-release-api.json','input-transport.json','driver-status.json','driver.stdout','driver.stderr'):
+                source=control/name
+                if source.is_file() and not source.is_symlink():
+                    if source.stat().st_size>32*1024**2:raise RuntimeError('小型控制证据超限')
+                    shutil.copyfile(source,private/('workflow-'+name))
+        if summary.is_file() and not summary.is_symlink():
+            private.mkdir(mode=0o700,parents=True,exist_ok=True);shutil.copyfile(summary,private/'controller-summary-original.json')
+        if not (public/'public-summary.json').is_file():
+            (public/'workflow-status.json').write_text(json.dumps({'actual_same_C1_C_SDL2_verified':False,'result':'failed_before_filtered_summary','job_status':'${{ job.status }}'},indent=2)+'\n')
+        if not private.exists():
+            print('[RenPySDL2CI] 尚无worker私有输出；此前失败不计SDL2通过',flush=True)
+        else:
+            try:
+                if private.is_symlink() or not private.is_dir():raise RuntimeError('私有诊断根异常')
+                with tempfile.TemporaryDirectory(prefix='reko-j11-sdl2-seal-',dir=base) as directory:
+                    temp=Path(directory);temp.chmod(0o700);plain=temp/'private-diagnostics.tar.gz';members=[];total=0
+                    with tarfile.open(plain,'w:gz',format=tarfile.PAX_FORMAT) as bundle:
+                        for p in sorted(private.rglob('*')):
+                            mode=p.lstat().st_mode
+                            if stat.S_ISDIR(mode):continue
+                            if not stat.S_ISREG(mode):raise RuntimeError('私有诊断存在非普通原件')
+                            name=p.relative_to(private).as_posix()
+                            if name.startswith('/') or any(x in ('','.','..') for x in name.split('/')):raise RuntimeError('私有诊断路径异常')
+                            digest=hashlib.sha256()
+                            with p.open('rb') as stream:
+                                for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                            size=p.stat().st_size
+                            # 两个S1树各32768成员/1GiB，加原D/workflow余量；超额保留原证据，不截断。
+                            if size>1024**3 or len(members)>=73728 or total+size>3*1024**3:raise RuntimeError('私有诊断封套超出单文件/成员数/聚合上限')
+                            total+=size;members.append({'path':name,'bytes':size,'sha256':digest.hexdigest()})
+                            info=tarfile.TarInfo('private-diagnostics/'+name);info.size=size;info.mode=0o600;info.mtime=0
+                            with p.open('rb') as stream:bundle.addfile(info,stream)
+                    sealed=temp/'private-diagnostics.cms'
+                    argv=['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(sealed),'-outform','DER','-recip','tools/j9-diagnostics-recipient.pem','-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256']
+                    result=subprocess.run(argv,capture_output=True,timeout=300)
+                    if result.returncode:raise RuntimeError('CMS encryption failed')
+                    def identity(p):
+                        """公开仅登记完整字节身份，正文保留在认证密文。"""
+                        digest=hashlib.sha256()
+                        with p.open('rb') as stream:
+                            for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                        return {'bytes':p.stat().st_size,'sha256':digest.hexdigest()}
+                    manifest={'schema_version':1,'algorithm':'CMS AuthEnvelopedData AES256GCM RSA3072 OAEP-SHA256 MGF1-SHA256 DER','recipient_certificate_sha256':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8','plaintext':identity(plain),'ciphertext':identity(sealed),'members':members,'member_count':len(members),'plaintext_uploaded':False}
+                    manifest_path=temp/'private-diagnostics-identity.json';manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+                    sealed.replace(public/sealed.name);manifest_path.replace(public/manifest_path.name)
+                print('[RenPySDL2CI] 完整私有诊断已认证加密；成员='+str(len(members)),flush=True)
+            except Exception:
+                for name in ('private-diagnostics.cms','private-diagnostics-identity.json'):
+                    p=public/name
+                    if p.exists():p.unlink()
+                (public/'diagnostics-transport-status.json').write_text(json.dumps({'result':'failed_not_archived','complete_encrypted_diagnostics':False,'original_private_evidence_removed':False},indent=2)+'\n')
+                raise RuntimeError('完整私有诊断未归档；保留原证据且本轮失败') from None
+        allowed={'public-summary.json','workflow-status.json','cms-selftest.json','private-diagnostics.cms','private-diagnostics-identity.json','diagnostics-transport-status.json'}
+        if any(p.name not in allowed or p.is_symlink() or not p.is_file() for p in public.iterdir()):raise RuntimeError('公开白名单异常')
+        PYCODE
+    - name: always精确清理本轮C1、SDK缓存和有所有权临时根
+      if: always()
+      shell: bash
+      run: |
+        /usr/bin/python3.10 -B - <<'PYCODE'
+        import hashlib,json,os,re,shutil,stat,subprocess
+        from pathlib import Path
+        base=Path(os.environ['RUNNER_TEMP']);evidence=base/'reko-j11-sdl2-evidence';private=evidence/'private-diagnostics';public=base/'reko-j11-sdl2-public'
+        expected_tool={'bytes':60764,'sha256':'0bb05badac68a36edf2e59350ad1b620891acc13f5538411c5a1fc0a74ccb440'}
+        closed=False;inputs_removed=False;errors=[]
+        def read(path,maximum=1024**2):
+            """只读取本job私有根内有界普通原件。"""
+            if not path.is_absolute() or any(p.is_symlink() for p in (path,*path.parents)) or not path.is_file() or path.stat().st_size>maximum:raise RuntimeError('清理证据路径/类型/大小异常')
+            return json.loads(path.read_bytes())
+        def command(argv):
+            """精确id命令必须正常返回，不把Docker查询错误当作已消失。"""
+            result=subprocess.run(argv,capture_output=True,timeout=60 if argv[1:3]==['rm','--force'] else 15)
+            if result.returncode:raise RuntimeError('精确C1清理命令失败')
+            return result.stdout
+        try:
+            owner_path=private/'container-ownership.json';owner=None
+            plan=read(Path('tools/linux-sdl2-c-ci-plan.json').absolute())
+            if owner_path.exists():
+                owner=read(owner_path)
+                if owner['controller']!=expected_tool or owner['run_id']!=os.environ['GITHUB_RUN_ID'] or owner['attempt']!=int(os.environ['GITHUB_RUN_ATTEMPT']) or not re.fullmatch('[0-9a-f]{64}',owner['ticket_sha256']):raise RuntimeError('本job原C1所有权不匹配')
+            else:
+                commands=private/'container/commands';starts=list(commands.glob('*-producer-container-start.stdout'));inspects=list(commands.glob('*-producer-container-inspect.stdout'))
+                if starts or inspects:
+                    if len(starts)!=1 or len(inspects)!=1 or starts[0].is_symlink() or starts[0].stat().st_size>1024:raise RuntimeError('原C0所有权证据不完整')
+                    states=read(inspects[0]);cid=starts[0].read_text().strip()
+                    if len(states)!=1 or states[0]['Id']!=cid:raise RuntimeError('原C0 start/inspect不同')
+                    owner={'id':cid,'name':states[0]['Name'].removeprefix('/'),'image_id':states[0]['Image']}
+            if owner is not None:
+                if not re.fullmatch('[0-9a-f]{64}',owner['id']) or not re.fullmatch('reko-preflight-[0-9a-f]{32}',owner['name']) or owner['image_id']!=plan['C1_image_ids'][os.environ['UBUNTU_GROUP']]:raise RuntimeError('精确C1 id/name/image不同')
+                named=command(['docker','ps','-aq','--no-trunc','--filter','name=^/'+owner['name']+'$']).decode().split()
+                if named not in ([],[owner['id']]):raise RuntimeError('本轮C1名称已被另一id替换，不扩大删除')
+                ids=command(['docker','ps','-aq','--no-trunc','--filter','id='+owner['id']]).decode().split()
+                if ids not in ([],[owner['id']]):raise RuntimeError('精确id查询异常')
+                if ids:
+                    states=json.loads(command(['docker','inspect',owner['id']]))
+                    if len(states)!=1 or states[0]['Id']!=owner['id'] or states[0]['Image']!=owner['image_id']:raise RuntimeError('精确id/image变更')
+                    command(['docker','rm','--force',owner['id']])
+                if command(['docker','ps','-aq','--no-trunc','--filter','id='+owner['id']]).strip():raise RuntimeError('本轮精确C1仍存在')
+                closed=True
+        except Exception as error:errors.append(type(error).__name__)
+        try:
+            path=private/'input-ownership.json'
+            if path.exists():
+                item=read(path);root=Path(item['path'])
+                if item['controller']!=expected_tool or root.parent!=base or not root.name.startswith('reko-j11-sdl2-inputs-') or any(p.is_symlink() for p in (root,*root.parents)) or not re.fullmatch('[0-9a-f]{64}',item['ticket_sha256']):raise RuntimeError('本job临时输入所有权异常')
+                if owner_path.exists() and (item['ticket_sha256']!=owner['ticket_sha256'] or item['parent_pid']!=owner['parent_pid']):raise RuntimeError('C1与临时输入不同父票据')
+                if root.exists():
+                    info=root.lstat()
+                    if not stat.S_ISDIR(info.st_mode) or {'device':info.st_dev,'inode':info.st_ino}!=item['identity']:raise RuntimeError('本轮临时输入inode变更')
+                    shutil.rmtree(root)
+                inputs_removed=True
+        except Exception as error:errors.append(type(error).__name__)
+        finally:
+            for name in ('reko-j11-sdl2-inputs-cache','reko-j11-sdl2-apt-inputs','reko-j11-sdl2-control'):
+                p=base/name
+                if p.exists():
+                    if p.is_symlink() or not p.is_dir():errors.append('UnexpectedInputType');continue
+                    shutil.rmtree(p)
+            p=base/'reko-j11-sdl2-H1-artifact.zip'
+            if p.exists():
+                if p.is_symlink() or not p.is_file():errors.append('UnexpectedZIPType')
+                else:p.unlink()
+            summary=public/'public-summary.json'
+            if summary.is_file() and not summary.is_symlink():
+                row=json.loads(summary.read_bytes());row['workflow_container_cleanup_verified']=closed;row['workflow_temporary_inputs_removed']=inputs_removed;row['workflow_cleanup_errors']=errors
+                summary.write_text(json.dumps(row,ensure_ascii=False,indent=2)+'\n')
+            sealed=public/'private-diagnostics.cms';manifest=public/'private-diagnostics-identity.json'
+            if evidence.exists():
+                if evidence.is_symlink() or not evidence.is_dir():raise RuntimeError('私有证据清理根异常')
+                if sealed.is_file() and not sealed.is_symlink() and manifest.is_file() and not manifest.is_symlink():
+                    expected=read(manifest,32*1024**2)['ciphertext'];digest=hashlib.sha256()
+                    with sealed.open('rb') as stream:
+                        while block:=stream.read(1048576):digest.update(block)
+                    if sealed.stat().st_size!=expected['bytes'] or digest.hexdigest()!=expected['sha256']:raise RuntimeError('CMS身份不完整，保留原私有证据')
+                    shutil.rmtree(evidence)
+                else:print('[RenPySDL2CI] 完整CMS未归档，保留原私有证据，不上传明文',flush=True)
+        if errors:raise RuntimeError('本轮精确清理未完成，失败不算验收通过')
+        PYCODE
+    - name: 仅上传有限摘要、完整身份与认证密文
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: renpy-linux-sdl2-c-${{ env.UBUNTU_GROUP }}-${{ env.TARGET_RELEASE }}-${{ env.TARGET_ARCH }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/reko-j11-sdl2-public/
+        if-no-files-found: warn
+        compression-level: 0
+        retention-days: 30
