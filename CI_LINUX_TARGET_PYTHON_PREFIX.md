@@ -1,6 +1,6 @@
 # 原始 iOS C 前置与目标 Python 安装 CI
 
-此工作流通过显式 phase 选择 R00-02J9 的原始 C 前置任务或目标 Python 安装。默认 c-prerequisites 保持原 C 路线；历史运行 41471558503 和现代运行 41470949898 的四版×三个架构已由主项目独立验收。target-install 当前只允许 Ubuntu22.04 的 7.8.7 或 8.3.7／sim-arm64，必须明确单版和架构；首轮试跑选择 7.8.7。B 每次在同一个全新 C1 worker 中重新实际执行原 C 与原 Python Task，不导入外部 C 前缀或预填完成状态。B 候选尚待真实 CI 验证；任何工具回归均不代表目标安装、pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
+此工作流通过显式 phase 选择 R00-02J9 的原始 C 前置任务或目标 Python 安装。默认 c-prerequisites 保持原 C 路线；历史运行 41471558503 和现代运行 41470949898 的四版×三个架构已由主项目独立验收。target-install 允许已有完整C资格的四版×三个架构：22.04的7.8.7/8.3.7、24.04的8.4.1/8.5.3；必须明确单版，target_arch可选一个架构或all展开三个独立作业。B 每次在同一个全新 C1 worker 中重新实际执行原 C 与原 Python Task，不导入外部 C 前缀或预填完成状态。各B作用域的实际结果以主项目逐原件验收为准；12个选择资格不等于12个B产品通过，任何工具回归均不代表pip、生产 shared dylib、G1/G2 或 Reko 会话通过。
 
 编排与 worker 从 Reko 已提交原件部署；增量包七件来自提交 `07f817962ea074057230c92103ede806db41604c`，总原字节 314750，固定归档 73548 字节、SHA256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`，归档名 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`。C 默认 profile 使用上述增量03。B 当前 profile 的七件来自提交 `6d6172ec386bfcd6d97f9a3f08f31220edb2907c`，总原字节469104；归档 `j9-target-python-runtime-addon-20261103-06.tar.gz` 为102948字节，SHA256 `da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80`。历史05来自4e701cd，为98789字节/SHA256 `8230de1be890d706b2216b5bc119be85dda7a2abe4229f555a75ae6b7acceadf`，保持原身份。各profile固定自己的worker/plan身份，不能互换。历史B增量04来自63dde6，95387字节/SHA256 `1bdda8d22ab4630586a6c6866638557b71d3e371d8d136993c1224939123a565`，保留原身份。B 完整43件元数据根的18来源、9个scope和3份CPython原tar已通过fresh校验，归档发布状态以主项目证据为准。原 H0 包、H1 CAS 包和已实测 host 分发不重打包。H1 原 ZIP 必须匹配独立 API 大小与完整摘要；两组分别使用计划中的原 producer。
 
@@ -16,7 +16,7 @@ SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后
 
 构建队列按分支和固定 Ubuntu 组分别隔离，同组仍串行且不取消运行中任务。不同组各自独立的容器、APT、host producer 与 artifact 名可以同时推进；同一工作区修改及集成由主代理串行控制。初始历史组与现代组的既有运行保留其原候选与结果。
 
-后续候选按 arm64、sim-arm64、sim-x86_64 三个独立作业验证，每次最多并行三个，失败不取消其他架构；同架构内两route仍在同一固定C1生命周期按原Task顺序执行。每个artifact名称明确Ubuntu组/架构/run/attempt，验收必须聚合三个完整原ZIP的实际cell，缺失或失败不补齐成功。原串行候选及其失败保留原身份。
+后续候选按 arm64、sim-arm64、sim-x86_64 三个独立作业验证，每次最多并行三个，失败不取消其他架构；C默认组内两route仍在同一固定C1生命周期按原Task顺序执行；B每次只选择一个明确版本。每个artifact名称明确Ubuntu组/架构/run/attempt，验收必须聚合三个完整原ZIP的实际cell，缺失或失败不补齐成功。原串行候选及其失败保留原身份。
 
 第二轮诊断后的明确修复：原driver命令成功但SDK元数据拒绝会完整记原失败后继续既定candidate；候选可执行仍严格SDK14。原bzip2两链接已有LDFLAGS，但Makefile的LDFLAGS=覆盖环境，历史派生Makefile仅该一行改?=并保留原/派生SHA与补丁；四已证内部绝对alias经原脚本字节核对后规范为同目录相对link，未知/外部/错误内部仍拒绝。修复21项回归与完整43件fresh根验证仅为工具验收，实际C须新运行；原01包和两失败运行不重标。
 
@@ -26,7 +26,7 @@ SDK 使用既有发布的加密原件；解密前核密文大小/SHA，解密后
 
 增量03发布原件asset702183169，独立API为73548字节/SHA256 1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f，与本地归档相同。
 
-调度输入为 ubuntu_group、phase、release 和 target_arch；C 可选组内 all 版本及 all 三架构，B 拒绝 all、现代组或其它架构。矩阵每作业只对应一个架构，最多三个并行，组内不取消已有运行。artifact名称含phase、Ubuntu组、架构、run、attempt；不同实际运行分别验收，不按名称或工具测试补齐成功。
+调度输入为 ubuntu_group、phase、release 和 target_arch；C 可选组内 all 版本及 all 三架构；B拒绝release=all及错误组/架构，允许四个明确单版各自target_arch=all，矩阵逐作业展开arm64/sim-arm64/sim-x86_64。矩阵每作业只对应一个架构，最多三个并行，组内不取消已有运行。artifact名称含phase、Ubuntu组、架构、run、attempt；不同实际运行分别验收，不按名称或工具测试补齐成功。
 
 目标安装继续执行原 unpack、patch_posix、patch_ios、build_ios/common_post。CP39 只在已锁定 configure 调用处清空原 PYTHON_FOR_BUILD、追加 --with-ensurepip=no，使上游 configure 自行生成原交叉编译包装器；原 Task 函数和包装器源码不改，实际argv/env、Makefile、target sysconfig、原host完整库存不变和无提前pip均须逐项核对。原默认upgrade的历史值与实际no分开保留，不将禁用隐式ensurepip视作显式pip任务通过。
 
@@ -42,3 +42,5 @@ B 失败或SIGTERM取消只生成明确标注diagnostic_only的有限私有快�
 05的CP27 run41564816073和CP39 run41564819755均已完成原make、make install及host复制，新-F闭合已核；完整B后验被原C通用ar唯一成员规则拒绝。原CP27/CP39库分别176/210 occurrences，同名重复与实际LIBRARY_OBJS顺序相同且同字节；旧快照没有全部原build.o，不补称完整布局通过。
 
 06仅对两处原libpython安装路径使用B专属保留occurrence解析，纯展开原Makefile/template/实际GNUmake投影，按原相对.o路径逐个比较实际源对象完整bytes/SHA和MachO CPU/平台/min；同名异字节、顺序/次数/源对象缺失均拒绝，C32及原C唯一规则不变。新增layout/source_objects两份sidecar及receipt SHA；原build.o按明确list只放私有PAX proof，经原CMS运输，绝不进入公开七文本输入包。失败也仅按已写投影和原模板列出现存普通.o，缺或不符如实missing/rejected，不扫描SDK/build/host整树。主审41项/CI31项无skip及完整43根fresh仅是工具/输入验证，完整B成功仍须新CI，旧失败不重标。
+
+12scope调度资格独立绑定主项目c-prerequisites-results.lock.json的139080字节/SHA256 `92bc838c52309b4df1c013501e2d774572aa73b1b9504d9318d5be7123eae774`（9d7c6d4），完整投影锁定各recipe/run/artifact/原C receipt身份；只用于允许选择。每次B仍重跑真实C，不加载旧C prefix、不把ready字段或历史C验收提升为B成功。24组原H1 profile6a/352和22组5abab/9e保持，B仍消费原06/43件根；默认C、SDK、CMS、原.o私有证明及失败诊断不变。
