@@ -51,3 +51,10 @@ API 列表可能短暂为空；依据该次命令取得的真实 run ID 或精�
 
 
 工作流注册阶段已结束：实际workflow406083400，push注册run41697222148在d9fa855上completed/skipped、唯一job亦skipped，没有执行编译。临时五行push入口已移除；当前仅workflow_dispatch，仍零inputs且固定24.04/8.5.3/sim-arm64单组。原19pin/正文/SDKstdin/CMS/限额及cleanup原字节不变；首次实际源码验收由下一dispatch及其本机独立验收确定，注册结果不计NASM/AVIF通过。
+
+
+## 首轮输入名失败与定点修正
+
+首固定先导 `41698533113`（head `f633318b91eb58808f47b340525120137f068f7e`）在宿主输入运输步骤失败：设备 SDK basename 误写为 `iPhoneOV14.0.sdk.tar.gz.enc`。认证的 Release `406525604` 原 API 中实际资产为 `iPhoneOS14.0.sdk.tar.gz.enc`，ID `621045292`、27,728,336 B、SHA-256 `07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133`。原错误只报告运输失败，没有保留 HTTP 码，所以不将 404 写成实测结果。
+
+本次只将下载 row 与 `--device-sdk` 物理路径的两处 `iPhoneOV14.0` 改为 `iPhoneOS14.0`，原密文/明文大小、SHA、SDK 密码 stdin、V0/V1、十五文本包、19 pins、权限、CMS、截止时间、预算和回收正文均不变；不跳过设备 SDK，不增加容错。原 artifact `13262152852`（ZIP 8,887 B / `6cc4c3bb8d5b82e4af7d82c7ed801752ceb4ce81b70705a8e569ce59e0a89145`）及认证四成员诊断保留，公开摘要 `driver_started=false`、C1/八任务步骤 skipped，没有 NASM/AVIF 编译或缓存接受。主代理只重试同一首 tuple，重试成功仍须完整原件与本机独立静态验收。

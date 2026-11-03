@@ -213,7 +213,7 @@ jobs:
         download(os.environ['RUNTIME_NAME'],int(os.environ['RUNTIME_BYTES']),os.environ['RUNTIME_SHA256'])
         download('h0-linux-host-inputs-20261102-01.tar.gz.enc',116556720,'4beeb8544d248c59f7f12216cd11a8d291d0d4edcf660eb854fbc4abcb1b34c5')
         download('h1-public-recipe-addon-20261102-01.tar.gz',264133884,'0da8d46083c0c882b1e246a5c7e3df526e20c92246c823abfe3f617271fb5ec2')
-        rows=[('iPhoneOV14.0.sdk.tar.gz',27728336,'07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133',27728304,'2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287','IOS_DEVICE_SDK_SHA256'),('iPhoneSimulator14.0.sdk.tar.gz',21472384,'be1c1049401283b6fc4202c4eea6830412ca768c9f07a071734bfeac8b6f004a',21472366,'4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5','IOS_SIMULATOR_SDK_SHA256')]
+        rows=[('iPhoneOS14.0.sdk.tar.gz',27728336,'07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133',27728304,'2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287','IOS_DEVICE_SDK_SHA256'),('iPhoneSimulator14.0.sdk.tar.gz',21472384,'be1c1049401283b6fc4202c4eea6830412ca768c9f07a071734bfeac8b6f004a',21472366,'4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5','IOS_SIMULATOR_SDK_SHA256')]
         child_env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'}
         help_result=subprocess.run(['openssl','enc','-help'],capture_output=True,env=child_env,timeout=30)
         for name,csize,csha,psize,psha,secret_sha in rows:
@@ -257,7 +257,7 @@ jobs:
           --runtime-addon "$RUNNER_TEMP/reko-j11-avif-inputs-cache/j9-c-prefix-runtime-addon-20261102-03.tar.gz" \
           --h0-cipher "$RUNNER_TEMP/reko-j11-avif-inputs-cache/h0-linux-host-inputs-20261102-01.tar.gz.enc" \
           --recipe-addon "$RUNNER_TEMP/reko-j11-avif-inputs-cache/h1-public-recipe-addon-20261102-01.tar.gz" \
-          --device-sdk "$RUNNER_TEMP/reko-j11-avif-inputs-cache/iPhoneOV14.0.sdk.tar.gz" \
+          --device-sdk "$RUNNER_TEMP/reko-j11-avif-inputs-cache/iPhoneOS14.0.sdk.tar.gz" \
           --simulator-sdk "$RUNNER_TEMP/reko-j11-avif-inputs-cache/iPhoneSimulator14.0.sdk.tar.gz" \
           --clang-runtime "$GITHUB_WORKSPACE/prebuilt/clang_rt.tar.gz" \
           --source-cache "$RUNNER_TEMP/reko-j11-avif-inputs-cache/source-cache" \
