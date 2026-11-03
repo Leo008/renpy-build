@@ -1,9 +1,6 @@
 name: RenPy fixed Linux original target pip
 
 'on':
-  push:
-    branches: [codex/ios-locked-inputs-20261102]
-    paths: [.github/workflows/linux-target-pip.yml]
   workflow_dispatch:
     inputs:
       ubuntu_group:
