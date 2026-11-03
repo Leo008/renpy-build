@@ -13,7 +13,7 @@
       "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
     }
   },
-  "current_consumer_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+  "current_consumer_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
   "text_runtime_catalog": [
     {
       "path": "run_locked_target_python_tasks.py",
@@ -35,9 +35,9 @@
     },
     {
       "path": "run_locked_image_c_tasks.py",
-      "source_commit": "d2e4bb47a025ef2c4fd09d5f397e46021c29835a",
-      "bytes": 52260,
-      "sha256": "83c2fba541f22efe110457bb0efe50e251275aadc8d05801a669551e650dbb48"
+      "source_commit": "ee30f99e55fd8f9cad64086994deeb9169b063cd",
+      "bytes": 53564,
+      "sha256": "7a59adee144ba5e83e05fde3d8601ec135516b1ee447d16573adebb16e9518ea"
     },
     {
       "path": "image-c-task-plan.json",
@@ -47,15 +47,15 @@
     },
     {
       "path": "run_locked_current_image_c_tasks.py",
-      "source_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+      "source_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
       "bytes": 37528,
-      "sha256": "a99b0918f11aedb76edac4a622f0184a2ff446179bd2df0b1263eb5f9dfdec0d"
+      "sha256": "f3fec9da72205510c013ba88b41c98ba0d3be5d12f3a0dece8c96dd945a64770"
     },
     {
       "path": "current-image-c-task-plan.json",
-      "source_commit": "49523a9a7b6bd8e611ec54d5c6f12ff10107bdd2",
+      "source_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
       "bytes": 6669,
-      "sha256": "9e576f7d79f6e25edaed29ebe68bfb7caf60dc58df06549081f59b1aabe98572"
+      "sha256": "35943bf2ac5cb3a685ae7698a0f19f393583912152f64e34cc1dc5d870c2cdfa"
     },
     {
       "path": "run_linux_target_python_prefix.py",

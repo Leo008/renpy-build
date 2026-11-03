@@ -22,7 +22,7 @@ import time
 import types
 
 HERE = Path(__file__).absolute().parent
-PLAN_SHA256 = "396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014"
+PLAN_SHA256 = "d6e0b42a54eeff66023080bdd5516c8d372bd7a05d95ea26e0a3446428a59d33"
 TASK = "R00-02J11I1D"
 FALSE = {"production_shared_provider_verified": False, "G1_verified": False, "G2_verified": False,
          "Cubism_support_verified": False, "complete_engine_source_verified": False,
@@ -117,7 +117,7 @@ i0.prefix_archive(archive,entries,ip['limits'],inventory)
 wanted=set(ip['expected_new_archives']);cpu='x86_64' if arch=='sim-x86_64' else 'arm64';platform=2 if arch=='arm64' else 7;actual=[]
 old_names={v['path'] for v in old};new=[v for v in entries if v['path'] not in old_names]
 if {v['path'] for v in new if v['type']=='file' and v['path'].endswith('.a')}!=wanted:raise ValueError('新增archive集合不同')
-if any(table.get(name,{}).get('type')!='file' or table[name]['bytes']<=0 for name in ip['required_new_headers']):raise ValueError('新增必需headers缺失')
+i0.verify_required_headers(table,ip['required_new_headers'],inventory)
 if i0.decode(i0.raw_file(folder/'image-installed-headers.json'))!=[v for v in new if v['type']=='file' and v['path'].endswith('.h')]:raise ValueError('完整新增headers清单不同')
 commands=i0.decode(i0.raw_file(folder/'image-commands.json'));expected_commands=[]
 for spec in row['tasks']:expected_commands.extend((spec['task']+'-'+spec['name']+'.ios-'+arch,op[1]) for op in spec['operations'][arch] if op[0]=='run')
