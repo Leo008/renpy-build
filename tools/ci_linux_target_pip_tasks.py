@@ -39,6 +39,123 @@ for name in ('target-pip-export.json','target-pip-prefix-and-proof.tar.gz'):
 print(json.dumps(result,sort_keys=True))
 '''
 
+# 只在原worker完整成功后清理已锁CP39 seed资源残留；不扩导出器证据白名单。
+CLEANUP_SEED_CERTIFI_CA = r'''import hashlib,io,json,os,pathlib,re,stat,sys,zipfile
+code,root,prefix,release,arch,scope,worker_sha,plan_sha=sys.argv[1:]
+code=pathlib.Path(code);root=pathlib.Path(root);prefix=pathlib.Path(prefix)
+def require(value,message):
+ # 仅已证本轮CP39成功后的单个seed CA残留可以删除，任一不符均保留失败。
+ if not value:raise ValueError(message)
+def guarded(path):
+ # 保持实际路径，拒绝叶/父链接和上跳，不resolve隐藏来源。
+ require(path.is_absolute() and '..' not in path.parts and not any(p.is_symlink() for p in (path,*path.parents)),'CA cleanup unsafe path')
+ return path
+def regular(path,maximum):
+ # 固定源也以普通文件有界读取，FIFO不会在核类型前阻塞。
+ guarded(path)
+ with os.fdopen(os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK),'rb') as stream:
+  info=os.fstat(stream.fileno());require(stat.S_ISREG(info.st_mode) and 0<=info.st_size<=maximum,'CA cleanup file type/size')
+  raw=stream.read(maximum+1);require(len(raw)==info.st_size and len(raw)<=maximum,'CA cleanup read changed')
+ return raw,info
+def pairs(items):
+ # 原成功JSON也拒绝重复键，避免两种身份解释。
+ result={}
+ for key,value in items:
+  require(key not in result,'CA cleanup duplicate JSON key');result[key]=value
+ return result
+def nonfinite(value):
+ # 成功证明不得包含非有限数。
+ raise ValueError('CA cleanup nonfinite JSON')
+def decode(raw):
+ # 只解析原证据，不执行wheel或回传目标代码。
+ return json.loads(raw,object_pairs_hook=pairs,parse_constant=nonfinite)
+def digest(raw):
+ # 全原字节SHA同时绑定seed、实际prefix和待删文件。
+ return hashlib.sha256(raw).hexdigest()
+def directory(path):
+ # 本轮worker以独占mkdir创建tmp，成功收据的TMPDIR另作关联。
+ guarded(path);info=path.lstat()
+ require(stat.S_ISDIR(info.st_mode) and info.st_uid==os.geteuid() and not stat.S_IMODE(info.st_mode)&0o022,'CA cleanup directory ownership')
+ return info
+def same_file(info):
+ # 验证至unlink前保持同一单link对象，不能删除替换物。
+ return (info.st_dev,info.st_ino,info.st_mode,info.st_uid,info.st_nlink,info.st_size,info.st_mtime_ns,info.st_ctime_ns)
+require(release=='8.3.7' and arch in ('arm64','sim-arm64','sim-x86_64') and scope=='8.3.7-target-recipe','CA cleanup route not approved')
+require(re.fullmatch(r'[0-9a-f]{64}',worker_sha) and re.fullmatch(r'[0-9a-f]{64}',plan_sha),'CA cleanup source identities missing')
+worker_raw,_=regular(code/'run_locked_target_pip_tasks.py',1048576);plan_raw,_=regular(code/'target-pip-binding-plan.json',1048576)
+require(digest(worker_raw)==worker_sha and digest(plan_raw)==plan_sha,'CA cleanup worker/plan identity')
+plan=decode(plan_raw);require(plan['task']=='R00-02J9C','CA cleanup plan task')
+route=next(v for v in plan['routes'] if v['release']==release)
+require(route['version']=='3.9.10' and route['original_installer_version']=='21.2.4' and scope in route['allowed_scopes'],'CA cleanup seed route differs')
+root_info=directory(root);temporary=root/'tmp';tmp_info=directory(temporary)
+require(tmp_info.st_dev==root_info.st_dev and prefix.name=='install.ios-'+arch and prefix.parent.name=='tmp','CA cleanup prefix/tmp ownership')
+receipt_raw,_=regular(root/'target-pip-receipt.json',65536);receipt=decode(receipt_raw)
+expected_receipt={'path':str(root/'target-pip-receipt.json'),'sha256':digest(receipt_raw)}
+for name in ('worker-report.json','report.json'):
+ body,_=regular(root/name,32768);report=decode(body)
+ require(report['task']=='R00-02J9C' and (report['release'],report['arch'],report['target_scope'])==(release,arch,scope)
+  and report['result']=='original_target_pip_Task_offline_verified' and report['errors']==[] and report['target_pip_bound'] is True
+  and report['receipt']==expected_receipt,'CA cleanup original worker did not fully succeed')
+require(receipt['task']=='R00-02J9C' and (receipt['release'],receipt['arch'],receipt['target_scope'])==(release,arch,scope)
+ and receipt['execution_source_sha256']==worker_sha and receipt['plan_sha256']==plan_sha
+ and all(receipt[k] is True for k in ('target_pip_bound','original_Task_run_verified','original_ensurepip_executed','kernel_network_isolation_verified'))
+ and receipt['original_pip_task']==route['pip_task'],'CA cleanup original receipt differs')
+commands=receipt['commands'];bridge=str(prefix/'bin/hostpython3')
+require(len(commands)==2,'CA cleanup original Task commands missing')
+for index,command in enumerate(commands):
+ actual=command['actual_command']
+ require(command['ordinal']==index and command['template']==route['commands'][index] and command['validated'] is True
+  and type(command['actual_command_returncode']) is int and command['actual_command_returncode']==0
+  and type(actual['returncode']) is int and actual['returncode']==0 and actual['environment']['TMPDIR']==str(temporary)
+  and actual['argv'][0]==bridge,'CA cleanup original Task/TMPDIR binding differs')
+require(commands[0]['original_argv_executed'] is True and commands[0]['actual_command']['argv']==[bridge,'-s','-m','ensurepip'],'CA cleanup original ensurepip not executed')
+seed=next(v for v in route['bundled_wheels'] if pathlib.Path(v['path']).name=='pip-21.2.4-py3-none-any.whl')
+wheel_path=root/'locked-inputs/seed-wheels'/pathlib.Path(seed['path']).name
+wheel_raw,_=regular(wheel_path,4194304)
+require(len(wheel_raw)==seed['bytes'] and digest(wheel_raw)==seed['sha256'],'CA cleanup locked seed wheel differs')
+ca_member='pip/_vendor/certifi/cacert.pem';core_member='pip/_vendor/certifi/core.py'
+with zipfile.ZipFile(io.BytesIO(wheel_raw)) as archive:
+ require(archive.namelist().count(ca_member)==archive.namelist().count(core_member)==1,'CA cleanup seed member duplicate/missing')
+ require(archive.getinfo(ca_member).file_size==259465 and archive.getinfo(core_member).file_size==2840,'CA cleanup seed member length')
+ ca=archive.read(ca_member);core=archive.read(core_member)
+require(digest(ca)=='de2fa17c4d8ae68dc204a1b6b58b7a7a12569367cfeb8a3a4e1f377c73e83e9e'
+ and digest(core)=='80e15dd331d8971e24aeb2c49fdf367ac3ad9b3ddd8e21b40454838608e5bdc2','CA cleanup known seed CA/source differs')
+site=prefix/'lib/python3.9/site-packages';installed=site/ca_member;installed_core=site/core_member
+actual_ca,_=regular(installed,1048576);actual_core,_=regular(installed_core,32768)
+require(actual_ca==ca and actual_core==core,'CA cleanup actual prefix seed CA/source differs')
+removed=[]
+tmp_fd=os.open(temporary,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+try:
+ require((os.fstat(tmp_fd).st_dev,os.fstat(tmp_fd).st_ino)==(tmp_info.st_dev,tmp_info.st_ino),'CA cleanup tmp replaced')
+ names=[]
+ with os.scandir(tmp_fd) as entries:
+  for entry in entries:
+   names.append(entry.name);require(len(names)<=1,'CA cleanup unexpected multiple tmp members')
+ if names:
+  name=names[0];require(re.fullmatch(r'tmp[a-z0-9_]{8}cacert[.]pem',name),'CA cleanup unknown tmp basename')
+  before=os.stat(name,dir_fd=tmp_fd,follow_symlinks=False)
+  require(stat.S_ISREG(before.st_mode) and before.st_nlink==1 and before.st_uid==os.geteuid()
+   and before.st_dev==tmp_info.st_dev and before.st_size==len(ca),'CA cleanup tmp is not owned single-link CA')
+  with os.fdopen(os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=tmp_fd),'rb') as stream:
+   require(same_file(os.fstat(stream.fileno()))==same_file(before),'CA cleanup tmp replaced before read')
+   body=stream.read(len(ca)+1)
+   require(body==ca and digest(body)==digest(actual_ca),'CA cleanup tmp CA bytes/SHA differ')
+   require(same_file(os.fstat(stream.fileno()))==same_file(before),'CA cleanup tmp changed during read')
+  require((directory(temporary).st_dev,directory(temporary).st_ino)==(tmp_info.st_dev,tmp_info.st_ino)
+   and same_file(os.stat(name,dir_fd=tmp_fd,follow_symlinks=False))==same_file(before),'CA cleanup tmp replaced before unlink')
+  os.unlink(name,dir_fd=tmp_fd)
+  removed.append({'path':'tmp/'+name,'bytes':len(body),'sha256':digest(body),'device':before.st_dev,'inode':before.st_ino,'nlink':before.st_nlink,'uid':before.st_uid,'source_mtime_ns':before.st_mtime_ns})
+ require(os.listdir(tmp_fd)==[],'CA cleanup tmp not empty after exact unlink')
+finally:os.close(tmp_fd)
+print(json.dumps({'result':'bounded_original_seed_CA_tmp_cleanup','release':release,'arch':arch,'target_scope':scope,
+ 'original_worker_receipt':expected_receipt,'worker_sha256':worker_sha,'plan_sha256':plan_sha,
+ 'seed_wheel':{'path':str(wheel_path),'bytes':len(wheel_raw),'sha256':digest(wheel_raw)},
+ 'seed_CA':{'member':ca_member,'bytes':len(ca),'sha256':digest(ca)},'seed_certifi_source':{'member':core_member,'bytes':len(core),'sha256':digest(core)},
+ 'actual_prefix_CA':{'path':str(installed),'bytes':len(actual_ca),'sha256':digest(actual_ca)},
+ 'owned_tmp':{'path':str(temporary),'device':tmp_info.st_dev,'inode':tmp_info.st_ino,'uid':tmp_info.st_uid},
+ 'removed':removed,'tmp_empty_after':True,'unknown_members_skipped':False,'prefix_modified':False,'full_static_acceptance_claimed':False},sort_keys=True))
+'''
+
 PRESERVE_PIP_FAILURE = r'''import hashlib,json,os,pathlib,stat,sys,types
 source,destination,tool,toolsha,planpath,export_root=sys.argv[1:]
 source=pathlib.Path(source);destination=pathlib.Path(destination);export_root=pathlib.Path(export_root)
@@ -325,6 +442,27 @@ def export_argv(command, args, code, payload_root, b_products, output):
             "--b-products", str(b_products), "--output", str(output)]
 
 
+def cleanup_seed_certifi_ca(run, system_python, args, plan, diagnostics, prefix):
+    """仅CP39固定scope核原seed/实际prefix后精确unlink，证明留在结果树外。"""
+    if args.release != "8.3.7":
+        return None
+    source = next(row for row in plan["text_runtime_catalog"] if row["path"] == "run_locked_target_pip_tasks.py")
+    frozen = next(row for row in plan["text_runtime_catalog"] if row["path"] == "target-pip-binding-plan.json")
+    stdout, _ = run.run([system_python, "-B", "-c", CLEANUP_SEED_CERTIFI_CA, REMOTE_CODE, REMOTE_RESULTS, str(prefix),
+                         args.release, args.arch, args.scope, source["sha256"], frozen["sha256"]], "j9c-cleanup-original-seed-certifi-CA")
+    require(len(stdout) <= 32768, "CA精确清理证明超限")
+    proof = json.loads(stdout, object_pairs_hook=unique_pairs, parse_constant=reject_nonfinite)
+    require(proof["result"] == "bounded_original_seed_CA_tmp_cleanup"
+            and (proof["release"], proof["arch"], proof["target_scope"]) == (args.release, args.arch, args.scope)
+            and proof["worker_sha256"] == source["sha256"] and proof["plan_sha256"] == frozen["sha256"]
+            and proof["tmp_empty_after"] is True and proof["unknown_members_skipped"] is False
+            and proof["prefix_modified"] is False and proof["full_static_acceptance_claimed"] is False
+            and isinstance(proof["removed"], list) and len(proof["removed"]) <= 1, "CA精确清理证明不完整")
+    write(diagnostics / "pip-seed-certifi-CA-cleanup.json", proof)
+    log("已核原seed CA临时目录；精确删除=" + str(len(proof["removed"])))
+    return proof
+
+
 def preserve_failure(run, system_python, plan, diagnostics):
     """失败只回收有限白名单原控制日志，不扫描SDK/工作区或回传完整目标。"""
     worker = next(row for row in plan["text_runtime_catalog"] if row["path"] == "run_target_pip_export.py")
@@ -357,6 +495,7 @@ def run_pip(run, d, args, dplan, plan, metadata, workspaces, merged, merged_rows
                           python, "-s", "-B", *argv], "j9c-real-original-pip-Task", timeout=5000)
         remote_b = Path("/reko/j9-private-products") / args.release / args.arch
         remote_prefix = Path("/reko/j9-workspaces") / args.release / args.arch / ("tmp/install.ios-" + args.arch)
+        cleanup_seed_certifi_ca(run, system_python, args, plan, diagnostics, remote_prefix)
         command = export_argv("export", args, Path(REMOTE_CODE), Path(REMOTE_J2) / "root", remote_b, Path(REMOTE_EXPORT))
         command += ["--prefix", str(remote_prefix), "--pip-results", REMOTE_RESULTS]
         run.run([system_python, "-B", *command], "j9c-export-complete-prefix")
