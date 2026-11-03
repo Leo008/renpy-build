@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J11S1",
+  "scope": "single_tuple_same_C1_actual_C_to_original_two_SDL2_static_tasks_only",
+  "D": {
+    "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+    "wrapper": {
+      "bytes": 100023,
+      "sha256": "49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5"
+    },
+    "plan": {
+      "bytes": 23677,
+      "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+    }
+  },
+  "current_consumer_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
+  "text_runtime_catalog": [
+    {
+      "path": "run_locked_target_python_tasks.py",
+      "source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
+      "bytes": 134942,
+      "sha256": "2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a"
+    },
+    {
+      "path": "target-python-prefix-plan.json",
+      "source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
+      "bytes": 190076,
+      "sha256": "13f0fa3051364aaebca1ee2d43b93e5928688df18da266e40094a9ebd7644d5e"
+    },
+    {
+      "path": "c-prerequisites-results.lock.json",
+      "source_commit": "9d7c6d426c214fbb092d8f0dc8bfd12d47638529",
+      "bytes": 139080,
+      "sha256": "92bc838c52309b4df1c013501e2d774572aa73b1b9504d9318d5be7123eae774"
+    },
+    {
+      "path": "run_locked_image_c_tasks.py",
+      "source_commit": "ee30f99e55fd8f9cad64086994deeb9169b063cd",
+      "bytes": 53564,
+      "sha256": "7a59adee144ba5e83e05fde3d8601ec135516b1ee447d16573adebb16e9518ea"
+    },
+    {
+      "path": "image-c-task-plan.json",
+      "source_commit": "2bb8e5ca00d1b243dc2741ebcc8bb731911aff79",
+      "bytes": 57764,
+      "sha256": "6f0757f9b1f8a6459c68f0f515ce5ad97e6ff73adaa73941207c0da2479a6c4b"
+    },
+    {
+      "path": "run_locked_current_image_c_tasks.py",
+      "source_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
+      "bytes": 37528,
+      "sha256": "f3fec9da72205510c013ba88b41c98ba0d3be5d12f3a0dece8c96dd945a64770"
+    },
+    {
+      "path": "current-image-c-task-plan.json",
+      "source_commit": "37179b993ddd881d1b8d0dbe45c2799bd5540923",
+      "bytes": 6669,
+      "sha256": "35943bf2ac5cb3a685ae7698a0f19f393583912152f64e34cc1dc5d870c2cdfa"
+    },
+    {
+      "path": "run_linux_target_python_prefix.py",
+      "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+      "bytes": 100023,
+      "sha256": "49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5"
+    },
+    {
+      "path": "linux-target-python-prefix-ci-plan.json",
+      "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+      "bytes": 23677,
+      "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+    },
+    {
+      "path": "run_locked_sdl2_c_tasks.py",
+      "source_commit": "3a4b7df3617a5315871ff355d9ddbb7eee36351f",
+      "bytes": 41311,
+      "sha256": "7d9c2a3a2f65c2e8f1b5431fc51273eee70b981b34d68dd309de0aabcf3568fd"
+    },
+    {
+      "path": "sdl2-c-task-plan.json",
+      "source_commit": "3a4b7df3617a5315871ff355d9ddbb7eee36351f",
+      "bytes": 52020,
+      "sha256": "9258f652accf8f86bbb4437eb790abebbdae7acbe09c5337348f578c50f0f2ca"
+    }
+  ],
+  "C_runtime_addon": {
+    "name": "j9-c-prefix-runtime-addon-20261102-03.tar.gz",
+    "id": 702183169,
+    "bytes": 73548,
+    "sha256": "1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f",
+    "source_commit": "07f817962ea074057230c92103ede806db41604c"
+  },
+  "groups": {
+    "22.04": [
+      "8.3.7",
+      "7.8.7"
+    ],
+    "24.04": [
+      "8.5.3",
+      "8.4.1"
+    ]
+  },
+  "limits": {
+    "total_work_seconds": 18000,
+    "child_shutdown_seconds": 30,
+    "container_cleanup_seconds": 120,
+    "controller_finalization_seconds": 180,
+    "CMS_upload_reserved_seconds": 3000,
+    "job_seconds": 21600,
+    "host_log_bytes": 33554432,
+    "return_logical_bytes": 1073741824,
+    "return_members": 32768,
+    "remote_entry_free_bytes": 19327352832,
+    "remote_work_delta_bytes": 17179869184,
+    "remote_reserve_bytes": 2147483648,
+    "watch_interval_seconds": 2,
+    "metadata_bytes": 33554432,
+    "text_bytes": 1048576
+  },
+  "space_estimate": {
+    "scope": "remote_single_SDL2_tuple_only; local16/4/25GiB unchanged",
+    "estimated_work_GiB": 16,
+    "margin_GiB": 2,
+    "entry_free_GiB": 18,
+    "measured_peak": false,
+    "breakdown_GiB": {
+      "APT_image_bundle_installed": 2,
+      "H0_cipher_plain_payload_frontend_build_cache": 3,
+      "H1_zip_expansion": 1,
+      "J1_producer_consumer_roots_and_C1_copies": 1,
+      "C_SDL2_build_trees": 6,
+      "C_SDL2_archives_proofs_logs_ccache": 3
+    },
+    "protection": "Entry free plus sampled free-delta watcher plus pre-copy full logical/member/allocated checks. Conservative estimate, not actual measured peak."
+  },
+  "contract": {
+    "phase": "c-prerequisites",
+    "cell_count": 1,
+    "old_D_main_called": false,
+    "D_aggregate_success_synthesized": false,
+    "H0_and_CAS_transport": "Required original local verified ciphertext/CAS cache; no download fallback. Original J9C preparation sequence then D.prepare_runtime/fresh_runtime_check and original D.execute_cells.",
+    "producer_root": "/reko/j9-runtime/root",
+    "consumer_root": "/reko/j11-sdl2-runtime/root",
+    "expected_producer_members": 43,
+    "expected_consumer_members": 52,
+    "consumer_formula": "Use fixed I1D.consumer_runtime once to produce physical50 from original43 plus original9 text. Append exactly committed S0 source/plan2 to same physical root and verify full52/original43 again. I1D source/plan are host-only.",
+    "ownership": "Raw parent ticket/password only FIFO/in-process; private owner keeps digest and exact source/id/image. Same-name replacement rejects. Empty original name still queries exact owner.id, verifies id/image, and only removes that id; absence must be proved by exact id. Pre-yield ownership still needs original C0 start+inspect bytes.",
+    "privacy": "Original SDK/H1/C/private source and compiled products stay host/C1/private-diagnostics. Only public-summary.json may be public; external workflow must seal all private diagnostics with authenticated CMS.",
+    "deadline": "One min(18000, actual remaining minus3330s reserve) covers preparation, fresh C, original host C reader, SDL2 and host complete reader; S0 7200s remains within same absolute work deadline, never additive.",
+    "not_covered": [
+      "single SDL shared provider",
+      "G1",
+      "G2",
+      "Cubism support",
+      "AVIF/image/font/media",
+      "full engine source",
+      "iOS session",
+      "manual/device acceptance"
+    ],
+    "SDL2_gate": "Fresh original C single tuple and its original complete host reader must pass before S0 owns workspace. No prior image/font task and no historical prefix/marker restore."
+  },
+  "C1_image_ids": {
+    "22.04": "sha256:cee13550f97b8a595506e8e4ca74263ba44924248779a4ba4f942e197652acff",
+    "24.04": "sha256:6277ab668b2ad3c3ab851d370faa1690d324b30db29d342527f61fed28f20f36"
+  },
+  "frontend_scopes": {
+    "8.5.3": "8.5.3-host-ci-success",
+    "8.4.1": "8.4.1-host-recipe",
+    "8.3.7": "8.3.7-host-recipe",
+    "7.8.7": "7.8.7-host-recipe"
+  },
+  "C1_inspect_contract": {
+    "basis": "原冻结C0 container_argv/check_container和j9f原003-producer-container-inspect.stdout实际canonical值；支持原unshare，不将SYS_ADMIN能力列为禁用。",
+    "HostConfig": {
+      "NetworkMode": "none",
+      "Privileged": false,
+      "Binds": null,
+      "CapAdd": [
+        "CAP_SYS_ADMIN"
+      ],
+      "CapDrop": null,
+      "SecurityOpt": [
+        "seccomp=unconfined"
+      ],
+      "ReadonlyRootfs": false,
+      "Devices": [],
+      "DeviceRequests": null
+    },
+    "Config.User": "0:0",
+    "Mounts": []
+  },
+  "sdl2_consumer_commit": "3a4b7df3617a5315871ff355d9ddbb7eee36351f",
+  "I1D_base": {
+    "source_commit": "f78e7c1c720afd8cccd6ec68dadf37f76aba27be",
+    "source": {
+      "bytes": 48788,
+      "sha256": "29ada979f9bf8b50af8026f83928cfdab5ce65233e185d07dc174f5b018cd8d1"
+    },
+    "plan": {
+      "bytes": 6989,
+      "sha256": "d6e0b42a54eeff66023080bdd5516c8d372bd7a05d95ea26e0a3446428a59d33"
+    },
+    "host_only": true,
+    "called_functions": [
+      "load_fixed",
+      "selection",
+      "prepare_inputs",
+      "consumer_runtime",
+      "work_budget",
+      "ticket_hash",
+      "verify_container",
+      "bounded_copy",
+      "frontend_python",
+      "watch_space"
+    ],
+    "called_script": "CREATE_CONTROL_DIRECTORY",
+    "old_image_handoff_execute_main_called": false
+  },
+  "reader_contract": {
+    "final_prefix": "Stream full original sdl2-prefix.tar.gz; every file bytes/mode/link, all three ar every MH_OBJECT CPU/platform/minimum/SDK and any target executables; full77 installed header table. No target binary execution.",
+    "configuration": "Raw configure pre-append header, exact original Task append, final installed header, original after-header SHA, complete config.log/config.status/Makefile/sdl2-config/sdl2.pc and original target CC+CPPFLAGS+CFLAGS API macro/declaration plus static nm stdout.",
+    "execution": "Two original Task records and finite commands including exact original direct patchdir list 15/14, real return codes, unchanged registry/annotators, original C/H1/SDK/source/markers protected by pinned actual S0 execution before finally; host binds original protected-before/H1 receipts/inventory, does not claim to rehash deleted workspace afterward.",
+    "private_return": "All returned ordinary files hashed and bounded; C/control/handoff/raw proof identity retained private. No raw SDK duplicated into output. Missing/failed/delayed scopes never accepted."
+  }
+}
