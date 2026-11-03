@@ -1,13 +1,13 @@
 # 单 tuple 原 C → image 源码 CI
 
-本候选只部署已提交的 I1D 工具并接入独立 workflow。控制器来自 Reko 提交 `54d9e0069816adb920650b38fa8c0e370c9b4ca6`，两件部署原件分别为：
+本工作流部署已提交的 I1D 工具，执行单作用域源码 CI。控制器来自 Reko 提交 `54d9e0069816adb920650b38fa8c0e370c9b4ca6`，两件部署原件分别为：
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
 | `tools/ci_linux_image_c_tasks.py` | 47766 | `25395e6d620fb84c13e36fe8191ca30c90948cd9c0119603090cfdfb6e07d1ab` |
 | `tools/linux-image-c-ci-plan.json` | 6989 | `396744fccc0086b6cc54d5759828670d0a798598ade140e6786e5fc74d1a6014` |
 
-首次调度保持默认 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。每次只有一个明确 tuple，不提供 `all` 或 matrix；其他版本仍须符合原 D 的 Ubuntu 组。并发组和产物名称都包含版本、架构。首次 push 仅注册 workflow，job 只接受 `workflow_dispatch`；注册后由 ROOT 单独移除 push 触发，再执行明确调度。
+首次调度保持默认 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。每次只有一个明确 tuple，不提供 `all` 或 matrix；其他版本仍须符合原 D 的 Ubuntu 组。并发组和产物名称都包含版本、架构。工作流仅接受 `workflow_dispatch`；首次注册所需临时 push 入口已移除，执行时明确指定版本和架构。
 
 原模板 15 件共用依赖保持原 SHA，J9C 工具／计划两件替换为本次 I1D 原件，仍逐一核验 17 件；不携带 J9C 控制器。流程复用 APT 分发、H1 原 ZIP、SDK14 运输、C03、H0 密文和原 recipe CAS 缓存。原 H0/CAS 只下载一份给控制器使用；控制器不设再次下载 fallback。原 D 在同一 C1 内实际执行单 tuple C 阶段，完整宿主 reader 通过后，一次交接到 current 消费器并执行八个原 image Task。producer 43 件与 consumer 50 件保持独立物理根及实际 manifest。8.5 前端沿原 `8.5.3-host-ci-success`，不重选 H0 scope。
 
@@ -26,4 +26,4 @@ job 时限为 360 分钟。第一步读取本次 attempt 中唯一当前 job 的
 
 公开目录只允许有限摘要、CMS 自检、完整身份清单和认证密文。私有控制器报告、完整生成归档、日志和输入身份证据先保留原字节，再沿既有 AES-256-GCM／RSA3072 OAEP-SHA256 CMS 封套上传。CI 只有原公开接收证书；无真实接收私钥。封套有界且不截断成员，失败不回退明文上传。`always` 收尾仅按本 job 所有权中的精确 C1 id/image 和临时根 inode 清理，名称为空仍查原 id，同名替换拒绝；证据仅在完整密文身份复核后回收。
 
-本轮仅完成候选与静态验证，尚未发布本 workflow、调度或完成真实 image 编译验收。公开摘要始终将 ROOT 独立验收、shared provider、G1/G2、Cubism、完整引擎和 iOS 会话保留为未通过；人工和真机验收保留 `deferred`。
+工具与工作流部署不计为 image 编译验收；实际结果须另经原件认证及 ROOT 完整静态读验。公开摘要始终将 ROOT 独立验收、shared provider、G1/G2、Cubism、完整引擎和 iOS 会话保留为未通过；人工和真机验收保留 `deferred`。
