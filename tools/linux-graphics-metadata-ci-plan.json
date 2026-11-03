@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J10G-Linux",
+  "scope": "fixed_C1_jammy_original_two_graphics_generators_only",
+  "runtime_catalog": [
+    {
+      "name": "run_locked_graphics_metadata.py",
+      "bytes": 25136,
+      "sha256": "bd9684432811a78a58cd10a6d0482cefc815d8873d312ee5151d6f45c39ba885"
+    },
+    {
+      "name": "graphics-metadata-generation-plan.json",
+      "bytes": 5494,
+      "sha256": "2a5b58fff0e783368b8415fae21d4c945cb5a84260f5d9d0933c6f5a8ccb7b7a"
+    },
+    {
+      "name": "materialize_graphics_inputs.py",
+      "bytes": 19770,
+      "sha256": "b77a9a7622c94583089c7e4df09dda2b389aaac437342c27f160b3878dbe3777"
+    },
+    {
+      "name": "graphics-inputs.lock.json",
+      "bytes": 3316727,
+      "sha256": "709e22db93b2c3bd696017d6db70675140d35595c70ed5a22a06bdc32f0454bf"
+    },
+    {
+      "name": "materialize_engine_inputs.py",
+      "bytes": 35236,
+      "sha256": "880a73f50afab19d1a2bdb48b3f98394b85cd7d50641c88cfaa0525eb267a76d"
+    },
+    {
+      "name": "materialize_source_inputs.py",
+      "bytes": 25801,
+      "sha256": "cccba73ae66c4f6131ff4ae5007b1c07d304d929277e54784ad5b2e932bc4ca6"
+    },
+    {
+      "name": "run_locked_host_python_tasks.py",
+      "bytes": 51630,
+      "sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c"
+    },
+    {
+      "name": "inventory_source_inputs.py",
+      "bytes": 21845,
+      "sha256": "2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824"
+    },
+    {
+      "name": "run_linux_host_python_bootstrap.py",
+      "bytes": 43264,
+      "sha256": "1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7"
+    },
+    {
+      "name": "run_linux_target_python_replay.py",
+      "bytes": 45091,
+      "sha256": "0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4"
+    },
+    {
+      "name": "run_linux_python_replay.py",
+      "bytes": 26972,
+      "sha256": "7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc"
+    },
+    {
+      "name": "preflight_environment.py",
+      "bytes": 34469,
+      "sha256": "c4584adae0e197c3c934bba0e5d00f08307788ef819707e640e3d12513f74839"
+    },
+    {
+      "name": "materialize_apt_inputs.py",
+      "bytes": 50024,
+      "sha256": "f0644a862ea95fcafb27e78ab27c8232b5d8c128a1d59cce179f164aa7ddf4ac"
+    }
+  ],
+  "environment": {
+    "ubuntu": "22.04",
+    "image": "docker.io/library/ubuntu@sha256:98510ac07bb4545e389be502a8918b385c018bfe4ceeb5ac7e0375c782268b04",
+    "image_id": "sha256:cee13550f97b8a595506e8e4ca74263ba44924248779a4ba4f942e197652acff",
+    "manifest_sha256": "d722e3aa9db55925062e70a35486e1e0b1405c064a6dc5a8b7a289900d5c6851",
+    "scopes": [
+      "8.3.7-host-recipe",
+      "7.8.7-host-recipe"
+    ]
+  },
+  "H1_profile": {
+    "ubuntu": "22.04",
+    "execution_source_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+    "execution_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
+    "addon_plan_sha256": "352f7af5dbd7f31d6199f1d6b536a99405cf249c7969cbfd69260a455c6b84e0",
+    "require_explicit_plan_fields": true,
+    "artifact": {
+      "id": 13143390321,
+      "run_id": 41446746901,
+      "bytes": 101989031,
+      "sha256": "7c22c8e81eae045770f618907961c9b20741b9049cdf82b76af73f30949a5ec8"
+    }
+  },
+  "legacy_H1": {
+    "release": "7.8.7",
+    "execution_source_sha256": "5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c",
+    "execution_plan_sha256": "9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32",
+    "original_prefix": "/reko/h1-workspaces/7.8.7/tmp/host",
+    "receipt": {
+      "bytes": 40180,
+      "sha256": "df9f8bbce22566f6b4e22514e96af2df951a9d74399ee6230ec7dd6a64c5bf5f"
+    },
+    "inventory": {
+      "bytes": 1083385,
+      "sha256": "aea965b9449f478353b7cc75efae947f440aa432b23de6892baa8f5c068ea6a1"
+    },
+    "interpreter_sha256": "4411c1b2f2d3cb9d4d39fb9d8667f7bfa2a1da8d05e10be961a0b63629765f89",
+    "version": "2.7.18",
+    "platform": "linux2",
+    "machine": "x86_64",
+    "interpreter_relative": "bin/python2.7"
+  },
+  "host_archive": {
+    "path": "host-distribution.tar.gz",
+    "bytes": 36283870,
+    "sha256": "ca3e71415d627264ffbe42dcf7c0986209295ccb33f5108e06cbe61e466a27b2",
+    "member_count": 4739
+  },
+  "families": {
+    "metalangle-legacy": {
+      "release": "8.3.7",
+      "interpreter": "H1-Python2",
+      "commit": "ffc603fabdfeeaea5cab4e6114ac2c4e4d9e5224",
+      "tree": "2d032d2fb84303948b2423af041aba4844fedb4f"
+    },
+    "metalangle-modern": {
+      "release": "8.5.3",
+      "interpreter": "bash",
+      "commit": "850c87ba5b744c7c39f30c66bacdc9648d15067a",
+      "tree": "ee2cb33761d063d476428d0171a8929adae7b2b8"
+    }
+  },
+  "boundaries": [
+    "13原件独立完整SHA目录，不沿用或浮动J9的43输入。",
+    "仅宿主可用既有六源materializer从固定官方URL+commit补缓存；既有错误缓存拒绝，不换源。",
+    "固定22.04/C1完整APT原件先跨平台验字节，Linux容器重做gpgv/离线安装/全集delta。",
+    "原H1完整4739分发恢复其原prefix，真实Py2/ELF/各动态系统依赖稳定身份全部核验；不重新H0/pip或H1原构建。",
+    "容器network none、无挂载、无SYS_ADMIN、无SDK或凭据；只两原commit.h生成/verify，不做Xcode/engine/Bmake。",
+    "每family完整派生根回取后宿主只读J10G verify，不执行回传LinuxELF；失败尽力保全原日志/派生树，最终关闭容器。",
+    "输入门禁通过不等于Linux执行；未发生真实CI前Linux/legacy生成完成始终false，R00_ready保持false。",
+    "新建本地runtime/H1解包/源码物化/回取完整树仅驻留本轮TemporaryDirectory，成功失败finally回收；保留原报告/日志/完整性清单及已逐成员恢复流验真的有界完整结果tar.gz，不公开上传。",
+    "docker cp前先用固定Python只读lstat walk核全部成员数、普通文件逻辑st_size、特殊类型及不跟随链接，再核du分配量；任一超限不取回完整树，保留命令失败诊断并继续另一family。"
+  ],
+  "retention_limits": {
+    "max_result_members": 32768,
+    "max_result_bytes": 536870912,
+    "max_archive_bytes": 268435456,
+    "max_diagnostic_bytes": 16777216
+  },
+  "return_tree_preflight": {
+    "interpreter": "/usr/bin/python3.10",
+    "source_sha256": "9cc43c90ce0d70a1cba89acaf9645511e3f2dfc5d9937647f0e7a1b55db56ed4"
+  }
+}
