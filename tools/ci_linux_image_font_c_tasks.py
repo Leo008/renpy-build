@@ -24,7 +24,7 @@ import time
 import types
 
 HERE = Path(__file__).absolute().parent
-PLAN_SHA256 = "5a613ff8ab868b8f44d9d23ff9e2cfc604dcd816c78bba4420260c202be9335c"
+PLAN_SHA256 = "648c1fdd16dda722d88d66116daa7d14a4f3c0388b8272be5e89306ea17de884"
 TASK = "R00-02J11I3"
 RESULT = "single_tuple_actual_C_original_image_and_font_verified"
 FALSE = {"production_shared_provider_verified": False, "G1_verified": False, "G2_verified": False,
