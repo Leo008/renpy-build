@@ -29,6 +29,30 @@ FALSE = {"production_shared_provider_verified": False, "G1_verified": False, "G2
          "ios_session_verified": False, "R00_ready": False, "target_python_install_verified": False,
          "target_pip_bound": False, "historical_C_cache_restored": False}
 
+# 先核已有祖先，再按目录fd建立缺失父目录；叶目录只用排他mkdir，绝不覆盖旧交接。
+CREATE_CONTROL_DIRECTORY = r'''import os,stat,sys
+from pathlib import Path
+path=Path(sys.argv[1])
+if not path.is_absolute() or not path.name or '..' in path.parts:raise ValueError('交接目录必须为无上跳的绝对叶路径')
+for ancestor in [*reversed(path.parents),path]:
+ try:info=ancestor.lstat()
+ except FileNotFoundError:continue
+ if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):raise ValueError('已有交接祖先含链接或不是目录')
+ if ancestor==path:raise FileExistsError('交接叶目录已占用，不覆盖旧输入')
+flags=os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW
+fd=os.open('/',flags)
+try:
+ for name in path.parts[1:-1]:
+  try:child=os.open(name,flags,dir_fd=fd)
+  except FileNotFoundError:
+   os.mkdir(name,0o700,dir_fd=fd)
+   child=os.open(name,flags,dir_fd=fd)
+  os.close(fd);fd=child
+ os.mkdir(path.name,0o700,dir_fd=fd)
+finally:os.close(fd)
+print('[RenPy] 父目录已核验，交接叶目录已独占创建')
+'''
+
 # 容器内只记录原C真实根和外部固定身份；不生成成功marker，不导入原registry。
 CREATE_HANDOFF = r'''import argparse,hashlib,json,pathlib,sys,types
 release,arch,run_id,attempt,container_id,nonce,controller_bytes,controller_sha,consumer_sha=sys.argv[1:]
@@ -362,7 +386,7 @@ def image_handoff(args, plan, current, i0, run, owner, consumer, consumer_rows, 
     run.copy(Path(__file__).absolute(), "/reko/j11-controller/run_linux_image_c_tasks.py", "image-copy-original-controller")
     consumer_plan = i0.decode(i0.raw_file(args.text_runtime_dir / "current-image-c-task-plan.json"))
     paths = current.fixed_paths(consumer_plan, args.release, args.arch)
-    run.run(["mkdir", "-m", "700", str(paths["control"])], "image-exclusive-control")
+    run.run([system_python, "-B", "-c", CREATE_CONTROL_DIRECTORY, str(paths["control"])], "image-exclusive-control")
     original = run.output / "private-products" / args.release / args.arch
     host_stdout = original / "product-verification.stdout"
     require(i0.decode(i0.raw_file(host_stdout))["all_exported_member_bytes_and_MachO_objects_verified"] is True, "原host C reader尚未成功")
