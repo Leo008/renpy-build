@@ -51,3 +51,5 @@ CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa1404965883
 并发组继续按分支与Ubuntu组串行，显式 `queue: max` 与 `cancel-in-progress: false` 保留最多100个等待run；不会因新同组调度替换早先pending。官方规则见 https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax 。先前默认single导致41616058130（CP27/arm64）及41616073657（8.5.3/ci-success三架构）在开始前被后续pending替换取消；原API/调度记录保留，不计构建失败或通过。只重新调度这四个未执行作用域，已运行/等待的8.3.7、8.5.3 recipe、CP27 x86与8.4.1及已验CP27 sim-arm64均不重派。
 
 本机actionlint1.7.12尚不认识官方已提供的concurrency.queue，原始unknown-key失败留存；仅移除该新增一行后其余字节精确等974f356并通过该linter，17原件SHA不变。queue/max与false组合按官方语法核，随后以GitHub实际接收调度作为新字段的服务端校验，不把此工具版本限制记为构建失败。
+
+后续混用旧single组与新max配置时，41617326405/41617338001也在无job/无artifact阶段被取消，原API保留，原因尚不提升为源码构建失败。最终改用按branch/Ubuntu/release/target_scope/target_arch区分的并发组，移除queue新字段，保留cancel-in-progress:false。不同明确作用域不再共享pending槽；同一个选择仍受独立组约束。该实际完整文件重新通过本机actionlint，17工具SHA及所有执行/权限/秘密/CMS/限额/清理正文不变，只补这四个仍未执行项，已有原run和验收scope不重派。
