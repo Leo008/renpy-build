@@ -10,7 +10,7 @@ name: RenPy fixed Linux original iOS target prefix
         default: '22.04'
         options: ['22.04', '24.04']
       phase:
-        description: C前置或显式目标Python安装；B只允许历史两版sim-arm64
+        description: C前置或显式目标Python安装；B支持四版三架构，必须明确单版
         required: true
         type: choice
         default: c-prerequisites
@@ -22,7 +22,7 @@ name: RenPy fixed Linux original iOS target prefix
         default: all
         options: [all, '8.5.3', '8.4.1', '8.3.7', '7.8.7']
       target_arch:
-        description: all表示三个独立架构作业；目标Python安装必须明确sim-arm64
+        description: all表示三个独立架构作业；目标Python安装可选单架构或all展开三个独立作业
         required: true
         type: choice
         default: all
@@ -87,8 +87,8 @@ jobs:
           if sys.version_info[:2] != (3,10) or platform.system() != 'Linux' or platform.machine() != 'x86_64':
               raise SystemExit('[RenPyPrefixCI] 缺少Linux amd64 Python3.10宿主编排环境')
           expected = {
-              'tools/ci_linux_target_python_prefix.py': '43daa607684ad1bd6f68b3923e6ea03b3838668f81865a6b2c1be8e3b36c9033',
-              'tools/linux-target-python-prefix-ci-plan.json': '097c502d2c7a30ac1e3db442728bab5f10e665dc8cbd73ec57956a9c243b5342',
+              'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5',
+              'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb',
               'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a',
               'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4',
               'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb',
@@ -116,8 +116,8 @@ jobs:
               raise SystemExit('[RenPyPrefixCI] phase/release/arch与固定组不符')
           if phase == 'target-install':
               allowed = {(row['ubuntu'],row['release'],row['arch']) for row in plan['target_install']['allowed_cells']}
-              if release == 'all' or os.environ.get('REQUESTED_TARGET_ARCH') == 'all' or (group,release,arch) not in allowed:
-                  raise SystemExit('[RenPyPrefixCI] B必须明确选择批准的历史单版sim-arm64')
+              if release == 'all' or os.environ.get('REQUESTED_TARGET_ARCH') not in (arch,'all') or (group,release,arch) not in allowed:
+                  raise SystemExit('[RenPyPrefixCI] B必须明确选择单版及批准架构，all仅展开三个独立arch作业')
           addons = {
               'c-prerequisites': ('j9-c-prefix-runtime-addon-20261102-03.tar.gz',73548,'1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f'),
               'target-install': ('j9-target-python-runtime-addon-20261103-06.tar.gz',102948,'da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80'),

@@ -23,7 +23,8 @@ import types
 
 HERE = Path(__file__).absolute().parent
 DEFAULT_PLAN = HERE / "linux-target-python-prefix-ci-plan.json"
-PLAN_SHA256 = "097c502d2c7a30ac1e3db442728bab5f10e665dc8cbd73ec57956a9c243b5342"
+PLAN_SHA256 = "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+C_ELIGIBILITY_SHA256 = "bd7921b80e9d218abc2081d5b6824d100b98ac78c601b1c67b9352968be6d3ea"
 GROUPS = {"22.04": ["8.3.7", "7.8.7"], "24.04": ["8.5.3", "8.4.1"]}
 ARCHES = ("arm64", "sim-arm64", "sim-x86_64")
 REMOTE_ROOT = "/reko/j9-runtime/root"
@@ -638,6 +639,25 @@ def phase_profile(plan, phase):
     return plan if phase == "c-prerequisites" else plan["target_install"]
 
 
+def validate_target_install_eligibility(plan):
+    """只绑定原12scope C资格的完整身份/投影；不推断B产品或复用旧C完成状态。"""
+    target = plan["target_install"];basis = target["approved_C_basis"]
+    canonical = json.dumps(basis, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    require(hashlib.sha256(canonical).hexdigest() == C_ELIGIBILITY_SHA256, "C资格不是完整92bc结果锁的批准投影")
+    expected = {(group, release, arch) for group, releases in GROUPS.items() for release in releases for arch in ARCHES}
+    require(type(basis["accepted_scope_count"]) is int and basis["accepted_scope_count"] == len(expected) == 12
+            and basis["eligibility_only"] is True and basis["B_product_verification_inferred"] is False,
+            "历史C资格不能被改标为B验收")
+    scopes = basis["scopes"]
+    require(len(scopes) == 12 and {(row["ubuntu"], row["release"], row["arch"]) for row in scopes} == expected
+            and all(row["C_prerequisites_verified"] is True for row in scopes), "C原资格缺失/重复或未验收")
+    cells = target["allowed_cells"]
+    require(isinstance(cells, list) and len(cells) == 12
+            and all(isinstance(row, dict) and set(row) == {"ubuntu", "release", "arch"} for row in cells)
+            and {(row["ubuntu"], row["release"], row["arch"]) for row in cells} == expected,
+            "B只允许四版三架构的12个精确C资格选择")
+
+
 def validate_phase_selection(args, plan):
     """B必须显式选择已有独立C验收的tuple，不能默认扩展到所有route/arch。"""
     if args.phase == "target-install":
@@ -1042,8 +1062,8 @@ def load_plan(path=DEFAULT_PLAN):
             and re.fullmatch("[0-9a-f]{40}", plan["metadata_source_commit"]), "J9D固定阶段/范围错误")
     validate_addon_catalog(plan["metadata_addon"])
     target = plan["target_install"];validate_addon_catalog(target["metadata_addon"])
-    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "6d6172ec386bfcd6d97f9a3f08f31220edb2907c" and len(target["allowed_cells"]) == 2
-            and {(r["ubuntu"],r["release"],r["arch"]) for r in target["allowed_cells"]} == {("22.04","8.3.7","sim-arm64"),("22.04","7.8.7","sim-arm64")}, "B只允许两已验C选择及固定提交")
+    require(target["task"] == "R00-02J9B" and target["metadata_source_commit"] == "6d6172ec386bfcd6d97f9a3f08f31220edb2907c", "B原件不是固定提交")
+    validate_target_install_eligibility(plan)
     expected = {"run_locked_target_python_tasks.py", "target-python-prefix-plan.json", "validate_lock.py", "build_common.py",
                 "materialize_source_inputs.py", "remote-sources.lock.json", "runtime-lock.json"}
     require(len(plan["metadata_addon"]) == 7 and {Path(r["path"]).name for r in plan["metadata_addon"]} == expected

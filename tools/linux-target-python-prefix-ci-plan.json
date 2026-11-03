@@ -232,30 +232,367 @@
       {
         "ubuntu": "22.04",
         "release": "8.3.7",
+        "arch": "arm64"
+      },
+      {
+        "ubuntu": "22.04",
+        "release": "8.3.7",
         "arch": "sim-arm64"
+      },
+      {
+        "ubuntu": "22.04",
+        "release": "8.3.7",
+        "arch": "sim-x86_64"
+      },
+      {
+        "ubuntu": "22.04",
+        "release": "7.8.7",
+        "arch": "arm64"
       },
       {
         "ubuntu": "22.04",
         "release": "7.8.7",
         "arch": "sim-arm64"
+      },
+      {
+        "ubuntu": "22.04",
+        "release": "7.8.7",
+        "arch": "sim-x86_64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.5.3",
+        "arch": "arm64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.5.3",
+        "arch": "sim-arm64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.5.3",
+        "arch": "sim-x86_64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.4.1",
+        "arch": "arm64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.4.1",
+        "arch": "sim-arm64"
+      },
+      {
+        "ubuntu": "24.04",
+        "release": "8.4.1",
+        "arch": "sim-x86_64"
       }
     ],
     "approved_C_basis": {
-      "run": 41467995255,
-      "report_sha256": "7f87085eb502447121a9a4c9721c07981e84f97845b46b75d9aae50ece5791d1",
-      "exact_C_reader_sha256": "3e9f50ac6f3118c8cda44209ae271d08b80a9527764163a5c340660c211b28bd",
-      "scope": "only two already independently accepted historical sim-arm64 C scopes; each B attempt still rebuilds C in the same fresh worker, no external prefix reuse"
+      "results_lock": {
+        "path": "scripts/renpy/c-prerequisites-results.lock.json",
+        "git_commit": "9d7c6d426c214fbb092d8f0dc8bfd12d47638529",
+        "bytes": 139080,
+        "sha256": "92bc838c52309b4df1c013501e2d774572aa73b1b9504d9318d5be7123eae774"
+      },
+      "scope": "four_approved_routes_three_arch_original_iOS_static_C_prerequisites",
+      "accepted_scope_count": 12,
+      "producer": {
+        "repository": "Leo008/renpy-build",
+        "candidate": "6964ff20130f22f62433673c27ee46ef3da48a82",
+        "workflow": {
+          "commit": "6964ff20130f22f62433673c27ee46ef3da48a82",
+          "path": ".github/workflows/linux-target-python-prefix.yml",
+          "bytes": 23045,
+          "sha256": "da25cc254b0aa3dea845c9d77fe2558566d54586be18aebe2f601ff4c0c96a2f"
+        },
+        "D_source": {
+          "commit": "3dd4f3f69f5681e15c3a60217208bb285f40a20f",
+          "path": "scripts/renpy/run_linux_target_python_prefix.py",
+          "bytes": 46611,
+          "sha256": "29b866e12d6aca30da8f811fa16ab71469b55c4ad2eac180cf23fb8de2d9965b"
+        },
+        "D_plan": {
+          "commit": "3dd4f3f69f5681e15c3a60217208bb285f40a20f",
+          "path": "scripts/renpy/linux-target-python-prefix-ci-plan.json",
+          "bytes": 7959,
+          "sha256": "9cef7b6e9af815c248427f092eb583b4530ce7c58a2d86122aba07f8e02d187d"
+        },
+        "C_worker": {
+          "commit": "07f817962ea074057230c92103ede806db41604c",
+          "path": "scripts/renpy/run_locked_target_python_tasks.py",
+          "bytes": 62321,
+          "sha256": "9600c0db802f9de941ee1962c511d96a07d50cd015360c4aac9afdc2f3279c39"
+        },
+        "C_plan": {
+          "commit": "07f817962ea074057230c92103ede806db41604c",
+          "path": "scripts/renpy/target-python-prefix-plan.json",
+          "bytes": 108343,
+          "sha256": "dc884e3e22a41365030d6e3e4928d230b7e18d55b04d3801cbaf22b9f428ac39"
+        },
+        "runtime_addon": {
+          "id": 702183169,
+          "bytes": 73548,
+          "sha256": "1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f",
+          "independent_API_digest_verified": true,
+          "name": "j9-c-prefix-runtime-addon-20261102-03.tar.gz",
+          "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-c-prefix-runtime-addon-20261102-03.tar.gz"
+        },
+        "metadata_source_commit": "07f817962ea074057230c92103ede806db41604c",
+        "metadata_root_files": 43
+      },
+      "root_product_audit": {
+        "path": "ThirdParty/build/renpy-tests/goal-input-audit-20261102/closure/j9f-all-twelve-root-product-review-01/report.json",
+        "bytes": 14641,
+        "sha256": "cfdc6f225710d32cdda7f1257a10bdc73120afc9c5e6535d09321f999bc80881"
+      },
+      "independent_audits": {
+        "22.04": {
+          "path": "ThirdParty/build/renpy-tests/goal-input-audit-20261102/closure/j9f-historical-six-scope-independent-acceptance-01/report.json",
+          "bytes": 31653,
+          "sha256": "f24c755088bb92bca75704990e6f9f1641786f3c1d042a41c619da757ab3fd43"
+        },
+        "24.04": {
+          "path": "ThirdParty/build/renpy-tests/goal-input-audit-20261102/closure/j9f-modern-six-scope-independent-acceptance-01/report.json",
+          "bytes": 36808,
+          "sha256": "5d9f697e8d4c3624ab8a9af39da4ea76aa5c4616f5d0178eff0853be62391121"
+        }
+      },
+      "scopes": [
+        {
+          "ubuntu": "22.04",
+          "release": "7.8.7",
+          "arch": "arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-7.8.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155418440,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 262453,
+            "sha256": "fabf650ea6ff30ffb9ce7291779793c1dabc639d68ea308bf458e4f8c54d8130"
+          }
+        },
+        {
+          "ubuntu": "22.04",
+          "release": "7.8.7",
+          "arch": "sim-arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-7.8.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155951490,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 270653,
+            "sha256": "d6b1f6da4fcbd8abe84b0e2ae559bffdc9e9b2841824295a04a8bdcb76c89a68"
+          }
+        },
+        {
+          "ubuntu": "22.04",
+          "release": "7.8.7",
+          "arch": "sim-x86_64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-7.8.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155028978,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 273017,
+            "sha256": "e961107d9573543cacef79318862ec56b4b9e04f57e7ab52f3a6f8c50e6d3370"
+          }
+        },
+        {
+          "ubuntu": "22.04",
+          "release": "8.3.7",
+          "arch": "arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.3.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155418440,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 318770,
+            "sha256": "017b991181ce04c1dd444dd892be6f423420e2e330646d41eabdc6e912e044a9"
+          }
+        },
+        {
+          "ubuntu": "22.04",
+          "release": "8.3.7",
+          "arch": "sim-arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.3.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155951490,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 328707,
+            "sha256": "6ed4d1411e7c76623350f35664fb43a2308d8f8a1476f5721029bbbe13f4c281"
+          }
+        },
+        {
+          "ubuntu": "22.04",
+          "release": "8.3.7",
+          "arch": "sim-x86_64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.3.7",
+            "commit": "7cca685a19d18d8d2c330616fdb160618b5a9669",
+            "tree": "087df70ae190db38da3a2122632433bbf98e3e70"
+          },
+          "run_id": 41471558503,
+          "artifact_id": 13155028978,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 331520,
+            "sha256": "755bfa4923057a75128829e09f2a06ced2ec8ad0f604dbc9ede53b02663ae86f"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.4.1",
+          "arch": "arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.4.1",
+            "commit": "bd462127ad439c2857e59a3e5406ca13b4514f1c",
+            "tree": "8fc5c90f7b5dd344dad2485779f7f978f3d82451"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13156515430,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 290571,
+            "sha256": "47e0f382fcf6e8b8fdb4aeaf6d955f083f662e4d95134ad39a5178b0e0711d62"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.4.1",
+          "arch": "sim-arm64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.4.1",
+            "commit": "bd462127ad439c2857e59a3e5406ca13b4514f1c",
+            "tree": "8fc5c90f7b5dd344dad2485779f7f978f3d82451"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13154309862,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 300508,
+            "sha256": "1114c5c70c53d16d3e11c5f79488c0395f0af2a723935b3a3988cf2c160c5ee1"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.4.1",
+          "arch": "sim-x86_64",
+          "recipe": {
+            "role": "official",
+            "path": "ThirdParty/renpy/sources/renpy-build-8.4.1",
+            "commit": "bd462127ad439c2857e59a3e5406ca13b4514f1c",
+            "tree": "8fc5c90f7b5dd344dad2485779f7f978f3d82451"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13154689995,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 303321,
+            "sha256": "b1127f881f6dd07143dec9e85b330588d5cacb36daef78e0b8539843c83370ed"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.5.3",
+          "arch": "arm64",
+          "recipe": {
+            "role": "ci_execution",
+            "path": "ThirdParty/renpy/renpy-build",
+            "commit": "26c57088f758e948d4e7420c4cb64c5c937420f5",
+            "tree": "4224c9b9477c6c3a463e4b1b1aa5c7425ef054f9"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13156515430,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 276877,
+            "sha256": "fac67971b39b10cb284f99f2b1edbb021ba8a3c5dbabe65bfc8cfec0125a3903"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.5.3",
+          "arch": "sim-arm64",
+          "recipe": {
+            "role": "ci_execution",
+            "path": "ThirdParty/renpy/renpy-build",
+            "commit": "26c57088f758e948d4e7420c4cb64c5c937420f5",
+            "tree": "4224c9b9477c6c3a463e4b1b1aa5c7425ef054f9"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13154309862,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 287374,
+            "sha256": "7341d657c11e09f6428ed816c9acd672d0de89b70cf4b2324423c3bd7f8d76a7"
+          }
+        },
+        {
+          "ubuntu": "24.04",
+          "release": "8.5.3",
+          "arch": "sim-x86_64",
+          "recipe": {
+            "role": "ci_execution",
+            "path": "ThirdParty/renpy/renpy-build",
+            "commit": "26c57088f758e948d4e7420c4cb64c5c937420f5",
+            "tree": "4224c9b9477c6c3a463e4b1b1aa5c7425ef054f9"
+          },
+          "run_id": 41470949898,
+          "artifact_id": 13154689995,
+          "C_prerequisites_verified": true,
+          "C_receipt": {
+            "bytes": 290327,
+            "sha256": "8bc73fd40b042178840b1ce9133bb571b435d5177f4b83cb0cb03b74a122226a"
+          }
+        }
+      ],
+      "eligibility_only": true,
+      "B_product_verification_inferred": false,
+      "reuse_policy": "仅选择资格与原C历史身份；B仍在同一全新worker重新实际执行C，不读取旧C prefix/complete为新B收据。"
     },
     "export_format": "strict_PAX_path_linkpath_only",
     "diagnostic_failure_snapshot": true,
     "limitations": [
-      "只有显式target-install且显式release/arch的两已批准C tuple可选择；默认C原profile/导出不变。",
+      "只有显式target-install且显式release/arch的12个既定四版×三架构C资格tuple可选择；默认C原profile/导出不变。",
       "新B成功原件没有预填SHA；必须实际worker原target receipt/fullprefix/stdlib/config/nm/hostcopy/MachO全核后独占写export。",
       "失败只保存受控prefix/Lib/生成配置的diagnostic_only私有PAX；不作为成功receipt/reader输入，不含cross SDK或完整host树。",
       "保持原H0/SDK宿主secret与私有CMS边界；target pip/shared/iOS session/global闭包未验收。",
       "63dde6 CP39明确configure候选单列：原upgrade历史不改，实际no由原configure参数/wrapper/Makefile及完整host不变证明；不计显式pip Task。",
       "4e701cd只在B原build_ios配置点追加唯一安装前缀-F；原Makefile/投影/原make日志实际argv与sidecar/receipt强锚必须闭合，不将链接字段存在计为目标运行。",
-      "6d6172e仅libpython原build/两精确安装副本按原Makefile有序对象路径逐occurrence绑定原.o；其它C archive仍唯一名称，source对象只入私有proof经CMS，不进入公开输入包。"
+      "6d6172e仅libpython原build/两精确安装副本按原Makefile有序对象路径逐occurrence绑定原.o；其它C archive仍唯一名称，source对象只入私有proof经CMS，不进入公开输入包。",
+      "12scope仅由完整92bc C结果锁派生eligibility，不推断任何B产品已通过；实际B收据/私有.o proof仍须新运行和独立验真。"
     ]
   }
 }
