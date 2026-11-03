@@ -1,0 +1,370 @@
+name: RenPy fixed Linux original target pip
+
+'on':
+  push:
+    branches: [codex/ios-locked-inputs-20261102]
+    paths: [.github/workflows/linux-target-pip.yml]
+  workflow_dispatch:
+    inputs:
+      ubuntu_group:
+        description: 固定Ubuntu组；原C和B在同一C1重新执行
+        required: true
+        type: choice
+        default: '22.04'
+        options: ['22.04', '24.04']
+      release:
+        description: 只选单版；必须和Ubuntu组及明确pip范围对应
+        required: true
+        type: choice
+        default: '7.8.7'
+        options: ['8.5.3', '8.4.1', '8.3.7', '7.8.7']
+      target_scope:
+        description: 明确原pip任务的离线候选范围，不能按B资格冒充通过
+        required: true
+        type: choice
+        default: '7.8.7-target-recipe'
+        options: ['8.5.3-target-ci-success', '8.5.3-target-recipe', '8.4.1-target-recipe', '8.3.7-target-recipe', '7.8.7-target-recipe']
+      target_arch:
+        description: all只展开三个独立架构作业，每个进程一个scope
+        required: true
+        type: choice
+        default: arm64
+        options: [all, arm64, sim-arm64, sim-x86_64]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: renpy-linux-target-pip-${{ github.ref }}-${{ inputs.ubuntu_group }}
+  cancel-in-progress: false
+
+jobs:
+  target-pip:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Leo008/renpy-build'
+    name: Original target pip ${{ inputs.release }} ${{ inputs.target_scope }} ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        arch: ${{ fromJSON(inputs.target_arch == 'all' && '["arm64","sim-arm64","sim-x86_64"]' || format('["{0}"]', inputs.target_arch)) }}
+    env:
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      UBUNTU_GROUP: ${{ inputs.ubuntu_group }}
+      TARGET_ARCH: ${{ matrix.arch }}
+      TARGET_RELEASE: ${{ inputs.release }}
+      TARGET_SCOPE: ${{ inputs.target_scope }}
+    steps:
+      - name: 检出固定编排、原审计器及公开诊断证书
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            tools/ci_linux_target_python_prefix.py
+            tools/ci_linux_target_pip_tasks.py
+            tools/linux-target-pip-ci-plan.json
+            tools/linux-target-python-prefix-ci-plan.json
+            tools/run_locked_target_python_tasks.py
+            tools/ci_linux_target_python_replay.py
+            tools/linux-target-python-replay-ci-plan.json
+            tools/inventory_source_inputs.py
+            tools/ci_linux_host_python_bootstrap.py
+            tools/linux-host-python-bootstrap-ci-plan.json
+            tools/run_locked_host_python_tasks.py
+            tools/host-python-bootstrap-plan.json
+            tools/ci_linux_host_replay.py
+            tools/run_linux_python_replay.py
+            tools/python-linux-host-replay-plan.json
+            tools/j9-diagnostics-recipient.pem
+            prebuilt/clang_rt.tar.gz
+          sparse-checkout-cone-mode: false
+      - name: 核固定编排、真实输入范围和远端空间预算
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, platform, shutil, sys
+          from pathlib import Path
+          if sys.version_info[:2]!=(3,10) or platform.system()!='Linux' or platform.machine()!='x86_64':raise SystemExit('[RenPyPipCI] 需要Linux amd64 Python3.10')
+          expected = {'tools/ci_linux_target_python_prefix.py': '49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5', 'tools/linux-target-python-prefix-ci-plan.json': 'd70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb', 'tools/run_locked_target_python_tasks.py': '2f78625d419d9900f169b5f674cd5925f158f0cc62c11e0add20fded9cdffa4a', 'tools/ci_linux_target_python_replay.py': '0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4', 'tools/linux-target-python-replay-ci-plan.json': 'a5b75b33514cf5778f9eda2b1d4f55edd6b6736d885e5e53c961c6b63810a9fb', 'tools/inventory_source_inputs.py': '2ee4d817243d10dc900bb0834757b80bcafbb64ea066b860ff26be1d3794f824', 'tools/ci_linux_host_python_bootstrap.py': '1c21119694f417c159fcc0bab744e257e5a9f548bac17952b92eca4bfa34e2a7', 'tools/linux-host-python-bootstrap-ci-plan.json': 'd686fd2ed862ac13af9ab51de11ad80e232b331b1ebff0c5ce880c09cefa98e2', 'tools/run_locked_host_python_tasks.py': '5abab3ec944e368cfe3b84126ec56bb78dfed3a653eac9659efc9e8a6afd329c', 'tools/host-python-bootstrap-plan.json': '9e07264629245df5ab2692485b6342222cf458cdcab3f31b802e80bf895e5a32', 'tools/ci_linux_host_replay.py': 'bbc38bcbf2cb192d8f0f760d7d5b927df40eda112c28098b84fa884d8b85b011', 'tools/run_linux_python_replay.py': '7946c3eb9271263473aecf02ba7dcf48ffc24bd4a2e889cb5185921eb61ddddc', 'tools/python-linux-host-replay-plan.json': 'd7b7288a524ad73cd645c20ba7342586bb00da6a837f43d34a5894496005178d', 'tools/j9-diagnostics-recipient.pem': 'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8', 'prebuilt/clang_rt.tar.gz': 'c2c69498077f9e29a6299952be1b11bc02c2d05f3a9174c863a41d87bfbc8c0c', 'tools/ci_linux_target_pip_tasks.py': '1fdb83c9c66d80c55a6d19d44ea6101b1fa4091a547894ae6653acfd64fb67c3', 'tools/linux-target-pip-ci-plan.json': '8f5a516f8d94a60ade4798b99d92017ae1496f81a61a2fbc077900558b1fe5d9'}
+          for name,sha in expected.items():
+              p=Path(name)
+              if p.is_symlink() or not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest()!=sha:raise SystemExit('[RenPyPipCI] 部署原字节不符：'+name)
+          plan=json.loads(Path('tools/linux-target-pip-ci-plan.json').read_bytes())
+          dplan=json.loads(Path('tools/linux-target-python-prefix-ci-plan.json').read_bytes())
+          group,release,arch,scope=(os.environ[k] for k in ('UBUNTU_GROUP','TARGET_RELEASE','TARGET_ARCH','TARGET_SCOPE'))
+          if release not in plan['groups'][group] or arch not in ('arm64','sim-arm64','sim-x86_64') or scope not in plan['pip_scopes'][release]:raise SystemExit('[RenPyPipCI] route/group/arch/scope组合错误')
+          if {'release':release,'arch':arch} not in plan['B_eligible_scopes']:raise SystemExit('[RenPyPipCI] 无原B资格')
+          producer=dplan['producer_profiles'][group]['artifact']
+          with open(os.environ['GITHUB_ENV'],'a') as stream:
+              for key,value in {'H1_ARTIFACT_ID':producer['id'],'H1_ARTIFACT_BYTES':producer['bytes'],'H1_ARTIFACT_SHA256':producer['sha256']}.items():stream.write(str(key)+'='+str(value)+'\n')
+          base=Path(os.environ['RUNNER_TEMP']);control=base/'reko-j9c-control';control.mkdir(mode=0o700)
+          free=shutil.disk_usage(base).free
+          # 独立远端runner采用8GiB工作估算+2GiB余量；这是入口采样，不冒充峰值实测。
+          (control/'storage-before.json').write_text(json.dumps({'free_bytes':free,'estimated_work_bytes':8*1024**3,'reserve_bytes':2*1024**3,'minimum_entry_free_bytes':10*1024**3,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+          if free<10*1024**3:raise SystemExit('[RenPyPipCI] 远端未满足8GiB工作估算加2GiB余量的入口门禁')
+          print('[RenPyPipCI] 固定原件、明确scope与远端10GiB入口门禁通过',flush=True)
+          PYCODE
+      - name: 先实测Linux CMS加密、解密和篡改拒绝
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, subprocess, tempfile
+          from pathlib import Path
+          public = Path(os.environ['RUNNER_TEMP'])/'reko-j9c-public';public.mkdir()
+          def command(argv):
+              """CMS自检正文只含无害固定字节，失败不披露其他输入。"""
+              result = subprocess.run(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
+              if result.returncode: raise RuntimeError('Linux CMS自检命令失败')
+              return result.stdout
+          with tempfile.TemporaryDirectory(prefix='reko-j9c-cms-selftest-',dir=os.environ['RUNNER_TEMP']) as name:
+              root=Path(name);root.chmod(0o700)
+              plain=root/'plain';plain.write_bytes(b'Reko J9C harmless CMS roundtrip\n')
+              key=root/'key.pem';cert=root/'cert.pem';sealed=root/'sealed.cms';restored=root/'restored'
+              command(['openssl','req','-new','-x509','-newkey','rsa:3072','-nodes','-keyout',str(key),'-out',str(cert),'-subj','/CN=Reko J9C Harmless CI Selftest/','-days','1','-sha256'])
+              # keyopt必须在其对应recip之后；此处按真实加密命令构造相同参数。
+              def seal(recipient, destination):
+                  """使用固定CMS算法和公证书封装无害探针。"""
+                  command(['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(destination),'-outform','DER','-recip',str(recipient),'-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256'])
+              seal(cert,sealed)
+              decrypt=['openssl','cms','-decrypt','-binary','-inform','DER','-in',str(sealed),'-recip',str(cert),'-inkey',str(key),'-out',str(restored)]
+              command(decrypt)
+              if restored.read_bytes()!=plain.read_bytes():raise RuntimeError('CMS还原字节不符')
+              damaged=bytearray(sealed.read_bytes());damaged[-1]^=1;sealed.write_bytes(damaged);restored.unlink()
+              if subprocess.run(decrypt,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90).returncode==0:raise RuntimeError('CMS未拒绝篡改')
+              if restored.exists():restored.unlink()
+              seal(Path('tools/j9-diagnostics-recipient.pem'),root/'actual-recipient-probe.cms')
+              report={'Linux_CMS_roundtrip':True,'tampered_ciphertext_rejected':True,'actual_recipient_encryption':True,'actual_recipient_private_key_on_CI':False,'openssl':command(['openssl','version']).decode().strip()}
+              (public/'cms-selftest.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          print('[RenPyPipCI] Linux CMS实际自检通过；CI仅持公开接收证书',flush=True)
+          PYCODE
+      - name: 取得固定完整APT分发
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41419224335
+          name: renpy-apt-inputs-${{ env.UBUNTU_GROUP }}-41419224335-1
+          path: ${{ runner.temp }}/reko-j9c-apt-inputs
+      - name: 原H1和原Py2 artifact API强身份及缓存ZIP取件
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, subprocess
+          from pathlib import Path
+          cli=shutil.which('gh')
+          if not cli:raise SystemExit('[RenPyPipCI] 缺少GitHub CLI')
+          plan=json.loads(Path('tools/linux-target-pip-ci-plan.json').read_bytes())
+          rows=[('H1',{'id':int(os.environ['H1_ARTIFACT_ID']),'bytes':int(os.environ['H1_ARTIFACT_BYTES']),'sha256':os.environ['H1_ARTIFACT_SHA256']}),('Py2',plan['Py2_original_artifact'])]
+          argv=[cli,'api'];help_result=subprocess.run(argv+['--help'],capture_output=True,timeout=30)
+          if b'--allow-escape-sequences' in help_result.stdout+help_result.stderr:argv.append('--allow-escape-sequences')
+          for label,row in rows:
+              route='repos/Leo008/renpy-build/actions/artifacts/'+str(row['id'])
+              response=subprocess.run([cli,'api',route],capture_output=True,timeout=90)
+              if response.returncode:raise SystemExit('[RenPyPipCI] 原artifact API不可用：'+label)
+              metadata=json.loads(response.stdout)
+              if metadata.get('id')!=row['id'] or metadata.get('expired') is not False or metadata.get('size_in_bytes')!=row['bytes'] or metadata.get('digest')!='sha256:'+row['sha256']:raise SystemExit('[RenPyPipCI] 原artifact API强身份不符：'+label)
+              destination=Path(os.environ['RUNNER_TEMP'])/('reko-j9c-'+label+'-artifact.zip')
+              if not destination.exists():
+                  with destination.open('xb') as stream:result=subprocess.run(argv+[route+'/zip'],stdout=stream,stderr=subprocess.PIPE,timeout=600)
+                  if result.returncode:raise SystemExit('[RenPyPipCI] 原ZIP运输失败：'+label)
+              digest=hashlib.sha256()
+              with destination.open('rb') as stream:
+                  while body:=stream.read(262144):digest.update(body)
+              if destination.is_symlink() or destination.stat().st_size!=row['bytes'] or digest.hexdigest()!=row['sha256']:raise SystemExit('[RenPyPipCI] ZIP缓存完整身份不符，不回退替换：'+label)
+          print('[RenPyPipCI] 原H1/Py2 API及ZIP完整身份通过；不重新发布二进制',flush=True)
+          PYCODE
+      - name: 强校验增量包与SDK运输并从stdin解密
+        shell: bash
+        env:
+          CI_INPUTS_PASSWORD: ${{ secrets.CI_INPUTS_PASSWORD }}
+          IOS_DEVICE_SDK_SHA256: ${{ secrets.IOS_DEVICE_SDK_SHA256 }}
+          IOS_SIMULATOR_SDK_SHA256: ${{ secrets.IOS_SIMULATOR_SDK_SHA256 }}
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, os, subprocess, urllib.request
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'reko-j9c-inputs-cache';root.mkdir(mode=0o700)
+          password=os.environ.pop('CI_INPUTS_PASSWORD',None)
+          if not password or '\n' in password or '\r' in password:raise SystemExit('[RenPyPipCI] 缺少有效SDK运输秘密')
+          origin='https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/'
+          def download(name,size,sha):
+              """读取既有发布原件，先校验外部强身份，不输出临时签名地址。"""
+              path=root/name
+              if path.exists():
+                  digest=hashlib.sha256()
+                  with path.open('rb') as stream:
+                      while block:=stream.read(1048576):digest.update(block)
+                  if path.is_symlink() or path.stat().st_size!=size or digest.hexdigest()!=sha:raise SystemExit('[RenPyPipCI] 显式输入缓存身份错误，不联网替换：'+name)
+                  return path
+              try:
+                  with urllib.request.urlopen(origin+name,timeout=120) as response,path.open('xb') as stream:
+                      total=0;digest=hashlib.sha256()
+                      while block:=response.read(1048576):
+                          total+=len(block)
+                          if total>size:raise ValueError('transport size overflow')
+                          digest.update(block);stream.write(block)
+                  if total!=size or digest.hexdigest()!=sha:raise ValueError('transport identity mismatch')
+              except Exception:
+                  raise SystemExit('[RenPyPipCI] 固定发布输入运输/强身份失败：'+name) from None
+              return path
+          import json
+          plan=json.loads(Path('tools/linux-target-pip-ci-plan.json').read_bytes())
+          for key in ('B_runtime_addon','pip_runtime_addon'):
+              row=plan[key];download(row['name'],row['bytes'],row['sha256'])
+          row=plan['H2_extra'];download(Path(row['url']).name,row['ciphertext']['bytes'],row['ciphertext']['sha256'])
+          download('h0-linux-host-inputs-20261102-01.tar.gz.enc',116556720,'4beeb8544d248c59f7f12216cd11a8d291d0d4edcf660eb854fbc4abcb1b34c5')
+          download('h1-public-recipe-addon-20261102-01.tar.gz',264133884,'0da8d46083c0c882b1e246a5c7e3df526e20c92246c823abfe3f617271fb5ec2')
+          rows=[('iPhoneOS14.0.sdk.tar.gz',27728336,'07f67d298046eaaac6f54f238de56370ca16aac0b6a2f9c19683ca7e56acd133',27728304,'2f4bb43a38dc20ec439d366449ff7933262f3767ccfe863f16c5d3a82499d287','IOS_DEVICE_SDK_SHA256'),('iPhoneSimulator14.0.sdk.tar.gz',21472384,'be1c1049401283b6fc4202c4eea6830412ca768c9f07a071734bfeac8b6f004a',21472366,'4fea56f1b4751cfe7eb4ed92416f7e6d9087375c2144c33a5e9dd332d567bba5','IOS_SIMULATOR_SDK_SHA256')]
+          child_env={'PATH':'/usr/bin:/bin','LANG':'C','LC_ALL':'C'}
+          help_result=subprocess.run(['openssl','enc','-help'],capture_output=True,env=child_env,timeout=30)
+          for name,csize,csha,psize,psha,secret_sha in rows:
+              if os.environ.pop(secret_sha,None)!=psha:raise SystemExit('[RenPyPipCI] SDK既有秘密SHA与固定身份不符')
+              encrypted=download(name+'.enc',csize,csha);plain=root/name
+              argv=['openssl','enc','-d','-aes-256-cbc','-pbkdf2','-iter','200000','-md','sha256','-in',str(encrypted),'-out',str(plain),'-pass','stdin']
+              if b'-saltlen' in help_result.stdout+help_result.stderr:argv+=['-saltlen','8']
+              result=subprocess.run(argv,input=(password+'\n').encode(),capture_output=True,env=child_env,timeout=180)
+              if result.returncode or plain.stat().st_size!=psize or hashlib.sha256(plain.read_bytes()).hexdigest()!=psha:
+                  raise SystemExit('[RenPyPipCI] SDK明文完整身份未通过')
+              plain.chmod(0o600);encrypted.unlink()
+          password=None
+          print('[RenPyPipCI] SDK密文和明文完整大小/SHA一致；解密密码仅宿主stdin',flush=True)
+          PYCODE
+      - name: 同一原C1执行C然后B和真实pip并完整静态核验
+        shell: bash
+        env:
+          REKO_H0_INPUTS_PASSWORD: ${{ secrets.REKO_H0_INPUTS_PASSWORD }}
+          REKO_H2_INPUTS_PASSWORD: ${{ secrets.REKO_H2_INPUTS_PASSWORD }}
+        run: |
+          /usr/bin/python3.10 -B tools/ci_linux_target_pip_tasks.py \
+            --ubuntu "$UBUNTU_GROUP" --release "$TARGET_RELEASE" --arch "$TARGET_ARCH" --scope "$TARGET_SCOPE" \
+            --d-wrapper "$GITHUB_WORKSPACE/tools/ci_linux_target_python_prefix.py" \
+            --bundle "$RUNNER_TEMP/reko-j9c-apt-inputs/apt-inputs-$UBUNTU_GROUP" \
+            --h1-artifact "$RUNNER_TEMP/reko-j9c-H1-artifact.zip" \
+            --py2-artifact "$RUNNER_TEMP/reko-j9c-Py2-artifact.zip" \
+            --h0-cipher "$RUNNER_TEMP/reko-j9c-inputs-cache/h0-linux-host-inputs-20261102-01.tar.gz.enc" \
+            --h2-cipher "$RUNNER_TEMP/reko-j9c-inputs-cache/h2-target-inputs-20261102-01.tar.gz.enc" \
+            --recipe-addon "$RUNNER_TEMP/reko-j9c-inputs-cache/h1-public-recipe-addon-20261102-01.tar.gz" \
+            --runtime-addon "$RUNNER_TEMP/reko-j9c-inputs-cache/j9-target-python-runtime-addon-20261103-06.tar.gz" \
+            --pip-addon "$RUNNER_TEMP/reko-j9c-inputs-cache/j9-target-pip-runtime-addon-20261103-07.tar.gz" \
+            --device-sdk "$RUNNER_TEMP/reko-j9c-inputs-cache/iPhoneOS14.0.sdk.tar.gz" \
+            --simulator-sdk "$RUNNER_TEMP/reko-j9c-inputs-cache/iPhoneSimulator14.0.sdk.tar.gz" \
+            --clang-runtime "$GITHUB_WORKSPACE/prebuilt/clang_rt.tar.gz" \
+            --output "$RUNNER_TEMP/reko-j9c-evidence" --ccache
+      - name: 完整私有诊断封装加密并只导出公开白名单
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, shutil, stat, subprocess, tarfile, tempfile
+          from pathlib import Path
+          base=Path(os.environ['RUNNER_TEMP']);public=base/'reko-j9c-public';public.mkdir(exist_ok=True)
+          evidence=base/'reko-j9c-evidence';private=evidence/'private-diagnostics';summary=evidence/'public-summary.json'
+          control=base/'reko-j9c-control'
+          if control.is_dir() and not control.is_symlink():
+              private.mkdir(mode=0o700,parents=True,exist_ok=True)
+              for name in ('storage-before.json',):
+                  source=control/name
+                  if source.is_file() and not source.is_symlink():shutil.copyfile(source,private/name)
+              (private/'storage-after.json').write_text(json.dumps({'free_bytes':shutil.disk_usage(base).free,'measurement':'point_in_time_free_space','peak_measured':False},indent=2)+'\n')
+          if summary.is_file() and not summary.is_symlink():
+              shutil.copyfile(summary,public/'public-summary.json')
+              report=json.loads(summary.read_bytes())
+              print('[RenPyPipCI] 实际结果='+str(report['result'])+'；各cell='+json.dumps(report['cells'],ensure_ascii=False),flush=True)
+          else:
+              (public/'workflow-status.json').write_text(json.dumps({'target_pip_bound':False,'C_prerequisites_verified':False,'result':'failed_before_worker_summary','job_status':'${{ job.status }}'},ensure_ascii=False,indent=2)+'\n')
+          if not private.exists():
+              print('[RenPyPipCI] 尚无worker私有输出；此前失败不计pip通过',flush=True)
+          else:
+              try:
+                  if private.is_symlink() or not private.is_dir():raise RuntimeError('私有诊断根异常')
+                  with tempfile.TemporaryDirectory(prefix='reko-j9c-seal-',dir=base) as directory:
+                      temp=Path(directory);temp.chmod(0o700);plain=temp/'private-diagnostics.tar.gz';members=[];total=0
+                      with tarfile.open(plain,'w:gz',format=tarfile.PAX_FORMAT) as bundle:
+                          for p in sorted(private.rglob('*')):
+                              mode=p.lstat().st_mode
+                              if stat.S_ISDIR(mode):continue
+                              if not stat.S_ISREG(mode):raise RuntimeError('私有诊断存在非普通原件')
+                              name=p.relative_to(private).as_posix()
+                              if name.startswith('/') or any(x in ('','.','..') for x in name.split('/')):raise RuntimeError('私有诊断路径异常')
+                              digest=hashlib.sha256()
+                              with p.open('rb') as stream:
+                                  for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                              size=p.stat().st_size
+                              # 完整封套有界；拒绝后保留原诊断，不删减成员或凑成功。
+                              if size>512*1024**2 or len(members)>=8192 or total+size>2*1024**3:raise RuntimeError('私有诊断封套超出单文件/成员数/聚合上限')
+                              total+=size;members.append({'path':name,'bytes':size,'sha256':digest.hexdigest()})
+                              info=tarfile.TarInfo('private-diagnostics/'+name);info.size=size;info.mode=0o600;info.mtime=0
+                              with p.open('rb') as stream:bundle.addfile(info,stream)
+                      sealed=temp/'private-diagnostics.cms'
+                      argv=['openssl','cms','-encrypt','-binary','-aes-256-gcm','-in',str(plain),'-out',str(sealed),'-outform','DER','-recip','tools/j9-diagnostics-recipient.pem','-keyopt','rsa_padding_mode:oaep','-keyopt','rsa_oaep_md:sha256','-keyopt','rsa_mgf1_md:sha256']
+                      result=subprocess.run(argv,capture_output=True,timeout=300)
+                      if result.returncode:raise RuntimeError('CMS encryption failed')
+                      def identity(p):
+                          """公开仅登记完整字节身份，正文保留在认证密文。"""
+                          digest=hashlib.sha256()
+                          with p.open('rb') as stream:
+                              for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                          return {'bytes':p.stat().st_size,'sha256':digest.hexdigest()}
+                      manifest={'schema_version':1,'algorithm':'CMS AuthEnvelopedData AES256GCM RSA3072 OAEP-SHA256 MGF1-SHA256 DER','recipient_certificate_sha256':'db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8','plaintext':identity(plain),'ciphertext':identity(sealed),'members':members,'member_count':len(members),'plaintext_uploaded':False}
+                      manifest_path=temp/'private-diagnostics-identity.json';manifest_path.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
+                      sealed.replace(public/sealed.name);manifest_path.replace(public/manifest_path.name)
+                  print('[RenPyPipCI] 完整私有诊断已认证加密；成员='+str(len(members)),flush=True)
+              except Exception:
+                  for name in ('private-diagnostics.cms','private-diagnostics-identity.json'):
+                      p=public/name
+                      if p.exists():p.unlink()
+                  (public/'diagnostics-transport-status.json').write_text(json.dumps({'result':'failed_not_archived','complete_encrypted_diagnostics':False,'original_private_evidence_removed':False},indent=2)+'\n')
+                  raise RuntimeError('完整私有诊断未归档；保留原证据且本轮失败') from None
+          allowed={'public-summary.json','workflow-status.json','cms-selftest.json','private-diagnostics.cms','private-diagnostics-identity.json','diagnostics-transport-status.json'}
+          if any(p.name not in allowed or p.is_symlink() or not p.is_file() for p in public.iterdir()):raise RuntimeError('公开白名单异常')
+          PYCODE
+      - name: 兜底清理受控容器、SDK与全部私有临时目录
+        if: always()
+        shell: bash
+        run: |
+          /usr/bin/python3.10 -B - <<'PYCODE'
+          import hashlib, json, os, re, shutil, subprocess
+          from pathlib import Path
+          try:
+              result=subprocess.run(['docker','ps','--all','--format','{{.Names}}'],capture_output=True,check=True)
+              for name in result.stdout.decode().splitlines():
+                  if re.fullmatch(r'reko-(preflight|python-wheels)-[0-9a-f]{32}',name):
+                      state=json.loads(subprocess.run(['docker','inspect',name],capture_output=True,check=True).stdout)[0];host=state['HostConfig']
+                      if host['NetworkMode']!='none' or state.get('Mounts') or host.get('Privileged') is not False:raise RuntimeError('容器清理边界不符')
+                      subprocess.run(['docker','rm','--force',name],check=True)
+          finally:
+              base=Path(os.environ['RUNNER_TEMP'])
+              for pattern in ('reko-j9c-inputs-*','reko-j9c-inputs-cache','reko-j9c-seal-*','reko-j9c-cms-selftest-*','reko-j9c-control','reko-j9c-apt-inputs'):
+                  for p in base.glob(pattern):
+                      if p.is_symlink() or not p.is_dir():raise RuntimeError('私有清理路径异常')
+                      shutil.rmtree(p)
+              evidence=base/'reko-j9c-evidence';public=base/'reko-j9c-public';sealed=public/'private-diagnostics.cms';manifest=public/'private-diagnostics-identity.json'
+              if evidence.exists():
+                  if evidence.is_symlink() or not evidence.is_dir():raise RuntimeError('私有证据清理路径异常')
+                  if sealed.is_file() and not sealed.is_symlink() and manifest.is_file() and not manifest.is_symlink():
+                      expected=json.loads(manifest.read_bytes())['ciphertext'];digest=hashlib.sha256()
+                      with sealed.open('rb') as stream:
+                          for block in iter(lambda:stream.read(1048576),b''):digest.update(block)
+                      if sealed.stat().st_size!=expected['bytes'] or digest.hexdigest()!=expected['sha256']:raise RuntimeError('密文未完整归档；保留原证据')
+                      shutil.rmtree(evidence)
+                  else:print('[RenPyPipCI] 完整密文未归档，保留runner私有原证据；本轮诊断不可取回',flush=True)
+              for label in ('H1','Py2'):
+                  p=base/('reko-j9c-'+label+'-artifact.zip')
+                  if p.exists():
+                      if p.is_symlink() or not p.is_file():raise RuntimeError('原ZIP清理路径异常')
+                      p.unlink()
+          PYCODE
+      - name: 仅上传摘要、完整身份与认证诊断密文
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: renpy-linux-target-pip-${{ env.UBUNTU_GROUP }}-${{ env.TARGET_RELEASE }}-${{ env.TARGET_SCOPE }}-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/reko-j9c-public/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30

@@ -1,0 +1,43 @@
+# 同一 C1 的目标 pip 安装及完整静态验收
+
+该工作流只服务 R00-02J9C。每个作业显式选择一个版本、架构和 pip scope，在同一真实 C1 容器中先重新执行原 C 前置与目标 Python 安装，再运行已提交的原 pip Task 绑定器，最后导出完整前缀并由宿主独立进程重验。旧 B 的 12 个通过 scope 仅提供调度资格，不导入旧 C/B prefix、不预填本轮成功。
+
+首次注册临时允许 `push`，且仅匹配 `codex/ios-locked-inputs-20261102` 分支与 `.github/workflows/linux-target-pip.yml` 路径。作业同时要求 `workflow_dispatch` 事件及仓库 `Leo008/renpy-build`；注册 push 的作业必须 skipped，不下载输入、不构建、不计通过。根代理确认已注册后，另以只修改该工作流的单文件提交移除临时 `on.push`，随后才手动 dispatch 正式验收；说明保留这段真实注册流程。
+
+Linux 实际 pip scope 尚未在本候选中运行。工具语法检查、协议回归、候选发布或 GitHub 作业状态均不等于目标通过；最终结果需要主项目绑定原 run/head、原 artifact ZIP/API 摘要、CMS 认证、每成员身份和独立完整链审查。
+
+## 固定输入
+
+Linux 编排、配套测试和输入计划已在主项目实际提交 `a25782653bcd76cee24ba0d0fc8e2253b3e102c7`。该提交中的编排源码 30785 字节、SHA `1fdb83c9c66d80c55a6d19d44ea6101b1fa4091a547894ae6653acfd64fb67c3`；输入计划 5369 字节、SHA `8f5a516f8d94a60ade4798b99d92017ae1496f81a61a2fbc077900558b1fe5d9`。三件均与独审冻结候选一致；9 项无 skip 回归只证明工具协议，不代表 Linux 实际 pip scope 通过。
+
+原 D 为提交 `dbd31f77b45119af0bce15008c1cde424b2e06b0` 的 wrapper，SHA `49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5`，计划 SHA `d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb`。编排不修改或 monkeypatch D，使用其原 `execute_cells`；准备阶段按原函数顺序完成 H0、CAS、B43 根和 J1 工作区校验，仅增加显式强身份缓存入口。动作差异写入私有 `input-preparation-actions.json`。
+
+B 继续使用原 06 包：asset `704057775`，102948 字节，SHA `da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80`。旧 B43 物理根 `/reko/j9-runtime/root` 保持原依赖；新 J2 输入放 `/reko/j9c-inputs/root`，pip/导出工具另放 `/reko/j9c-code`，三者不得混用。
+
+07 仅含四个普通文本成员，0644、uid/gid/mtime 全 0，无目录、链接或 PAX：`run_locked_target_pip_tasks.py`、`target-pip-binding-plan.json`、`run_target_pip_export.py`、`target-pip-export-plan.json`。原始四件共 397646 字节；[07 归档](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-07.tar.gz) 为 80966 字节，release `406525604`、asset `704728606`，SHA `58220ee4d4a93a507d9f232919f1635f0c3023381f78d8b33c5dade5eb9b14f6`。pip 两件来自真实提交 `3250769269e67c95ab5c0afb738876f7cf44cb75`，导出两件来自 `e565a67fe493ff9445059bfddcd5296f39d70224`。包内不含测试、SDK、轮子、私钥、游戏资源、App 业务代码或编译产物。
+
+新 J2 复用既有 H0 密文和 H2 extra33 密文（原 asset `701530517`），通过固定解密、33 成员核验、原 `merge_inputs` 和独立 `verify_current_inputs` 补齐 26 缓存、两份 Py2 轮子及收据和三件 J2 控制文件。原 Py2 producer artifact `13135391038` 的 ZIP 为 849787 字节，SHA `41222fce1a3b291ef5eadfa3b7282e70041563b18b7a11a04a1947cacc4de601`；只流式核对其三项与 H2 内容一致，不重打包或公开发布二进制。
+
+## 执行与验收
+
+22.04 对应 7.8.7、8.3.7，24.04 对应 8.4.1、8.5.3；各版三个独立架构。8.5.3 有 `8.5.3-target-ci-success` 和 `8.5.3-target-recipe` 两个明确范围，其他版本各自只有 `<release>-target-recipe`。`target_arch=all` 只展开三个独立作业，每个进程仍只处理一个 scope；同组按分支排队，取消不会覆盖旧结果。
+
+工作流先校验全部固定部署工具和计划，再进行无害 CMS roundtrip、篡改拒绝及真实接收证书加密自检。APT 原分发、原 H1 ZIP、Py2 ZIP、H0/H2 密文、06/07 和 CAS 均只取得一份；存在的显式缓存必须完整匹配大小/SHA，缺失或调包不能静默联网替换。H1/Py2 另核原 Actions API 的 ID、未过期状态、大小和 digest。未给缓存路径时，编排才可调用对应原固定下载函数。
+
+SDK 原密文/明文及原秘密 SHA 均逐项校验。SDK/H0/H2 密码只保留在宿主，以 stdin 交给固定 OpenSSL 参数；GitHub API token 只在 artifact 取件步骤使用。新 worker 的容器执行环境使用 `env -i`，不传上述秘密。C1 沿用原隔离模型：无网络、无宿主挂载、非 privileged，以及原构建所需的受控 capability 设置。
+
+pip 必须重新验证实际 B/C、完整 SDK、原 H1 和派生 H1，再在真实新增网络 namespace 中完成原 ensurepip 及明确离线 scope 安装。`target_pip_bound` 只在完整 PAX 回传和宿主独立静态验收后才记 true。验收覆盖整个最终 prefix、原 C/B 成员不变、两 producer、完整 RECORD/payload、脚本、CA、最终所有 source/pyc 原字节和原同桥 argv/stdout/SHA。CP39 只接受已明确批准的首个 pre-seed 缺 Linux sysconfig 原失败及后续固定候选，其他失败均拒绝。
+
+历史 seed 阶段绑定真实同桥执行日志和原 wheel 源码；已升级覆盖的历史 pyc 不在宿主重算，字段 `seed_historical_raw_pyc_recomputed_on_host=false`。最终前缀所有 source/pyc 原字节完整重算，并绑定原同桥探针；宿主不执行回传 Linux/iOS 二进制，也不跨版本重算 marshal。
+
+## 空间和证据保留
+
+远端独立 runner 采用 8 GiB 工作估算加 2 GiB 余量，下载前要求实际剩余至少 10 GiB。记录入口和结束的可用空间；两次采样明确为 `point_in_time_free_space`，`peak_measured=false`，不把估算写成实测峰值。此门禁独立于本机 16 GiB 测试输出预算和 25 GiB 剩余要求；本地取回、解密和验收仍须由主代理统一租约及本地空间门禁批准。后续若真实占用显示估算不足，先调整有证据的预算再运行，不能自行降低门槛。
+
+CMS 封套在加入成员清单和 `tar.addfile` 前限定私有普通文件聚合不超过 2 GiB、最多 8192 个成员、单文件不超过 512 MiB。预算依据是旧 12 个真实 B scope 的单 cell 私有诊断为 345–351 个文件、87923548–143733861 字节；新增完整 pip 归档本身硬限 512 MiB，失败原控制日志回收硬限 128 MiB，以 2 GiB 聚合上限留出有限余量，保持远端 8 GiB 工作估算有界。该估算仍不是峰值实测。超限沿用既有封装失败路径，保留原诊断，不删减成员、不生成不完整成功封套。
+
+完整 B 证明、完整 pip prefix、原命令日志及失败白名单证据只进入私有目录。每轮物化、解密、临时 B-copy、解包和 wheelhouse 在 finally 回收；成功回传仅保留一份原归档及小型报告，不长存第二份 copy。CLI 将 SIGTERM 导入回收路径；外部 SIGKILL 或宽限不足不能保证清理或诊断完整，不能因此记成功。
+
+CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8`。诊断以 CMS AuthEnvelopedData AES256GCM、RSA3072 OAEP-SHA256/MGF1-SHA256、DER 认证加密。公开 artifact 白名单限摘要、前置失败状态、自检、完整密文及明文/密文和成员身份、必要封装失败状态；原 SDK、轮子、前缀或日志目录不能明文上传。只在完整密文再次匹配身份后删除 runner 原诊断；封装失败保留原诊断并明确不可取回。原构建失败保持失败。
+
+本阶段不声称完整引擎源码 CI、生产 shared dylib、G1/G2、Reko 剧情/存读档/退出重开或同跨 ABI 与三引擎切换通过。人工和真机仍为延期验收；未实现、失败、未运行及延期项目不计实测通过。
