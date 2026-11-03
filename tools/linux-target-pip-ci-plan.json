@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "task": "R00-02J9C-CI",
+  "scope": "same_open_C1_original_C_then_B_then_real_pip_full_prefix_static_proof",
+  "D": {
+    "source_commit": "dbd31f77b45119af0bce15008c1cde424b2e06b0",
+    "wrapper": {
+      "bytes": 100023,
+      "sha256": "49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5"
+    },
+    "plan": {
+      "bytes": 23677,
+      "sha256": "d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb"
+    }
+  },
+  "B_prior_install_lock": {
+    "bytes": 147094,
+    "sha256": "3fda1bb6b1f315fb61ad89b67c227edc7a80428f0506bfdada6287921247c1bb"
+  },
+  "B_eligible_scopes": [
+    {
+      "release": "8.5.3",
+      "arch": "arm64"
+    },
+    {
+      "release": "8.5.3",
+      "arch": "sim-arm64"
+    },
+    {
+      "release": "8.5.3",
+      "arch": "sim-x86_64"
+    },
+    {
+      "release": "8.4.1",
+      "arch": "arm64"
+    },
+    {
+      "release": "8.4.1",
+      "arch": "sim-arm64"
+    },
+    {
+      "release": "8.4.1",
+      "arch": "sim-x86_64"
+    },
+    {
+      "release": "8.3.7",
+      "arch": "arm64"
+    },
+    {
+      "release": "8.3.7",
+      "arch": "sim-arm64"
+    },
+    {
+      "release": "8.3.7",
+      "arch": "sim-x86_64"
+    },
+    {
+      "release": "7.8.7",
+      "arch": "arm64"
+    },
+    {
+      "release": "7.8.7",
+      "arch": "sim-arm64"
+    },
+    {
+      "release": "7.8.7",
+      "arch": "sim-x86_64"
+    }
+  ],
+  "B_runtime_addon": {
+    "id": 704057775,
+    "name": "j9-target-python-runtime-addon-20261103-06.tar.gz",
+    "bytes": 102948,
+    "sha256": "da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80",
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-python-runtime-addon-20261103-06.tar.gz",
+    "metadata_source_commit": "6d6172ec386bfcd6d97f9a3f08f31220edb2907c",
+    "metadata_root_files": 43
+  },
+  "pip_worker_commit": "3250769269e67c95ab5c0afb738876f7cf44cb75",
+  "text_runtime_catalog": [
+    {
+      "path": "run_locked_target_pip_tasks.py",
+      "bytes": 71425,
+      "sha256": "2651b4206e11a11f6e947d6e7f6d28d8595847e73a3d8e0ada4a0632768548ca"
+    },
+    {
+      "path": "target-pip-binding-plan.json",
+      "bytes": 284364,
+      "sha256": "c399b199477293282f113ea1e8805b16c328fb65f5b98cf3beb2832d0034a49d"
+    },
+    {
+      "path": "run_target_pip_export.py",
+      "bytes": 39334,
+      "sha256": "e22c625a9613db642e0ed7879880ce9b1c03d3612eda2c32b148bd6e729e7201"
+    },
+    {
+      "path": "target-pip-export-plan.json",
+      "bytes": 2523,
+      "sha256": "b4cf670d299b708bffb432862093a71a83360e5d97d1b10b9ad2a051ba6730b6"
+    }
+  ],
+  "H2_extra": {
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/h2-target-inputs-20261102-01.tar.gz.enc",
+    "ciphertext": {
+      "bytes": 10335744,
+      "sha256": "6af6f7179c7781d8556537f0279d95ebcf7c38d98d2a33bfd51b7689ad07ffcc"
+    },
+    "plaintext": {
+      "bytes": 10335724,
+      "sha256": "80150dedbb54dfac9bb79a23b31dd0fe1bd789692a67389b6e690336fc88dfdf"
+    },
+    "encryption": {
+      "cipher": "aes-256-cbc",
+      "kdf": "pbkdf2",
+      "digest": "sha256",
+      "iterations": 200000,
+      "salt_bytes": 8
+    },
+    "archive": "ustar-33-regular-mode0644-uid0-gid0-mtime0"
+  },
+  "H2_source_sha256": "0595595d50855c3d73679b35456804abf84099b63fbfb1772f099fb03c6ad5b4",
+  "Py2_original_artifact": {
+    "id": 13135391038,
+    "bytes": 849787,
+    "sha256": "41222fce1a3b291ef5eadfa3b7282e70041563b18b7a11a04a1947cacc4de601"
+  },
+  "Py2_receipt_cross_checks": {
+    "run/producer-report/report.json": "receipts/py2/report.json",
+    "run/producer-report/future-0.18.3-py2/output/future-0.18.3-py2-none-any.whl": "receipts/py2/future-0.18.3-py2/output/future-0.18.3-py2-none-any.whl",
+    "run/producer-report/pefile-2019.4.18-py2/output/pefile-2019.4.18-py2-none-any.whl": "receipts/py2/pefile-2019.4.18-py2/output/pefile-2019.4.18-py2-none-any.whl"
+  },
+  "groups": {
+    "24.04": [
+      "8.5.3",
+      "8.4.1"
+    ],
+    "22.04": [
+      "8.3.7",
+      "7.8.7"
+    ]
+  },
+  "pip_scopes": {
+    "8.5.3": [
+      "8.5.3-target-ci-success",
+      "8.5.3-target-recipe"
+    ],
+    "8.4.1": [
+      "8.4.1-target-recipe"
+    ],
+    "8.3.7": [
+      "8.3.7-target-recipe"
+    ],
+    "7.8.7": [
+      "7.8.7-target-recipe"
+    ]
+  },
+  "limits": {
+    "max_selected_cells": 1,
+    "text_addon_bytes": 1048576,
+    "private_diagnostic_file_bytes": 536870912,
+    "new_text_files": 4
+  },
+  "boundaries": {
+    "SDK_secret_read": false,
+    "secret_sent_to_container": false,
+    "full_engine_source_CI_verified": false,
+    "production_shared_dylib_verified": false,
+    "ios_runtime_verified": false,
+    "G1_G2_Reko_verified": false,
+    "full_input_closure": false,
+    "manual_device_acceptance": "deferred",
+    "seed_historical_raw_pyc_recomputed_on_host": false
+  },
+  "pip_export_commit": "e565a67fe493ff9445059bfddcd5296f39d70224",
+  "pip_runtime_addon": {
+    "release_id": 406525604,
+    "id": 704728606,
+    "name": "j9-target-pip-runtime-addon-20261103-07.tar.gz",
+    "bytes": 80966,
+    "sha256": "58220ee4d4a93a507d9f232919f1635f0c3023381f78d8b33c5dade5eb9b14f6",
+    "url": "https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-07.tar.gz",
+    "format": "ustar-four-flat-regular-mode0644-uid0-gid0-mtime0"
+  }
+}
