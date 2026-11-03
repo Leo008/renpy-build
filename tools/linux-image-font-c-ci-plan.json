@@ -71,9 +71,9 @@
     },
     {
       "path": "run_locked_current_image_font_c_tasks.py",
-      "source_commit": "b7be891afc358eba13eef62ced0ac64c27a2bee3",
-      "bytes": 81766,
-      "sha256": "a92b839af9d7428515040e270042edfb59f30ecf638e018333e7f9a6670cd45b"
+      "source_commit": "18a08703f6c1cc4eaee6ab5d0bc8df1ee5599682",
+      "bytes": 89777,
+      "sha256": "2afbd3917f55574a3e38493a8afecf02cd0ece0303fd51d99b0dcd061dcdb106"
     },
     {
       "path": "current-image-font-c-task-plan.json",
@@ -213,7 +213,7 @@
     "called_script": "CREATE_CONTROL_DIRECTORY",
     "old_image_handoff_execute_main_called": false
   },
-  "image_font_consumer_commit": "b7be891afc358eba13eef62ced0ac64c27a2bee3",
+  "image_font_consumer_commit": "18a08703f6c1cc4eaee6ab5d0bc8df1ee5599682",
   "reader_contract": {
     "final_prefix": "one full original archive, all members bytes/mode/links and every new image/font object/executable;10image+5font=15 new static archives",
     "first_FT": "finite original archive/raw installed headers/features before FT-HB overwrite, original early non-FT members checked through final archive",
