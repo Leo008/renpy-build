@@ -56,3 +56,6 @@ CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa1404965883
 
 
 2026-11-03：失败诊断工具绑定根ea802b1，成功链及09四文本输入原字节不变。失败仅额外保全固定`/reko/j9c-export/verification-report.json`（32KiB上限、严格JSON、普通文件/父链接检查）及最多256条未知成员lstat元数据，不读取未知内容；原pip/RECORD/完整导出验收门禁不改。CP39原三架构失败保留，先只补8.3.7-target-recipe/sim-arm64取回具体异常，未查明前不重跑三架构。
+
+
+CP39补诊断41623020917已保全真实导出拒绝：唯一tmp/tmpw5wex_dacacert.pem为259465B，原pip Task成功。其原字节/SHA未回传，不能以大小/时序代替来源实证。新控制器只在原worker完整成功后，实际比较本轮单link普通临时文件、已锁pip21.2.4 seed内vendored CA及实际prefix原CA/core的完整原字节/SHA，保持同inode再精确unlink；未知名、多件、错hash或链接均保留失败。清理证明在results外，原09 worker/plan/安装器/RECORD/导出白名单不改。先仅8.3.7-target-recipe/sim-arm64真实验证，成功及完整验收后再推进余两架构。
