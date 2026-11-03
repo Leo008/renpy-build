@@ -34,4 +34,4 @@ I3 每个返回树先核逻辑 1 GiB、32768 成员及分配量，复制后宿�
 
 本工作流部署不计真实 font 编译验收。每次实际原件仍需本机认证、ROOT 和独立静态验收。ROOT 独立验收、shared provider、G1/G2、Cubism、完整引擎与 iOS 会话都保持未通过；人工和真机验收保持 `deferred`。
 
-首次注册采用只匹配本分支/本工作流路径的临时push入口，job仍严格仅workflow_dispatch，因此注册push只应skipped。实际workflow API注册后移除该临时入口并再次核远端HEAD；image原件完成ROOT及独审接受前不调度font。
+工作流405746285已通过分支注册，临时push入口已移除，job仅允许workflow_dispatch。注册run41645605249实际completed/skipped，未执行字体编译；实际调度仍须对应image原件先完成ROOT及独审接受。

@@ -29,11 +29,6 @@ name: RenPy single tuple original image font C
         - arm64
         - sim-arm64
         - sim-x86_64
-  push:
-    branches:
-    - codex/ios-locked-inputs-20261102
-    paths:
-    - .github/workflows/linux-image-font-c.yml
 permissions:
   contents: read
   actions: read
