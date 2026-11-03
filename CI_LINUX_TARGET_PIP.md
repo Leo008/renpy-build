@@ -8,13 +8,13 @@ Linux 实际 pip scope 尚未在本候选中运行。工具语法检查、协议
 
 ## 固定输入
 
-Linux 编排、配套测试和输入计划已在主项目实际提交 `a25782653bcd76cee24ba0d0fc8e2253b3e102c7`。该提交中的编排源码 30785 字节、SHA `1fdb83c9c66d80c55a6d19d44ea6101b1fa4091a547894ae6653acfd64fb67c3`；输入计划 5369 字节、SHA `8f5a516f8d94a60ade4798b99d92017ae1496f81a61a2fbc077900558b1fe5d9`。三件均与独审冻结候选一致；9 项无 skip 回归只证明工具协议，不代表 Linux 实际 pip scope 通过。
+Linux 编排和输入计划已按真实08身份更新于主项目提交 `7034a5a335c2e140835eb4492ef6783115284a62`，源码30785字节/SHA `ddde47801b8b0663237008167e0360e164a4ca6a6c4df84a40a1ba3313310a42`，计划5369字节/SHA `a0532f644db62d174b2de9cde7c123dbe264945e71cc49bb20668816cd067480`。配套九项测试仍来自原 `a25782653bcd76cee24ba0d0fc8e2253b3e102c7`，本轮9项无skip及08真实四成员解回验证通过；这些只证明工具协议，不代表Linux实际pip scope通过。
 
 原 D 为提交 `dbd31f77b45119af0bce15008c1cde424b2e06b0` 的 wrapper，SHA `49b7f7c63d604bb0855ccb2125811989b6915230f148142fbce97b8a33784da5`，计划 SHA `d70d6eafcc42eb9460942f140bdc9b89126635a2fea847040c88c139d5263eeb`。编排不修改或 monkeypatch D，使用其原 `execute_cells`；准备阶段按原函数顺序完成 H0、CAS、B43 根和 J1 工作区校验，仅增加显式强身份缓存入口。动作差异写入私有 `input-preparation-actions.json`。
 
 B 继续使用原 06 包：asset `704057775`，102948 字节，SHA `da35ea36e0169563e3b229abe45776c97cac8c269403feac8ee22baf477e0f80`。旧 B43 物理根 `/reko/j9-runtime/root` 保持原依赖；新 J2 输入放 `/reko/j9c-inputs/root`，pip/导出工具另放 `/reko/j9c-code`，三者不得混用。
 
-07 仅含四个普通文本成员，0644、uid/gid/mtime 全 0，无目录、链接或 PAX：`run_locked_target_pip_tasks.py`、`target-pip-binding-plan.json`、`run_target_pip_export.py`、`target-pip-export-plan.json`。原始四件共 397646 字节；[07 归档](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-07.tar.gz) 为 80966 字节，release `406525604`、asset `704728606`，SHA `58220ee4d4a93a507d9f232919f1635f0c3023381f78d8b33c5dade5eb9b14f6`。pip 两件来自真实提交 `3250769269e67c95ab5c0afb738876f7cf44cb75`，导出两件来自 `e565a67fe493ff9445059bfddcd5296f39d70224`。包内不含测试、SDK、轮子、私钥、游戏资源、App 业务代码或编译产物。
+08 仅含四个普通文本成员，0644、uid/gid/mtime全0，无目录、链接或PAX：`run_locked_target_pip_tasks.py`、`target-pip-binding-plan.json`、`run_target_pip_export.py`、`target-pip-export-plan.json`。原始四件共398044字节；[08归档](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j9-target-pip-runtime-addon-20261103-08.tar.gz)为81136字节，release `406525604`、asset `704859538`，SHA `85b4501ffd1f1422fddf2bb4438fa78243dd4946f74fcce7f803d9dbc8cacfac`。worker来自真实提交 `c1a7dc586b4a7a6dd5ee082d9d8f2302af12cff6`（71823B/SHA `d892706abc76e6bd9cace71b89eb7c82cffcd42d09ef9860029175f9bd3cbc26`），pip计划仍为 `3250769269e67c95ab5c0afb738876f7cf44cb75` 原字节c399，导出两件来自 `88eed753e4074e12b361ca3fb1902272f4439ff1`（39334/3340230b、2523/6b795735）。包内不含测试、SDK、轮子、私钥、游戏资源、App 业务代码或编译产物。
 
 新 J2 复用既有 H0 密文和 H2 extra33 密文（原 asset `701530517`），通过固定解密、33 成员核验、原 `merge_inputs` 和独立 `verify_current_inputs` 补齐 26 缓存、两份 Py2 轮子及收据和三件 J2 控制文件。原 Py2 producer artifact `13135391038` 的 ZIP 为 849787 字节，SHA `41222fce1a3b291ef5eadfa3b7282e70041563b18b7a11a04a1947cacc4de601`；只流式核对其三项与 H2 内容一致，不重打包或公开发布二进制。
 
@@ -22,7 +22,7 @@ B 继续使用原 06 包：asset `704057775`，102948 字节，SHA `da35ea36e016
 
 22.04 对应 7.8.7、8.3.7，24.04 对应 8.4.1、8.5.3；各版三个独立架构。8.5.3 有 `8.5.3-target-ci-success` 和 `8.5.3-target-recipe` 两个明确范围，其他版本各自只有 `<release>-target-recipe`。`target_arch=all` 只展开三个独立作业，每个进程仍只处理一个 scope；同组按分支排队，取消不会覆盖旧结果。
 
-工作流先校验全部固定部署工具和计划，再进行无害 CMS roundtrip、篡改拒绝及真实接收证书加密自检。APT 原分发、原 H1 ZIP、Py2 ZIP、H0/H2 密文、06/07 和 CAS 均只取得一份；存在的显式缓存必须完整匹配大小/SHA，缺失或调包不能静默联网替换。H1/Py2 另核原 Actions API 的 ID、未过期状态、大小和 digest。未给缓存路径时，编排才可调用对应原固定下载函数。
+工作流先校验全部固定部署工具和计划，再进行无害 CMS roundtrip、篡改拒绝及真实接收证书加密自检。APT 原分发、原 H1 ZIP、Py2 ZIP、H0/H2 密文、06/08 和 CAS 均只取得一份；存在的显式缓存必须完整匹配大小/SHA，缺失或调包不能静默联网替换。H1/Py2 另核原 Actions API 的 ID、未过期状态、大小和 digest。未给缓存路径时，编排才可调用对应原固定下载函数。
 
 SDK 原密文/明文及原秘密 SHA 均逐项校验。SDK/H0/H2 密码只保留在宿主，以 stdin 交给固定 OpenSSL 参数；GitHub API token 只在 artifact 取件步骤使用。新 worker 的容器执行环境使用 `env -i`，不传上述秘密。C1 沿用原隔离模型：无网络、无宿主挂载、非 privileged，以及原构建所需的受控 capability 设置。
 
@@ -41,3 +41,5 @@ CMS 封套在加入成员清单和 `tar.addfile` 前限定私有普通文件聚�
 CI 只有既有公开接收证书，SHA `db7c3cb23532bf02e51e24ae085fa14049658833469479b75981a1cd574f94f8`。诊断以 CMS AuthEnvelopedData AES256GCM、RSA3072 OAEP-SHA256/MGF1-SHA256、DER 认证加密。公开 artifact 白名单限摘要、前置失败状态、自检、完整密文及明文/密文和成员身份、必要封装失败状态；原 SDK、轮子、前缀或日志目录不能明文上传。只在完整密文再次匹配身份后删除 runner 原诊断；封装失败保留原诊断并明确不可取回。原构建失败保持失败。
 
 本阶段不声称完整引擎源码 CI、生产 shared dylib、G1/G2、Reko 剧情/存读档/退出重开或同跨 ABI 与三引擎切换通过。人工和真机仍为延期验收；未实现、失败、未运行及延期项目不计实测通过。
+
+首轮先导 `41598931668` 固定 `56979d55c3eb0287a953184c425618016905b3fb` 与07，真实C/B重建及再次重验、scope输入与新增内核netns通过后，原pip两命令尚未执行就因home目录已存在失败；不接受任何pip scope。原网络证明的clean_environment提前在结果根创建home/tmp，和pip独占环境冲突。c1a修复仅把原证明放入独占TemporaryDirectory并自动回收；private_environment的既有目录/链接拒绝、原pip/registry/B验证全不改。新增三项相关回归通过，导出固定身份16项及编排9项通过；旧失败原ZIP、401认证诊断与报告保留。08只更新已提交修复文本及强身份，须重新完成真实先导/完整验收，不凭本说明或工具测试记通过。
