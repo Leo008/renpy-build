@@ -39,19 +39,73 @@ for name in ('target-pip-export.json','target-pip-prefix-and-proof.tar.gz'):
 print(json.dumps(result,sort_keys=True))
 '''
 
-PRESERVE_PIP_FAILURE = r'''import hashlib,json,pathlib,shutil,stat,sys,types
-source,destination,tool,toolsha,planpath=sys.argv[1:];source=pathlib.Path(source);destination=pathlib.Path(destination)
-raw=pathlib.Path(tool).read_bytes();assert hashlib.sha256(raw).hexdigest()==toolsha
+PRESERVE_PIP_FAILURE = r'''import hashlib,json,os,pathlib,stat,sys,types
+source,destination,tool,toolsha,planpath,export_root=sys.argv[1:]
+source=pathlib.Path(source);destination=pathlib.Path(destination);export_root=pathlib.Path(export_root)
+def require(value,message):
+ # 失败诊断也必须拒绝路径链接、特殊文件及无界读取。
+ if not value:raise ValueError(message)
+def guarded(path):
+ # 不resolve掩盖链接或上跳，所有父级都必须是真实路径。
+ require(path.is_absolute() and '..' not in path.parts and not any(p.is_symlink() for p in (path,*path.parents)),'unsafe diagnostic path')
+ return path
+def regular(path,maximum):
+ # 只读同一个普通文件描述符，先核大小，FIFO不打开阻塞。
+ guarded(path)
+ with os.fdopen(os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK),'rb') as stream:
+  info=os.fstat(stream.fileno());require(stat.S_ISREG(info.st_mode) and 0<=info.st_size<=maximum,'diagnostic type or size')
+  raw=stream.read(maximum+1);require(len(raw)==info.st_size and len(raw)<=maximum,'diagnostic length changed')
+ return raw,info
+def write_raw(path,raw):
+ # 只向本轮独占目的地写新文件，不覆盖原材料或既有诊断。
+ guarded(path)
+ with os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600),'wb') as stream:stream.write(raw)
+raw,_=regular(pathlib.Path(tool),1048576);require(hashlib.sha256(raw).hexdigest()==toolsha,'exporter source differs')
 m=types.ModuleType('j9c_failure_allowlist');m.__file__=tool;exec(compile(raw,tool,'exec'),m.__dict__)
-plan=json.loads(pathlib.Path(planpath).read_bytes());destination.mkdir();rows=[];total=0
-if source.exists():
- for p in sorted(source.rglob('*')):
-  name=p.relative_to(source).as_posix();info=p.lstat()
-  if not stat.S_ISREG(info.st_mode) or not m.result_allowed(name,plan):continue
-  assert info.st_size<=33554432;total+=info.st_size;assert total<=134217728 and len(rows)<1000
-  target=destination/name;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,target)
-  rows.append({'path':name,'bytes':info.st_size,'sha256':hashlib.sha256(target.read_bytes()).hexdigest()})
-(destination/'failure-preservation.json').write_text(json.dumps({'diagnostic_only':True,'target_pip_bound':False,'files':rows},indent=2)+'\n')
+plan_raw,_=regular(pathlib.Path(planpath),1048576);require(hashlib.sha256(plan_raw).hexdigest()==m.PLAN_SHA256,'exporter plan differs')
+plan=m.decode(plan_raw);guarded(source);guarded(destination)
+require(not destination.is_relative_to(source) and not source.is_relative_to(destination) and not destination.is_relative_to(export_root) and not export_root.is_relative_to(destination),'diagnostic roots overlap')
+require(not destination.exists(),'diagnostic output exists');destination.mkdir(mode=0o700)
+# 导出器捕获的真实异常只存在固定export根，先保全它再扫描结果目录。
+export_status={'source':'verification-report.json','status':'missing'}
+try:
+ raw,info=regular(export_root/'verification-report.json',32768)
+ document=m.decode(raw);require(isinstance(document,dict),'export report is not object')
+ write_raw(destination/'export-verification-report.json',raw)
+ export_status.update(status='captured',path='export-verification-report.json',bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),source_mtime_ns=info.st_mtime_ns)
+except FileNotFoundError:pass
+except (ValueError,OSError,TypeError) as error:
+ export_status.update(status='rejected',error_type=type(error).__name__)
+rows=[];total=0;skipped=[];skipped_count=0;metadata_bytes=0;metadata_truncated=False;scanned=0;scan_complete=True
+pending=[source] if source.is_dir() else []
+require(not source.exists() or source.is_dir(),'result root is not directory')
+def record_skip(name,info,reason):
+ # 未收取项只留原lstat元数据；不打开未知文件、不读取链接目标或内容。
+ global skipped_count,metadata_bytes,metadata_truncated
+ skipped_count+=1
+ kind='directory' if stat.S_ISDIR(info.st_mode) else 'file' if stat.S_ISREG(info.st_mode) else 'symlink' if stat.S_ISLNK(info.st_mode) else 'fifo' if stat.S_ISFIFO(info.st_mode) else 'other'
+ row={'path':name,'type':kind,'bytes':info.st_size,'mtime_ns':info.st_mtime_ns,'reason':reason}
+ size=len(json.dumps(row,ensure_ascii=True,indent=2).encode())+64
+ if len(skipped)<256 and metadata_bytes+size<=1048576:skipped.append(row);metadata_bytes+=size
+ else:metadata_truncated=True
+while pending:
+ folder=guarded(pending.pop())
+ with os.scandir(folder) as entries:
+  for entry in entries:
+   if scanned>=20000:scan_complete=False;break
+   scanned+=1;p=pathlib.Path(entry.path);name=p.relative_to(source).as_posix();info=entry.stat(follow_symlinks=False)
+   if stat.S_ISDIR(info.st_mode):pending.append(p);record_skip(name,info,'directory');continue
+   if not stat.S_ISREG(info.st_mode):record_skip(name,info,'not_regular');continue
+   if not m.result_allowed(name,plan):record_skip(name,info,'not_allowlisted');continue
+   if info.st_size>33554432 or total+info.st_size>134217728 or len(rows)>=1000:record_skip(name,info,'copy_limit');continue
+   body,observed=regular(p,33554432);target=destination/name;guarded(target);target.parent.mkdir(parents=True,exist_ok=True);write_raw(target,body)
+   total+=len(body);rows.append({'path':name,'bytes':len(body),'sha256':hashlib.sha256(body).hexdigest(),'source_mtime_ns':observed.st_mtime_ns})
+ if not scan_complete:break
+result={'diagnostic_only':True,'target_pip_bound':False,'files':sorted(rows,key=lambda row:row['path']),'export_verification_report':export_status,
+ 'not_preserved':sorted(skipped,key=lambda row:row['path']),'not_preserved_count':skipped_count,'not_preserved_metadata_complete':not metadata_truncated,
+ 'result_scan_complete':scan_complete,'result_scanned_members':scanned,'result_root_present':source.exists(),
+ 'limits':{'export_report_bytes':32768,'skipped_metadata_members':256,'skipped_metadata_bytes':1048576,'result_scan_members':20000}}
+write_raw(destination/'failure-preservation.json',(json.dumps(result,ensure_ascii=True,indent=2)+'\n').encode())
 '''
 
 
@@ -276,7 +330,7 @@ def preserve_failure(run, system_python, plan, diagnostics):
     worker = next(row for row in plan["text_runtime_catalog"] if row["path"] == "run_target_pip_export.py")
     destination = "/reko/j9c-failure-evidence"
     run.run([system_python, "-B", "-c", PRESERVE_PIP_FAILURE, REMOTE_RESULTS, destination,
-             REMOTE_CODE + "/run_target_pip_export.py", worker["sha256"], REMOTE_CODE + "/target-pip-export-plan.json"], "j9c-preserve-failure-controls")
+             REMOTE_CODE + "/run_target_pip_export.py", worker["sha256"], REMOTE_CODE + "/target-pip-export-plan.json", REMOTE_EXPORT], "j9c-preserve-failure-controls")
     run.host([run.docker, "cp", run.name + ":" + destination, str(diagnostics / "pip-failure-evidence")], "j9c-return-failure-controls")
 
 
