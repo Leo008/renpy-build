@@ -71,9 +71,9 @@
     },
     {
       "path": "run_locked_current_image_font_c_tasks.py",
-      "source_commit": "f2a4376288b7ef07e52a31ec80966d0a892be21c",
-      "bytes": 60239,
-      "sha256": "4a80e3de030cd9f13cf4891ca8d2d262009da50e3991598b928567c9b6eb0656"
+      "source_commit": "14af937c6287761880e1903f3d694c0a40f91652",
+      "bytes": 61886,
+      "sha256": "ef5b4b39cb876392875517b7288608adfa43b92cd40424e2ef78d1919ce53436"
     },
     {
       "path": "current-image-font-c-task-plan.json",
@@ -213,7 +213,7 @@
     "called_script": "CREATE_CONTROL_DIRECTORY",
     "old_image_handoff_execute_main_called": false
   },
-  "image_font_consumer_commit": "f2a4376288b7ef07e52a31ec80966d0a892be21c",
+  "image_font_consumer_commit": "14af937c6287761880e1903f3d694c0a40f91652",
   "reader_contract": {
     "final_prefix": "one full original archive, all members bytes/mode/links and every new image/font MachO object/executable",
     "first_FT": "finite original archive/raw installed headers/features before FT-HB overwrite, original early non-FT members checked through final archive",
