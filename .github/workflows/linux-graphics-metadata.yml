@@ -2,9 +2,6 @@ name: RenPy fixed Linux original graphics metadata
 
 'on':
   workflow_dispatch:
-  push:
-    branches: [codex/ios-locked-inputs-20261102]
-    paths: [.github/workflows/linux-graphics-metadata.yml]
 
 permissions:
   contents: read
