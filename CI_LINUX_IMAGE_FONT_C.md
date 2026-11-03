@@ -1,22 +1,22 @@
 # 单 tuple 原 C → image → font 源码 CI
 
-本工作流部署 Reko 已提交的 I3 控制器，提交为 `d1c9a31704021311e45c8a534eb532c82d34bd59`。两件部署原件保持原字节：
+本工作流部署 Reko 已提交的 I3 控制器，提交为 `9787bbfed47e7ba4512affc2bae8d46c26c1a12f`。两件部署原件保持原字节：
 
 | 文件 | 字节 | SHA-256 |
 | --- | ---: | --- |
-| `tools/ci_linux_image_font_c_tasks.py` | 67243 | `77ba8ac6168e39ee401e58140dfcae3a234eee6d056fcf9d17ba144a64afeb36` |
-| `tools/linux-image-font-c-ci-plan.json` | 9977 | `6c988569ed3da718359159cc776e3a990ceca4a2d9c6d3016b2d012a555d4ef8` |
+| `tools/ci_linux_image_font_c_tasks.py` | 88982 | `9443223f4e90f9051f6cfe06cb1a690aa334d19eaa283fdd919ae4cfef3a51fc` |
+| `tools/linux-image-font-c-ci-plan.json` | 10612 | `117cf3040a35ccff80e2702af92cd340765ff8b0c51b7e553831d261c5edf2aa` |
 
-原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 为 `18a08703f6c1cc4eaee6ab5d0bc8df1ee5599682` 原文，计划仍为 `b7be891afc358eba13eef62ced0ac64c27a2bee3` 的原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
+原 image 工作流的 17 件工具/输入 pin 全部保留，另增加这两件，共核 19 件。I1D 宿主基础仍为 `f78e7c1c720afd8cccd6ec68dadf37f76aba27be` 的两件原文，I2 组合消费者 worker 和计划均为 `c4cc27d9bdd35ed3b9535e8745da4f5c7eaf39ca` 的原文。I1D 仅提供已固定的必要纯 API，新控制器自行拥有本轮父子监督、handoff、单次 claim 和清理；不调用旧 image 生命周期。
 
-实际 font CI 的前置条件是对应 tuple 的 image 原件已完成 ROOT 和独立验收。部署、微测试及 Actions success 均不代替这项验收；主代理必须先核对应门禁再调度本工作流。首次调度仅为 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`。入口仅 `workflow_dispatch`，每次一个明确 tuple，没有 `all` 或 matrix；其他 tuple 必须匹配原 D Ubuntu 组及其前置验收。并发组和产物名包含版本、架构，新工作流使用独立临时命名空间。
+实际 font CI 的前置条件是对应 tuple 的 image 原件已完成 ROOT 和独立验收。部署、微测试及 Actions success 均不代替这项验收；主代理必须先核对应门禁再调度本工作流。工作流最初首个 tuple 为 `ubuntu_group=24.04`、`release=8.5.3`、`target_arch=sim-arm64`；本轮06只重试旧先导 `ubuntu_group=24.04`、`release=8.4.1`、`target_arch=sim-arm64`。入口仅 `workflow_dispatch`，每次一个明确 tuple，没有 `all` 或 matrix；其他 tuple 必须匹配原 D Ubuntu 组及其前置验收。并发组和产物名包含版本、架构，新工作流使用独立临时命名空间。
 
-十一文本输入已真实发布至 Release `406525604`、asset `706626909`：
+十一文本输入已真实发布至 Release `406525604`、asset `706865942`：
 
-- 名称：`j11-image-font-c-runtime-addon-20261104-05.tar.gz`
-- 字节：`174844`；SHA-256：`0fcda08f46cc2e1f6e369aed9bc10b515fe9545d2990c434362163dc4746d6a1`
-- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261104-05.tar.gz)
-- 11 个平铺普通 `0644` 成员、原文共 `900756` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
+- 名称：`j11-image-font-c-runtime-addon-20261104-06.tar.gz`
+- 字节：`182671`；SHA-256：`f7d1c9e1f0f6a1f5e79ad4b9720b16e6f5f7132b1e1fcd733182a45bab863b08`
+- URL：[固定十一文本原件](https://github.com/Leo008/renpy-build/releases/download/ci-inputs-8.5.3-20261008/j11-image-font-c-runtime-addon-20261104-06.tar.gz)
+- 11 个平铺普通 `0644` 成员、原文共 `931177` 字节；全成员 bytes/SHA 与 I3 catalog 逐件一致。原九文本加 I2 两文本，不含 SDK、凭据、游戏、业务源码或编译产物。
 
 C03 仍是 `j9-c-prefix-runtime-addon-20261102-03.tar.gz`，73548 字节、SHA-256 `1f2c626e882476617d39fc5bc25c02f14bb8bcb3db90a6faa6b4d36d18836f1f`；H1 仍按原 D 固定 profile 选原 ZIP。APT、SDK14、H0 密文、recipe CAS 和 clang runtime 使用既有固定原件；H0/CAS 缓存只供控制器复用，不设再次下载 fallback。需要既有 `CI_INPUTS_PASSWORD`、两件 SDK SHA 与 `REKO_H0_INPUTS_PASSWORD`，秘密只经宿主 stdin/FIFO/内存，不进入日志或 C1 命令环境。不执行 H2 密码、新 J2、B 或 pip 流程，也不发布任何私有编译输入。
 
@@ -44,6 +44,15 @@ I3 每个返回树先核逻辑 1 GiB、32768 成员及分配量，复制后宿�
 
 历史04（2026-11-04）：第三先导41665830759保留失败，原HB安装后出现原模型未收录的 cairo archive、libtool 和 pkgconfig 三件产物。已认证419成员诊断及原上游8.0.1源码确认该安装规则无条件执行，但实际Cairo配置为禁用。b7be891只补完整原安装闭包、禁用配置/原源码/三对象/安装头绑定；原Task、configure、SDK及image依赖均不改。消费者先55项、后受影响新增9项回归通过，旧47项AST不变，不称为一次56项套件。04只替换这两件已提交I2文本，其他九文本不变；第二I3原子从完整回传原字节重算新证明并要求15库，42项回归及50c212独审通过；该套件仅为协议回归，不是实际Linux字体构建。本轮部署及输入发布均不计font编译验收，下一次仍仅重试同一8.5.3/sim-arm64。
 
-本轮05（2026-11-04）：04首8.5.3/sim-arm64实际通过ROOT与独立完整静态验收，其余两现代ABI CI成功待本机接受；不把这些计为App或字体功能运行。旧8.4.1/sim-arm64先导41682908096的378私有成员已认证，原八image Task/17命令rc0，随后整个workspace库存拒绝旧Brotli bootstrap生成的compile symlink，font0/12尚未开始。旧raw缺readlink字面，不假定具体目标或据APT版本猜allowlist。
+历史05（2026-11-04）：04首8.5.3/sim-arm64实际通过ROOT与独立完整静态验收，其余两现代ABI CI成功待本机接受；不把这些计为App或字体功能运行。旧8.4.1/sim-arm64先导41682908096的378私有成员已认证，原八image Task/17命令rc0，随后整个workspace库存拒绝旧Brotli bootstrap生成的compile symlink，font0/12尚未开始。旧raw缺readlink字面，不假定具体目标或据APT版本猜allowlist。
 
 05仅同一失败tuple诊断重试，属于已有I6矩阵故障调查，不要求将这次尚未完整接受的image标记通过，也不扩展另外八font tuple。18a0870只在原失败handler增加no-follow有界symlink字面/mode/rawSHA及截断证据，原Task/bootstrap/relative source-prefix守卫/finally全部不变；64项完整回归/2.982s及独审1b4eb975通过。d1c9a31只绑定新worker，原I2计划不变，5项绑定回归/.708s与实际原43→唯一physical52及fresh I2合同通过、临时目录清；独审7b490c95通过。包05只替换worker，其他十文本与04相同；仅11构建文本公开，其余诊断继续CMS封装。诊断预期仍可失败，不计font成功；取得完整原链接字面后另按原native包原件作窄资格适配，不泛放任意外部链接。
+本轮06（2026-11-04）：诊断先导41694447746保留失败，379私有成员全部认证。原八image Task/17命令rc0后，库存仍拒绝旧Brotli1.0.9 bootstrap按原命令生成的绝对helper链接；font0/12尚未开始。诊断已经给出12条精确生成边及其余32条相对边，但旧原件未导出现场helper目标bytes或包owner，不追认它们已通过资格。
+
+I2提交 `c4cc27d9bdd35ed3b9535e8745da4f5c7eaf39ca` 只在8.4.1/Ubuntu24.04两个post-image快照使用自有pure adapter：核12条原literal、14个系统链节点、3个固定APT包版本/owner，以及总805068字节的12个普通helper原件；两个阶段比较模式、raw SHA、inode/device/mtime/ctime/nlink/uid/gid及run/workspace身份。未知、缺件、换owner/版本/原件或链路借道均拒绝。其余相对链接继续走原guard，原Task/bootstrap、baseline/preclaim及source/prefix/ELF门禁全部不变，不对Ubuntu22.04生成允许表。ROOT80项回归及完整源码独审通过；这仅是工具验证。
+
+I3提交 `9787bbfed47e7ba4512affc2bae8d46c26c1a12f` 从返回的12个普通0600 raw、两次完整资格侧证独立重算固定bytes/SHA/14chain/3package查询原stdout，绑定同次handoff、producer-owner、单claim、workspace-cleanup、原C收据/complete前库存及原Task完整命令日志。ROOT58项回归、真实原43→唯一physical52、fresh I2合同与独审通过。系统fingerprint和系统链接字面属于当次认证CI观测；宿主不restat已删除C1，不宣称重算未返回的32相对图或最终image/font marker bodies。最终prefix中的全部链接仍由原完整tar守卫实际重算。
+
+公开摘要增加且只增加四个有限字段：`image_native_helpers_required`、`qualified_image_native_helpers_verified`、`image_native_helper_raw_count`、`image_native_helper_raw_bytes`。8.4.1必须显式true/true/整数12/整数805068；现代8.5.3必须显式false/false/整数0/整数0，其他无例外路线也仅允许false/false/0/0。缺任一字段、bool冒充整数或数值不符都拒绝；失败不填默认资格成功。不公开raw正文、包查询、系统路径或fingerprint；它们仍只随既有CMS私有封套返还。
+
+06包已公开Release406525604/asset706865942，只替换c4cc的I2两件文本，前9件与05逐字相同；包不含805068原生raw、I3控制器、SDK或编译产物。原SDK名称/密文SHA、stdin解密、18GiB入口/6h时限/3330保留、CMS及精确cleanup原体保持；cleanup的expected_tool字节身份同步为88982以匹配真实新控制器。此次部署只允许同8.4.1/sim-arm64先导重试，不扩展其余旧font tuple；当次真实原件仍待ROOT与独立完整验收，不把旧失败、输入发布或微回归计为font通过。
