@@ -1,10 +1,5 @@
 name: RenPy first tuple original NASM AVIF C
 'on':
-  push:
-    branches:
-    - codex/ios-locked-inputs-20261102
-    paths:
-    - .github/workflows/linux-avif-c.yml
   workflow_dispatch: {}
 permissions:
   contents: read

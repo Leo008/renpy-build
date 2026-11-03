@@ -48,3 +48,6 @@ gh workflow run linux-avif-c.yml --repo Leo008/renpy-build --ref codex/ios-locke
 ```
 
 API 列表可能短暂为空；依据该次命令取得的真实 run ID 或精确 head/事件查 run/jobs，不把列表延迟当未派发后再次 dispatch。注册完成可另原子去掉 push 触发器，保持后续仅显式 dispatch。首原件完整接受前不展开其它 tuple，不将本候选、文本包、门禁或 CI job success 代替功能验收。
+
+
+工作流注册阶段已结束：实际workflow406083400，push注册run41697222148在d9fa855上completed/skipped、唯一job亦skipped，没有执行编译。临时五行push入口已移除；当前仅workflow_dispatch，仍零inputs且固定24.04/8.5.3/sim-arm64单组。原19pin/正文/SDKstdin/CMS/限额及cleanup原字节不变；首次实际源码验收由下一dispatch及其本机独立验收确定，注册结果不计NASM/AVIF通过。
