@@ -24,7 +24,7 @@ import time
 import types
 
 HERE = Path(__file__).absolute().parent
-PLAN_SHA256 = "117cf3040a35ccff80e2702af92cd340765ff8b0c51b7e553831d261c5edf2aa"
+PLAN_SHA256 = "3353f2ca3ce3fce454635bb2cc7a61c2873fb3af595bdf5b8d669e16e5c2d82b"
 TASK = "R00-02J11I3"
 RESULT = "single_tuple_actual_C_original_image_and_font_verified"
 FALSE = {"production_shared_provider_verified": False, "G1_verified": False, "G2_verified": False,
@@ -354,6 +354,15 @@ def cairo_disabled_evidence(folder, proof, row, arch, consumer, plan, i0, table,
             "Cairo_other_metadata_dependencies_generally_qualified":False}
 
 
+def native_helper_expected_scope(release, ubuntu):
+    """宿主独立固定四路线/Ubuntu与原raw总量；现代路线明确false/0/0且不借旧表。"""
+    values = {"8.5.3": ("24.04", False, 0), "8.4.1": ("24.04", True, 805068),
+              "8.3.7": ("22.04", True, 797809), "7.8.7": ("22.04", True, 797809)}
+    require(release in values and values[release][0] == ubuntu, "helper限定route/Ubuntu不同")
+    _, required, raw_bytes = values[release]
+    return {"required": required, "raw_count": 12 if required else 0, "raw_bytes": raw_bytes}
+
+
 def native_helper_query_document(record, argv, limit):
     """只解析固定dpkg原stdout/stderr，不在宿主执行包工具或读取系统目标。"""
     require(set(record) == {"argv", "returncode", "stdout_hex", "stderr_hex", "stdout", "stderr"}
@@ -435,24 +444,26 @@ def native_helper_handoff_evidence(folder, old_products, receipt, checkpoint, ro
     require(image_journal == expected_journal and [i0.decode(line) for line in i0.raw_file(folder / "font-task-events.jsonl", plan["limits"]["command_log_bytes"]).splitlines()] == font_commands, "helper实际start/exit原日志不同")
     bootstrap = [v for v in image_commands if v["task_name"] == "build-brotli.ios-" + arch and v["template"] == "bash ./bootstrap"]
     require(len(bootstrap) == 1 and bootstrap[0]["argv"] == ["bash", "./bootstrap"]
-            and bootstrap[0]["cwd"] == str(paths["workspace"] / plan["native_image_helper_contract"]["build_root"].format(arch=arch)), "helper原bootstrap实际调用不同")
+            and bootstrap[0]["cwd"] == str(paths["workspace"] / consumer.native_helper_contract(row, plan)["build_root"].format(arch=arch)), "helper原bootstrap实际调用不同")
     return run, wid, len(markers)
 
 
 def native_image_helper_evidence(folder, old_products, receipt, checkpoint, row, image_row, arch, consumer, plan, i0, group, c, runtime, inventory):
     """宿主重算已返回12原raw及14链/3包双阶段资格，其他route缺证明不会取得native例外。"""
-    contract = plan["native_image_helper_contract"]; names = ("image-native-helper-after-image.json", "image-native-helper-after-font.json")
-    if row["release"] != "8.4.1":
-        require(row["release"] != contract["release"] and "native_image_helpers" not in receipt and "native_image_helpers" not in checkpoint
+    expected_scope = native_helper_expected_scope(row["release"], row["ubuntu"])
+    contract = consumer.native_helper_contract(row, plan); names = ("image-native-helper-after-image.json", "image-native-helper-after-font.json")
+    if not expected_scope["required"]:
+        require(contract is None and "native_image_helpers" not in receipt and "native_image_helpers" not in checkpoint
                 and not any((folder / n).exists() for n in (*names, "native-image-helpers")), "非批准route不得借native helper证明")
         return {"qualified_image_native_helpers_verified": False, "image_native_helpers_required": False, "image_native_helper_raw_count": 0,
                 "image_native_helper_raw_bytes": 0, "native_helper_final_marker_bodies_recomputed_on_host": False,
                 "native_helper_remaining_relative_graph_recomputed_on_host": False}
-    require(row["release"] == contract["release"] and row["ubuntu"] == contract["ubuntu"] == "24.04" and arch in consumer.ARCHES, "helper限定route/Ubuntu不同")
+    require(contract is not None and row["ubuntu"] == contract["ubuntu"] and arch in consumer.ARCHES
+            and contract["expected_raw_bytes"] == expected_scope["raw_bytes"], "helper限定route/Ubuntu不同")
     selected = [v for v in image_row["sources"] if v["family"] == "brotli"]
     require(len(selected) == 1 and selected[0]["version"] == contract["version"] == "1.0.9" and selected[0]["archive"] == contract["source_archive"], "helper原source/版本不同")
     apt = contract["APT_group"]
-    require(group["ubuntu"] == apt["ubuntu"] == "24.04" and group["artifact"] == apt["artifact"] and group["manifest_bytes"] == apt["manifest_bytes"]
+    require(group["ubuntu"] == apt["ubuntu"] == row["ubuntu"] and group["artifact"] == apt["artifact"] and group["manifest_bytes"] == apt["manifest_bytes"]
             and group["manifest_sha256"] == apt["manifest_sha256"] and group["recorded_linux_signature_verified"] is True, "helper原签名APT组不同")
     packages = {}
     for value in group["base_packages"] + group["packages"]:
@@ -475,7 +486,7 @@ def native_image_helper_evidence(folder, old_products, receipt, checkpoint, row,
         require(set(q) == {"contract_id", "selected_build_root", "helpers", "system_nodes", "package_queries", "expected_original_APT_group", "actual_raw_bytes", "relative_links_original_guard_verified", "relative_native_aliases_rejected", "run", "workspace_identity", "source_archive", "bootstrap"}
                 and q["contract_id"] == contract["id"] and q["selected_build_root"] == root and q["run"] == run and q["workspace_identity"] == wid
                 and q["source_archive"] == contract["source_archive"] and q["bootstrap"] == {k: contract["bootstrap"][k] for k in ("bytes", "sha256")}
-                and q["expected_original_APT_group"] == apt and q["actual_raw_bytes"] == contract["expected_raw_bytes"] == 805068
+                and q["expected_original_APT_group"] == apt and q["actual_raw_bytes"] == contract["expected_raw_bytes"] == expected_scope["raw_bytes"]
                 and q["relative_links_original_guard_verified"] is True and q["relative_native_aliases_rejected"] is True, "helper本次source/run/完整现场guard证明不同")
         require(set(q["system_nodes"]) == set(contract["system_nodes"]), "helper14节点集合不同")
         for path, expected in contract["system_nodes"].items():
@@ -516,7 +527,7 @@ def native_image_helper_evidence(folder, old_products, receipt, checkpoint, row,
         identity = i0.identity(path, contract["limits"]["single_native_file_bytes"])
         require(identity == {k: expected[k] for k in ("bytes", "sha256")}, "helper返回raw不是原APT member字节")
         raw_members.append({"path": spec["raw_member"], **identity, "permissions": "0600"})
-    require(proofs[0]["raw_files"] == raw_members and sum(v["bytes"] for v in raw_members) == 805068, "helper完整raw清单不同")
+    require(proofs[0]["raw_files"] == raw_members and sum(v["bytes"] for v in raw_members) == expected_scope["raw_bytes"], "helper完整raw清单不同")
     raw_root = i0.guarded(folder / "native-image-helpers"); files, directories = set(), set()
     expected_directories = {str(parent) for item in raw_members for parent in Path(item["path"]).parents if str(parent) not in (".", "native-image-helpers")}
     for current, dirs, names2 in os.walk(raw_root, followlinks=False):
@@ -529,8 +540,9 @@ def native_image_helper_evidence(folder, old_products, receipt, checkpoint, row,
     require(checkpoint["native_image_helpers"] == {"artifact": artifacts[0], "raw_files": raw_members}
             and receipt["native_image_helpers"] == {"contract_id": contract["id"], "after_image": artifacts[0], "after_font": artifacts[1], "raw_files": raw_members,
                                                      "current_C1_verified": True, "original_failed379_retroactively_verified": False, "general_native_dependency_qualification": False}, "helpercheckpoint/收据未绑定完整双阶段原件")
-    log("宿主已重算12 helper原raw/14链/3包及本次run/owner；不冒称restat已清C1")
-    return {"qualified_image_native_helpers_verified": True, "image_native_helpers_required": True, "image_native_helper_raw_count": 12, "image_native_helper_raw_bytes": 805068,
+    log("宿主已重算" + row["release"] + "/Ubuntu" + row["ubuntu"] + "的12 helper原raw/14链/3包及本次run/owner；"
+        + str(expected_scope["raw_bytes"]) + "B；不冒称restat已清C1")
+    return {"qualified_image_native_helpers_verified": True, "image_native_helpers_required": True, "image_native_helper_raw_count": 12, "image_native_helper_raw_bytes": expected_scope["raw_bytes"],
             "image_native_helper_system_node_count": 14, "image_native_helper_APT_package_count": 3, "native_helper_original_C_complete_before_inventory_bound": True, "native_helper_original_C_complete_before_marker_count": marker_count,
             "native_helper_system_fingerprints_authenticated_in_CI_only": True, "native_helper_original_C1_relative_guard_authenticated": True,
             "native_helper_final_marker_bodies_recomputed_on_host": False, "native_helper_remaining_relative_graph_recomputed_on_host": False,
@@ -564,7 +576,7 @@ def verify_product_documents(runtime, folder, old_products, release, arch, consu
     old = i0.decode(i0.raw_file(old_products / "c-prefix-inventory.json")); old_names = {v["path"] for v in old}
     require(receipt["current_C_export"] == i0.identity(old_products / "export.json"), "本轮C导出不符")
     wanted_sidecars = {"font-prefix-inventory.json", "font-archive-objects.json", "font-installed-headers.json", "font-commands.json", "font-native-tools.json", "font-features.json", "font-native-generators.json", "font-harfbuzz-cairo-disabled.json"}
-    if release == "8.4.1": wanted_sidecars.update(("image-native-helper-after-image.json", "image-native-helper-after-font.json"))
+    if native_helper_expected_scope(release, row["ubuntu"])["required"]: wanted_sidecars.update(("image-native-helper-after-image.json", "image-native-helper-after-font.json"))
     require(set(receipt["sidecars"]) == wanted_sidecars, "字体固定sidecar集合不同")
     sidecars = {name: i0.decode(i0.raw_file(folder / name)) for name in wanted_sidecars}
     for name in wanted_sidecars: require(receipt["sidecars"][name] == i0.identity(folder / name), "字体sidecar原字节不同")
@@ -793,10 +805,11 @@ def image_font_handoff(args, plan, consumer, consumer_plan, i0, run, owner, runt
             and verification["new_archive_count"] == 15 and verification["native_apinames_count"] == (0 if args.release == "8.5.3" else 2)
             and verification["HarfBuzz_Cairo_feature_enabled"] is False and verification["Cairo_other_metadata_dependencies_generally_qualified"] is False
             and verification["returned_binary_executed_on_host"] is False, "组合完整reader范围不同")
-    require(verification["image_native_helpers_required"] is (args.release == "8.4.1")
-            and verification["qualified_image_native_helpers_verified"] is (args.release == "8.4.1")
-            and verification["image_native_helper_raw_count"] == (12 if args.release == "8.4.1" else 0)
-            and verification["image_native_helper_raw_bytes"] == (805068 if args.release == "8.4.1" else 0), "组合helper宿主资格范围不同")
+    expected_helper_scope = native_helper_expected_scope(args.release, args.ubuntu)
+    require(verification["image_native_helpers_required"] is expected_helper_scope["required"]
+            and verification["qualified_image_native_helpers_verified"] is expected_helper_scope["required"]
+            and verification["image_native_helper_raw_count"] == expected_helper_scope["raw_count"]
+            and verification["image_native_helper_raw_bytes"] == expected_helper_scope["raw_bytes"], "组合helper宿主资格范围不同")
     # 完整文件清单只留私有stdout，公开summary仅放计数/证明，不复制正文。
     return {"handoff": proof, "receipt": i0.identity(folder / "current-image-font-c-receipt.json"),
             "host_verification": {k: v for k, v in verification.items() if k != "returned_files"}, "host_verification_stdout": i0.identity(diagnostics / "image-font-host-verification.stdout"),

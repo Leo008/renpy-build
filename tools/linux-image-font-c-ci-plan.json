@@ -71,15 +71,15 @@
     },
     {
       "path": "run_locked_current_image_font_c_tasks.py",
-      "source_commit": "c4cc27d9bdd35ed3b9535e8745da4f5c7eaf39ca",
-      "bytes": 106154,
-      "sha256": "ead69c18faecd48c240f18d3514af1f6a3d4effe4b2f9bc0bfdb2ee8b32b075e"
+      "source_commit": "caae7e596b374fc49ffcdb32671ee40ab4437450",
+      "bytes": 108279,
+      "sha256": "2f2725660e44e383ed4e78fd59bd3060175d3e2d14c091c959e3b030aef4ded9"
     },
     {
       "path": "current-image-font-c-task-plan.json",
-      "source_commit": "c4cc27d9bdd35ed3b9535e8745da4f5c7eaf39ca",
-      "bytes": 81700,
-      "sha256": "8d873e357dbe72dfa89fb38a1288af4825bae16778ba2254cfbe8389c29c4c81"
+      "source_commit": "caae7e596b374fc49ffcdb32671ee40ab4437450",
+      "bytes": 96348,
+      "sha256": "69445f2b4d3e36012384eef72918acab179c3019a8e5bd65f75cac6c13a06b20"
     }
   ],
   "C_runtime_addon": {
@@ -213,7 +213,7 @@
     "called_script": "CREATE_CONTROL_DIRECTORY",
     "old_image_handoff_execute_main_called": false
   },
-  "image_font_consumer_commit": "c4cc27d9bdd35ed3b9535e8745da4f5c7eaf39ca",
+  "image_font_consumer_commit": "caae7e596b374fc49ffcdb32671ee40ab4437450",
   "reader_contract": {
     "final_prefix": "one full original archive, all members bytes/mode/links and every new image/font object/executable;10image+5font=15 new static archives",
     "first_FT": "finite original archive/raw installed headers/features before FT-HB overwrite, original early non-FT members checked through final archive",
@@ -221,6 +221,6 @@
     "features": "Exact four modern probes or six old-route probes: target after-configure/after-build plus old native host after-configure only; raw headers/macros and same-compiler argv. font-features sidecar contains only two target after-build records.",
     "returned_folder": "ordinary bounded files/directories only; hash every returned regular original file, critical sidecars bound by receipts; host never executes returned ELF or target binaries",
     "disabled_HarfBuzz_Cairo": "Fifth font archive and all3 objects, final hb-cairo.h same originalsource bytes, raw source8/config3/pc-la/nm and exact native LLVM/APT qualification. Feature remains disabled; other nonCairo metadata tokens only authenticated observations, not generic dependency qualification.",
-    "qualified_native_image_helpers": "Only8.4.1/Ubuntu24.04 requires both authenticated12-link/14-node/3-package qualification documents and returned805068raw bytes. Host independently rehashes all12 originals and recomputes chain/package/query/run/owner/claim/cleanup/C-before-markers/source/Task/journal bindings. Fingerprints and system symlink text are authenticated CI observations, not a host restat of deletedC1; remaining relative-link guard and final image/font marker bodies are not returned raw and are not claimed host-recomputed. Other routes retain original guard and cannot acquire qualification from missing proof."
+    "qualified_native_image_helpers": "The fixed scopes8.4.1/Ubuntu24.04 and8.3.7-or7.8.7/Ubuntu22.04 require both authenticated12-link/14-node/3-package qualification documents and returned805068or797809raw bytes respectively. Host independently rehashes all12 originals and recomputes chain/package/query/run/owner/claim/cleanup/C-before-markers/source/Task/journal bindings. Fingerprints and system symlink text are authenticated CI observations, not a host restat of deletedC1; remaining relative-link guard and final image/font marker bodies are not returned raw and are not claimed host-recomputed. 8.5.3 retains the original guard with explicitfalse/zero helper fields; unknown route/Ubuntu pairs or missing proof cannot acquire qualification."
   }
 }
